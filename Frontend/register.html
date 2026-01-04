@@ -4,48 +4,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Join Us | Learn. Sign. Connect.</title>
+
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-    <!-- Updated CSS path -->
     <link rel="stylesheet" href="/static/css/register.css">
 </head>
 <body>
 
-    <div class="main-card">
-        <div class="left-panel">
-            <div class="logo">
-                <a href="/static/images/registration.jpg" target="_blank">
-                    <img src="/static/images/logo_white.png" alt="Logo" height="100px" width="80px">
-                </a>
-            </div>
-
-            <!-- MOVED ABOVE IMAGE -->
-            <h1 class="brand-text">Registration</h1>
-
-            <div class="illustration-container">
-                <img src="/static/images/registration.jpg" alt="Registration Illustration">
-            </div>
+<div class="main-card">
+    <div class="left-panel">
+        <div class="logo">
+            <img src="/static/images/logo_white.png" alt="Logo" height="100" width="80">
         </div>
 
-        <div class="right-panel">
-            <div class="login-box">
-                <h2>Create Your Account</h2>
-                <p class="subtitle">Start your sign language journey today</p>
-                
-                <form action="login.html">
-                    <input type="text" placeholder="Full Name" required>
-                    <input type="text" placeholder="Username" required>
-                    <input type="password" placeholder="Create Password" required>
-                    <input type="password" placeholder="Confirm Password" required>
-                    
-                    <button type="submit" class="login-btn">Register Now</button>
-                </form>
+        <h1 class="brand-text">Registration</h1>
 
-                <p class="register-text">
-                    Already have an account? <a href="/login">Login</a>
-                </p>
-            </div>
+        <div class="illustration-container">
+            <img src="/static/images/registration.jpg" alt="Registration Illustration">
         </div>
     </div>
+
+    <div class="right-panel">
+        <div class="login-box">
+            <h2>Create Your Account</h2>
+            <p class="subtitle">Start your sign language journey today</p>
+
+            <!-- 🔥 FIXED FORM -->
+            <form action="/register" method="post">
+                <input type="text" name="full_name" placeholder="Full Name" required>
+                <input type="text" name="username" placeholder="Username" required>
+                <input type="password" name="password" placeholder="Create Password" required>
+                <input type="password" name="confirm_password" placeholder="Confirm Password" required>
+
+                <button type="submit" class="login-btn">Register Now</button>
+            </form>
+
+            <p class="register-text">
+                Already have an account? <a href="/login">Login</a>
+            </p>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>

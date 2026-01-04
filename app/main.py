@@ -6,14 +6,10 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-# ----------------------------
 # FastAPI app
-# ----------------------------
 app = FastAPI()
 
-# ----------------------------
 # Paths
-# ----------------------------
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Serve static files (CSS, JS, images)
@@ -22,9 +18,7 @@ app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), na
 # Templates folder
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "Frontend"))
 
-# ----------------------------
 # Routes
-# ----------------------------
 
 @app.get("/", response_class=HTMLResponse)
 def landing_page(request: Request):

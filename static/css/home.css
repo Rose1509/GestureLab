@@ -7,74 +7,98 @@
 }
 
 body {
-    background-color: #f8fbff;
+    background-color: #F2F5F5;
+    overflow-x: hidden; /* Important for the curve overflow */
 }
 
-/* HERO SECTION - Deep Half-Circle Curve */
-.hero {
+
+
+.nav-item:hover {
+    color: #1a2e4c;
+    background-color: #F5F7FB;
+}
+
+.nav-item.active {
+    color: #1a2e4c;
+    font-weight: 700;
+    background-color: #F5F7FB;
+    
+    /* Optimized Shadow: X-offset, Y-offset, Blur, Spread, Color */
+    box-shadow: 9px 20px 20px -3px rgba(26, 56, 80, 0.3);
+}
+
+/* HERO SECTION - Clip Path Fix */
+.hero-wrapper {
+    position: relative;
     background-color: #1a2e4c;
     color: white;
     text-align: center;
-
-    /* reduce top padding */
-    padding: 10px 20px 220px;
-    margin-top: -200px;      /* moves it DOWN */
-    border-bottom-left-radius: 200% 300%;
-    border-bottom-right-radius: 200% 300%;
-
-    position: relative;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    width: 100%;
+    padding: 100px 0 160px; /* Space for text and the curve depth */
+    
+    /* Creates the deep U-shape without moving the internal text */
+    clip-path: ellipse(51% 84% at 50% 0%);
+    z-index: 1;
 }
 
-.hero-container h1 {
-    font-size: 2.5rem;
-    margin-bottom: 40px;
-    margin-top: 205px;      /* moves it DOWN */
-    font-weight: 700;
+.hero-content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 20px;
 }
 
-.hero-container p {
-    max-width: 800px;
-    margin: 0 auto 40px;
-    font-size: 1.1rem;
-    line-height: 1.6;
-    opacity: 0.9;
+.hero-content h1 {
+    font-size: 2.8rem;  
+    font-weight: 800;
+    margin-top: -75px;;
 }
 
-/* BUTTONS WITH TRANSITIONS & DEEP SHADOWS */
+.hero-description {
+    font-size: 1.15rem;
+    line-height: 1.7;
+    opacity: 0.95;
+    max-width: 850px;
+    margin: 0 auto;
+}
+
+/* MAIN BUTTON - Centered on the Edge */
 .btn-main {
+    position: absolute;
+    bottom: 400px;
+    left: 50%;
+    transform: translate(-50%, 50%); /* Half-in, half-out of the blue section */
+    
     background-color: #dbeafe;
     color: #1a2e4c;
     border: none;
-    padding: 18px 50px;
+    padding: 18px 55px;
     border-radius: 15px;
     font-weight: 800;
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     cursor: pointer;
-    box-shadow: 0 12px 25px rgba(0,0,0,0.3);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    z-index: 10;
     transition: all 0.3s ease;
 }
 
 .btn-main:hover {
     background-color: #ffffff;
-    transform: translateY(-5px);
-    box-shadow: 0 18px 35px rgba(0,0,0,0.4);
+    transform: translate(-50%, 45%);
 }
 
 .hero-character {
     position: absolute;
-    right: 8%;
-    bottom: -60px;
-    width: 180px;
+    right: 7%;
+    bottom: -40px;
+    width: 200px;
     z-index: 5;
-    /* Added subtle shadow to the character image */
     filter: drop-shadow(0 10px 15px rgba(0,0,0,0.2));
 }
 
 /* FEATURE SECTION */
 .section-title {
     text-align: center;
-    padding: 100px 0 50px;
+    padding: 120px 0 60px;
     color: #1a2e4c;
     font-size: 2.2rem;
     font-weight: 800;
@@ -92,23 +116,17 @@ body {
     margin-bottom: 100px;
 }
 
-/* FEATURE CARDS WITH PROPER SHADOWS */
 .feature-card {
     background: white;
     border-radius: 35px;
     padding: 45px 30px;
     text-align: center;
-    /* Deep soft shadow to match the image */
     box-shadow: 0 20px 40px rgba(0,0,0,0.25);
     transition: transform 0.3s ease;
 }
 
-.feature-card:hover {
-    transform: translateY(-10px);
-}
-
 .feature-card h3 { margin-bottom: 20px; color: #1a2e4c; font-size: 1.5rem; }
-.card-img-box img { width: 100%; height: auto; margin-bottom: 20px; }
+.card-img-box img { width: 100%; height: auto; margin-bottom: 20px; border-radius: 10px; }
 .feature-card h4 { margin-bottom: 15px; color: #1a2e4c; font-weight: 700; }
 .feature-card p { font-size: 1rem; color: #555; line-height: 1.5; }
 
@@ -122,16 +140,8 @@ body {
     color: white;
 }
 
-.action-circle-item { 
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    max-width: 150px; /* Limits width so text wraps properly under circle */
-}
-
-/* Center text and icons perfectly in circles */
 .circle {
-    width: 120px; /* Made slightly larger to look more circular */
+    width: 120px;
     height: 120px;
     background: #e0e7ff;
     border-radius: 50%;
@@ -139,21 +149,8 @@ body {
     align-items: center;
     justify-content: center;
     font-size: 3rem;
-    margin: 0 auto 20px;
+    margin-bottom: 15px;
     box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-    transition: transform 0.3s ease;
-    cursor: pointer;
-}
-
-.circle:hover {
-    transform: scale(1.1);
-}
-
-.action-circle-item p {
-    text-align: center;
-    font-weight: 600;
-    line-height: 1.3;
-    font-size: 1.1rem;
 }
 
 .btn-secondary {
@@ -166,14 +163,6 @@ body {
     font-size: 1.2rem;
     cursor: pointer;
     box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    transition: all 0.3s ease;
-}
-
-.btn-secondary:hover {
-    background: #1a2e4c;
-    color: white;
-    outline: 2px solid white;
-    transform: translateY(-5px);
 }
 
 /* ABOUT & CONTACT BOX */
@@ -188,24 +177,288 @@ body {
     display: flex;
     gap: 50px;
     align-items: center;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.05);
 }
 
 .info-left, .info-right { flex: 1; }
-.info-left h3, .info-right h3 { margin-bottom: 20px; color: #1a2e4c; font-size: 1.8rem; }
-.info-left p, .info-right p { font-size: 1.1rem; line-height: 1.7; color: #334155; }
-
 .vertical-divider {
     width: 3px;
     background-color: #1a2e4c;
     height: 120px;
 }
 
-/* RESPONSIVE FIX */
+/* RESPONSIVE */
 @media (max-width: 768px) {
     .info-content { flex-direction: column; text-align: center; padding: 40px; }
     .vertical-divider { display: none; }
-    .hero { border-bottom-left-radius: 100% 20%; border-bottom-right-radius: 100% 20%; }
+    .hero-wrapper { clip-path: ellipse(160% 100% at 50% 0%); }
     .hero-character { display: none; }
-    .action-row { gap: 30px; }
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #f8fbff;
+    overflow-x: hidden; /* Important for the curve overflow */
+}
+
+/* HERO SECTION - Clip Path Fix */
+.hero-wrapper {
+    position: relative;
+    background-color: #1a2e4c;
+    color: white;
+    text-align: center;
+    width: 100%;
+    padding: 100px 0 160px; /* Space for text and the curve depth */
+    
+    /* Creates the deep U-shape without moving the internal text */
+    clip-path: ellipse(51% 84% at 50% 0%);
+    z-index: 1;
+}
+
+.hero-content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.hero-content h1 {
+    font-size: 2.8rem;
+    font-weight: 800;
+    margin-bottom: 25px;
+}
+
+.hero-description {
+    font-size: 1.15rem;
+    line-height: 1.7;
+    opacity: 0.95;
+    max-width: 850px;
+    margin: 0 auto;
+}
+
+/* MAIN BUTTON - Centered on the Edge */
+.btn-main {
+    position: absolute;
+    margin: -73px;
+    left: 55%;
+    transform: translate(-50%, 50%); /* Half-in, half-out of the blue section */
+    
+    background-color: #dbeafe;
+    color: #1a2e4c;
+    border: none;
+    padding: 18px 55px;
+    border-radius: 15px;
+    font-weight: 800;
+    font-size: 1.3rem;
+    cursor: pointer;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    z-index: 10;
+    transition: all 0.3s ease;
+}
+
+.btn-main:hover {
+    background-color: #ffffff;
+    transform: translate(-50%, 45%);
+}
+
+.hero-character {
+    position: absolute;
+    right: -4%;
+    bottom: 4px;
+    width: 350px;
+    z-index: 5;
+    filter: drop-shadow(0 10px 15px rgba(0,0,0,0.2));
+}
+
+/* --- FEATURE SECTION --- */
+.section-title {
+    text-align: center;
+    padding: 140px 0 60px; /* Space for the floating button */
+    color: #1a2e4c;
+    font-size: 2.2rem;
+    font-weight: 800;
+}
+
+.dark-section-bg {
+    background-color: #1a2e4c;
+    padding: 100px 8%;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 40px;
+    margin-bottom: 80px;
+    justify-items: center;
+}
+
+/* THE EXACT FLASHCARD STYLE */
+.feature-card {
+    background: #e1e9f5; /* Light blue-grey background from assets */
+    border-radius: 35px;
+    padding: 35px 25px;
+    text-align: center;
+    width: 100%;
+    max-width: 280px;
+    position: relative;
+    transition: all 0.3s ease;
+    
+    /* The blocky offset shadow from the image */
+    box-shadow: 12px 12px 0px rgba(0, 0, 0, 0.3); 
+}
+
+.feature-card:hover {
+    transform: translate(-5px, -5px);
+    box-shadow: 17px 17px 0px rgba(0, 0, 0, 0.4);
+}
+
+.feature-card h3 { 
+    margin-bottom: 20px; 
+    color: #1a2e4c; 
+    font-size: 1.4rem;
+    font-weight: 800;
+}
+
+.card-img-box {
+    background: white;
+    border-radius: 20px;
+    padding: 15px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 150px;
+}
+
+.card-img-box img { 
+    max-width: 100%; 
+    max-height: 100%; 
+    object-fit: contain;
+}
+
+.feature-card h4 { 
+    margin-bottom: 12px; 
+    color: #1a2e4c; 
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.feature-card p { 
+    font-size: 0.95rem; 
+    color: #444; 
+    line-height: 1.5; 
+}
+
+/* --- ACTION ROW --- */
+.action-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 60px;
+    flex-wrap: wrap;
+    color: white;
+}
+
+.action-circle-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 140px;
+}
+
+/* Round Badge Icons */
+.circle {
+    width: 120px;
+    height: 120px;
+    background: #e1e9f5;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    transition: transform 0.3s ease;
+}
+
+.circle img {
+    width: 60%;
+    height: 60%;
+    object-fit: contain;
+}
+
+.circle:hover {
+    transform: scale(1.1);
+}
+
+.action-circle-item p {
+    text-align: center;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.btn-secondary {
+    background: white;
+    color: #1a2e4c;
+    border: none;
+    padding: 18px 45px;
+    border-radius: 18px;
+    font-weight: 800;
+    font-size: 1.2rem;
+    cursor: pointer;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+}
+
+/* --- ABOUT & CONTACT BOX --- */
+.info-footer-box {
+    padding: 100px 5%;
+}
+
+.info-content {
+    background-color: #DFE5ED; /* Lighter blue-grey for the box */
+    border-radius: 60px;
+    padding: 60px;
+    display: flex;
+    gap: 50px;
+    align-items: center;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+}
+
+.info-left, .info-right { flex: 1; }
+
+.info-content h3 {
+    color: #1a2e4c;
+    font-size: 1.8rem;
+    margin-bottom: 15px;
+    font-weight: 800;
+}
+
+.info-content p {
+    color: #334155;
+    line-height: 1.6;
+    font-size: 1rem;
+}
+
+.vertical-divider {
+    width: 3px;
+    background-color: #1a2e4c;
+    height: 100px;
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 768px) {
+    .info-content { flex-direction: column; text-align: center; }
+    .vertical-divider { display: none; }
+    .hero-wrapper { clip-path: ellipse(150% 100% at 50% 0%); }
+    .hero-character { display: none; }
+    .btn-main { padding: 15px 35px; font-size: 1.1rem; }
 }

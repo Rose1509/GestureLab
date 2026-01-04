@@ -1,68 +1,48 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASL Navigation Bar</title>
-    <!-- Updated CSS path -->
-    <link rel="stylesheet" href="/static/css/header.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap" rel="stylesheet">
-</head>
-<body>
+<nav class="navbar">
+    <div class="logo">
+        <img src="/static/images/logo.png" alt="ASL Logo">
+    </div>
 
-    <nav class="navbar">
-        <div class="logo">
-            <img src="/static/images/logo.png" alt="ASL Logo">
-        </div>
-
-        <div class="nav-links">
-            <a href="homepage.html" class="nav-item">
-                <div class="icon-container">
-                    <div class="icon-blob circle"></div>
-                    <img src="/static/images/homepage.png" alt="Home" class="nav-icon">
-                </div>
-                <span>Home page</span>
-            </a>
-
-            <a href="lessonpage.html" class="nav-item">
-                <div class="icon-container">
-                    <div class="icon-blob square"></div>
-                    <img src="/static/images/lesson.png" alt="Lessons" class="nav-icon">
-                </div>
-                <span>Lessons</span>
-            </a>
-
-            <a href="practicepage.html" class="nav-item">
-                <div class="icon-container">
-                    <div class="icon-blob circle"></div>
-                    <img src="/static/images/practice.png" alt="Practice" class="nav-icon">
-                </div>
-                <span>Practice</span>
-            </a>
-
-            <a href="quizzespage.html" class="nav-item">
-                <div class="icon-container">
-                    <div class="icon-blob circle"></div>
-                    <img src="/static/images/quizzes.png" alt="Quizzes" class="nav-icon">
-                </div>
-                <span>Quizzes</span>
-            </a>
-
-            <a href="profilepage.html" class="nav-item">
-                <div class="icon-container">
-                    <div class="icon-blob circle"></div>
-                    <img src="/static/images/profilepage.png" alt="Profile" class="nav-icon">
-                </div>
-                <span>Profile</span>
-            </a>
-        </div>
-
-        <div class="action-btn">
-            <div class="arrow-box">
-                <img src="/static/images/log-out.png" alt="Go" class="arrow-icon">
+    <div class="nav-links">
+        <a href="/" class="nav-item">
+            <div class="icon-container">
+                <img src="/static/images/homepage.png" alt="Home" class="nav-icon">
             </div>
-        </div>
-    </nav>
+            <span>Home</span>
+        </a>
 
-</body>
-</html>
+        <a href="/lessons" class="nav-item">
+            <div class="icon-container">
+                <img src="/static/images/lesson.png" alt="Lessons" class="nav-icon">
+            </div>
+            <span>Lessons</span>
+        </a>
+
+        <a href="/practice" class="nav-item">
+            <div class="icon-container">
+                <img src="/static/images/practice.png" alt="Practice" class="nav-icon">
+            </div>
+            <span>Practice</span>
+        </a>
+
+        <a href="/quizzes" class="nav-item">
+            <div class="icon-container">
+                <img src="/static/images/quizzes.png" alt="Quizzes" class="nav-icon">
+            </div>
+            <span>Quizzes</span>
+        </a>
+
+        <a href="/profile" class="nav-item">
+            <div class="icon-container">
+                <img src="/static/images/profilepage.png" alt="Profile" class="nav-icon">
+            </div>
+            <span>Profile</span>
+        </a>
+    </div>
+
+    <div class="action-btn">
+        <div class="arrow-box">
+            <img src="/static/images/log-out.png" alt="Logout" class="arrow-icon">
+        </div>
+    </div>
+</nav>
