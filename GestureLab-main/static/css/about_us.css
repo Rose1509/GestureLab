@@ -1,0 +1,137 @@
+/* GENERAL RESET */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #DFE5ED;
+ 
+}
+
+/* NAVBAR (Kept consistent with your design) */
+:root {
+    --navy: #1a2b4b;
+    --light-blue: #bae6fd;
+    --white: #0aaa2575;
+    --bg-gray: #f8fafc;
+    --hover-gray: #F5F7FB; 
+}
+
+.nav-item:hover {
+    color: #1a2e4c;
+    background-color: #F5F7FB;
+}
+
+/* ABOUT PAGE LAYOUT */
+.about-container {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+.about-title {
+    text-align: center;
+   
+    font-size: 2.5rem;
+    color: #1a2e4c;
+    margin-bottom: 40px;
+}
+
+.about-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 30px;
+}
+
+/* CARDS STYLE */
+.about-card, .features-sidebar-card, .about-image-box {
+    background: white;
+    border-radius: 30px;
+    padding: 40px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    margin-bottom: 30px;
+    border: 1px solid #eef2f7;
+}
+
+.about-card h2 { color: #1a2e4c; margin-bottom: 15px; font-size: 1.6rem; }
+.about-card p { color: #555; line-height: 1.7; font-size: 1.1rem; }
+
+/* SPECIAL CARD FOR CTA */
+.start-today { text-align: center; }
+.btn-primary-dark {
+    background-color: #1a2e4c;
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    border-radius: 50px;
+    font-weight: 700;
+    margin-top: 25px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+/* RIGHT COLUMN STYLES */
+.about-image-box img {
+    width: 88%;
+    height: 94%;
+    margin-top: -31px;
+    margin-left: 15px;
+    object-fit: cover;
+}
+
+.features-sidebar-card h2 { 
+    text-align: center; 
+    color: #1a2e4c; 
+    margin-bottom: 30px; 
+    font-size: 1.8rem;
+}
+
+.features-list { list-style: none; }
+.features-list li {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 25px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #1a2e4c;
+}
+
+.features-list .icon { font-size: 1.5rem; }
+
+/* FOOTER */
+.site-footer {
+    background-color: #1a2e4c;
+    color: white;
+    padding: 60px 8% 20px;
+    margin-top: 80px;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 40px;
+    margin-bottom: 40px;
+}
+
+.footer-links-grid { display: flex; gap: 60px; }
+.footer-col h4 { margin-bottom: 20px; font-size: 1.2rem; }
+.footer-col a { display: block; color: #cbd5e1; text-decoration: none; margin-bottom: 10px; font-size: 0.9rem; }
+
+.footer-bottom {
+    text-align: center;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 20px;
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+    .about-grid { grid-template-columns: 1fr; }
+    .about-visual-column { order: -1; }
+}
