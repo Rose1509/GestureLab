@@ -56,7 +56,6 @@ def login_form(request: Request):
 def register_form(request: Request):
     return templates.TemplateResponse("register.html", {"request": request, "error": None})
 
-
 @app.get("/about", response_class=HTMLResponse)
 def about_us(request: Request):
     return templates.TemplateResponse("about_us.html", {"request": request})
@@ -64,6 +63,7 @@ def about_us(request: Request):
 @app.get("/contact", response_class=HTMLResponse)
 def contact_us(request: Request):
     return templates.TemplateResponse("contact_us.html", {"request": request})
+
 
 # -------------------------
 # Routes - POST Register
