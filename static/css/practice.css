@@ -1,0 +1,156 @@
+/* ROOT AND RESET */
+:root {
+    --navy: #1a2b4b;
+    --bg-color: #DFE5ED;
+    --card-white: #ffffff;
+    --text-muted: #4b5563;
+}
+
+body {
+    background-color: var(--bg-color);
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    padding: 0;
+    color: var(--navy);
+}
+
+/* MAIN CONTAINER */
+.practice-main-content {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 20px;
+    min-height: 80vh;
+}
+
+/* PAGE HEADER */
+.practice-page-header h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+    color: var(--navy);
+}
+
+.practice-page-header p {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    margin-bottom: 30px;
+}
+
+/* LAYOUT GRID */
+.practice-layout-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 30px;
+}
+
+/* CARD SYSTEM */
+.practice-card {
+    background: var(--card-white);
+    border-radius: 40px; /* High rounding per screenshot */
+    padding: 40px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.04);
+}
+
+.card-titles h2 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.card-titles p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin: 5px 0 0 0;
+}
+
+/* CAMERA SECTION */
+.video-feed-container {
+    background-color: #f1f5f9;
+    border-radius: 35px;
+    height: 420px;
+    margin: 30px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.camera-placeholder-ui {
+    text-align: center;
+    color: #94a3b8;
+}
+
+.camera-placeholder-ui img {
+    width: 60px;
+    opacity: 0.5;
+    margin-bottom: 15px;
+}
+
+.action-footer {
+    display: flex;
+    justify-content: center;
+}
+
+/* DARK NAVY PILL BUTTON */
+.dark-pill-btn {
+    background-color: var(--navy);
+    color: white;
+    border: none;
+    padding: 16px 45px;
+    border-radius: 20px; /* Slightly squared pill per screenshot */
+    font-size: 1.15rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: 0.3s ease;
+}
+
+.dark-pill-btn:hover {
+    background-color: #233a61;
+    transform: translateY(-2px);
+}
+
+.btn-img {
+    width: 24px;
+    height: 24px;
+    filter: brightness(0) invert(1);
+}
+
+/* SIDEBAR AND DEMOS */
+.practice-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.asl-image-box {
+    display: flex;
+    justify-content: center;
+    padding: 20px 0;
+}
+
+.asl-image-box img {
+    height: 200px;
+    object-fit: contain;
+}
+
+/* INSTRUCTIONS LIST */
+.instruction-steps {
+    margin-top: 25px;
+    padding-left: 20px;
+    color: #3e4e68;
+}
+
+.instruction-steps li {
+    margin-bottom: 18px;
+    font-size: 1.05rem;
+    line-height: 1.5;
+}
+
+/* RESPONSIVENESS */
+@media (max-width: 992px) {
+    .practice-layout-grid {
+        grid-template-columns: 1fr;
+    }
+}

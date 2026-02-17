@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Practice Mode - Gesture Lab</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/practice.css">
+    <link rel="stylesheet" href="/static/css/footer.css">
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="logo">
+            <img src="/static/images/logo.png" alt="ASL Logo">
+        </div>
+
+        <div class="nav-links">
+            <a href="/home" class="nav-item">
+                <div class="icon-container">
+                    <img src="/static/images/homepage.png" alt="Home" class="nav-icon">
+                </div>
+                <span>Home</span>
+            </a>
+            <a href="/lessons" class="nav-item">
+                <div class="icon-container">
+                    <img src="/static/images/lesson.png" alt="Lessons" class="nav-icon">
+                </div>
+                <span>Lessons</span>
+            </a>
+            <a href="/practice" class="nav-item active">
+                <div class="icon-container">
+                    <img src="/static/images/practice.png" alt="Practice" class="nav-icon">
+                </div>
+                <span>Practice</span>
+            </a>
+            <a href="/quizzes" class="nav-item">
+                <div class="icon-container">
+                    <img src="/static/images/quizzes.png" alt="Quizzes" class="nav-icon">
+                </div>
+                <span>Quizzes</span>
+            </a>
+            <a href="/profile" class="nav-item">
+                <div class="icon-container">
+                    <img src="/static/images/profilepage.png" alt="Profile" class="nav-icon">
+                </div>
+                <span>Profile</span>
+            </a>
+        </div>
+
+        <a href="/logout" class="action-btn" aria-label="Logout" onclick="return confirm('Are you sure you want to logout?')">
+            <div class="arrow-box">
+                <img src="/static/images/log-out.png" alt="Logout" class="arrow-icon">
+            </div>
+        </a>
+    </nav>
+
+    <main class="practice-main-content">
+        <div class="practice-page-header">
+            <h1>Practice Mode</h1>
+            <p>Practice signs with AI-powered real-time feedback</p>
+        </div>
+
+        <div class="practice-layout-grid">
+            <section class="practice-card camera-view-section">
+                <div class="card-titles">
+                    <h2>Camera View</h2>
+                    <p>Position your hand in front of the camera</p>
+                </div>
+                
+                <div class="video-feed-container">
+                    <div class="camera-placeholder-ui">
+                        <img src="/static/images/camera-icon-placeholder.png" alt="Camera Icon">
+                        <p>Camera feed will appear here</p>
+                    </div>
+                </div>
+
+                <div class="action-footer">
+                    <button class="dark-pill-btn" id="start-camera-btn">
+                        <img src="/static/images/camera-small-white.png" alt="" class="btn-img">
+                        Start Practice
+                    </button>
+                </div>
+            </section>
+
+            <aside class="practice-sidebar">
+                <section class="practice-card demo-section">
+                    <div class="card-titles">
+                        <h2>Demonstrations</h2>
+                    </div>
+                    <div class="asl-image-box">
+                        <img src="/static/images/asl-hand-demo.png" alt="Hand Gesture Demonstration">
+                    </div>
+                </section>
+
+                <section class="practice-card instructions-section">
+                    <div class="card-titles">
+                        <h2>Instructions</h2>
+                    </div>
+                    <ol class="instruction-steps">
+                        <li>Start your camera and put your hand within the frame.</li>
+                        <li>Click "Start Practice" to begin recording.</li>
+                        <li>Perform your sign language gestures.</li>
+                        <li>Then AI will detect the sign and give you the instant feedback.</li>
+                    </ol>
+                </section>
+            </aside>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="footer-container">
+            <div class="footer-brand">
+                <h2 class="footer-logo">Gesture Lab</h2>
+            </div>
+
+            <nav class="footer-links">
+                <div class="link-column">
+                    <h3>Learn</h3>
+                    <ul>
+                        <li><a href="#">Basics</a></li>
+                        <li><a href="#">Finger-Spelling</a></li>
+                        <li><a href="#">Everyday Signs</a></li>
+                        <li><a href="#">Conversation Packs</a></li>
+                        <li><a href="#">Advanced Lessons</a></li>
+                    </ul>
+                </div>
+
+                <div class="link-column">
+                    <h3>Practice</h3>
+                    <ul>
+                        <li><a href="#">AI Gesture Practice</a></li>
+                        <li><a href="#">Mini Games</a></li>
+                        <li><a href="#">Speed Drills</a></li>
+                        <li><a href="#">Scenario Practice</a></li>
+                        <li><a href="#">Progress Dashboard</a></li>
+                    </ul>
+                </div>
+
+                <div class="link-column">
+                    <h3>Support</h3>
+                    <ul>
+                        <li><a href="/about">About Us</a></li>
+                        <li><a href="/contact">Contact</a></li>
+                        <li><a href="#">FAQs</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Use</a></li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+
+        <div class="footer-bottom">
+            <p>&copy; 2025 Gesture Lab. All rights reserved.</p>
+        </div>
+    </footer>
+    
+</body>
+</html>

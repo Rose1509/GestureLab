@@ -123,6 +123,12 @@ def about_us(request: Request):
 def contact_us(request: Request):
     return templates.TemplateResponse("contact_us.html", {"request": request})
 
+
+@app.get("/practice", response_class=HTMLResponse)
+def practice_page(request: Request):
+    return templates.TemplateResponse("practice.html", {"request": request})
+
+
 @app.get("/profile", response_class=HTMLResponse)
 def profile_page(request: Request, db: Session = Depends(get_db)):
     """
@@ -308,9 +314,9 @@ def register_submit(
     if admin:
         if username.lower() == admin.username.lower() or email.lower() == admin.email.lower():
             return templates.TemplateResponse(
-                "register.html",
+            "register.html",
                 {"request": request, "error": "This username or email is reserved!"}
-            )
+        )
 
     # Check if username or email exists
     existing_user = db.query(User).filter(or_(User.username == username, User.email == email)).first()

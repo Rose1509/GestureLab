@@ -35,7 +35,7 @@
                 </div>
                 <span>Practice</span>
             </a>
-            <a href="/add_quizzes" class="nav-item active">
+            <a href="/quizzes" class="nav-item active">
                 <div class="icon-container">
                     <img src="/static/images/quizzes.png" alt="Quizzes" class="nav-icon">
                 </div>
@@ -73,7 +73,7 @@
         <form id="quiz-form">
             {% if quizzes %}
                 {% for quiz in quizzes %}
-                <div class="question-card">
+                <div class="question-card" data-correct="{{ quiz.correct_option }}">
                     <p class="question-text">
                         {{ loop.index }}.
                         {% if quiz.question_text %}
@@ -154,6 +154,40 @@
                 <button type="submit" class="submit-btn">Submit</button>
             </div>
         </form>
+
+        <!-- Quiz Results Section -->
+        <div id="quiz-results" class="quiz-results" style="display: none;">
+            <div class="results-container">
+                <h2 class="results-heading">Quiz Results</h2>
+                <div class="score-display">
+                    <p class="score-text" id="score-text">You answered 0 out of 0 questions correctly. <span class="check-icon">✓</span></p>
+                    <div class="total-score-wrapper">
+                        <span class="total-score-label">Total Score:</span>
+                        <span class="score-percentage" id="score-percentage">0%</span>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <div class="bar-chart">
+                        <div class="bar-label">Correct</div>
+                        <div class="bar-wrapper">
+                            <div class="bar correct-bar" id="correct-bar" style="width: 0%;"></div>
+                            <span class="bar-value" id="correct-value">0</span>
+                        </div>
+                    </div>
+                    <div class="bar-chart">
+                        <div class="bar-label">Incorrect</div>
+                        <div class="bar-wrapper">
+                            <div class="bar incorrect-bar" id="incorrect-bar" style="width: 0%;"></div>
+                            <span class="bar-value" id="incorrect-value">0</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="results-buttons">
+                    <button class="retry-btn" id="retry-btn">Retry</button>
+                    <button class="next-btn" id="next-btn">Next</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <footer class="main-footer">
@@ -205,6 +239,83 @@
             <p>&copy; 2025 Gesture Lab. All rights reserved.</p>
         </div>
     </footer>
+
+    <script>
+        document.getElementById('quiz-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const questionCards = document.querySelectorAll('.question-card');
+            const totalQuestions = questionCards.length;
+            
+            // Validate that all questions are answered
+            let unansweredQuestions = [];
+            questionCards.forEach((card, index) => {
+                const questionNumber = index + 1;
+                const selectedOption = document.querySelector(`input[name="q${questionNumber}"]:checked`);
+                if (!selectedOption) {
+                    unansweredQuestions.push(questionNumber);
+                }
+            });
+            
+            // If any questions are unanswered, show alert and return
+            if (unansweredQuestions.length > 0) {
+                alert('Please fill up all the question answers before submitting.');
+                return;
+            }
+            
+            let correctAnswers = 0;
+            let incorrectAnswers = 0;
+            
+            // Calculate score
+            questionCards.forEach((card, index) => {
+                const questionNumber = index + 1;
+                const correctOption = parseInt(card.getAttribute('data-correct'));
+                const selectedOption = document.querySelector(`input[name="q${questionNumber}"]:checked`);
+                
+                const userAnswer = parseInt(selectedOption.value);
+                if (userAnswer === correctOption) {
+                    correctAnswers++;
+                } else {
+                    incorrectAnswers++;
+                }
+            });
+            
+            // Calculate percentage
+            const percentage = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+            
+            // Update results display
+            document.getElementById('score-percentage').textContent = percentage + '%';
+            document.getElementById('score-text').textContent = 
+                `You answered ${correctAnswers} out of ${totalQuestions} questions correctly.`;
+            
+            // Update bar chart
+            const maxValue = Math.max(correctAnswers, incorrectAnswers, 1);
+            const correctPercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+            const incorrectPercentage = totalQuestions > 0 ? (incorrectAnswers / totalQuestions) * 100 : 0;
+            
+            document.getElementById('correct-bar').style.width = correctPercentage + '%';
+            document.getElementById('incorrect-bar').style.width = incorrectPercentage + '%';
+            document.getElementById('correct-value').textContent = correctAnswers;
+            document.getElementById('incorrect-value').textContent = incorrectAnswers;
+            
+            // Hide form and show results
+            document.getElementById('quiz-form').style.display = 'none';
+            document.getElementById('quiz-results').style.display = 'block';
+            
+            // Scroll to results
+            document.getElementById('quiz-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        
+        // Retry button - reload the page
+        document.getElementById('retry-btn').addEventListener('click', function() {
+            window.location.reload();
+        });
+        
+        // Next button - navigate back to quizzes page
+        document.getElementById('next-btn').addEventListener('click', function() {
+            window.location.href = '/quizzes';
+        });
+    </script>
 
 </body>
 </html>
