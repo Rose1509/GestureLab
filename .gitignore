@@ -136,6 +136,10 @@ ENV/
 env.bak/
 venv.bak/
 
+# Google OAuth credentials (NEVER commit sensitive credentials)
+credentials.json
+client_secret*.json
+
 # Spyder project settings
 .spyderproject
 .spyproject

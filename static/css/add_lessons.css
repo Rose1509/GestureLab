@@ -197,4 +197,251 @@ body {
     text-decoration: underline;
 }
 
-.main-footer { text-align: center; padding: 40px 0; color: var(--text-grey); }
+.main-footer { text-align: center; padding: 40px 0; color: var(--text-grey); }:root {
+    --sidebar-bg: #1e314d;
+    --main-bg: #e0f7ff;
+    --text-dark: #1e314d;
+    --text-grey: #718096;
+    --input-bg: #f1f5f9;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--main-bg);
+}
+
+.container { display: flex; }
+
+/* Sidebar */
+.sidebar {
+    width: 250px;
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    background-color: var(--sidebar-bg);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0;
+    z-index: 1000;
+}
+
+.logo img {
+    width: 90px; 
+    height: auto;
+    display: block;
+    margin: 0 auto 30px auto; 
+}
+
+.sidebar nav ul {
+    list-style: none;
+}
+
+.sidebar nav ul li {
+    padding: 15px 30px;
+}
+
+.sidebar nav ul li:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar nav ul li.active {
+    background-color: #f0faff;
+}
+
+.sidebar nav ul li.active a {
+    color: var(--sidebar-bg);
+    font-weight: bold;
+}
+
+.sidebar nav ul li a {
+    color: #cbd5e0;
+    text-decoration: none;
+    font-size: 1.1rem;
+}
+
+.logout {
+    margin-top: auto;
+    padding: 30px;
+}
+
+.logout a {
+    color: white;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    margin-left: 250px;
+    padding: 40px 60px;
+    width: calc(100% - 250px);
+}
+
+/* Header */
+.dashboard-header { 
+    display: flex; 
+    justify-content: space-between; 
+    margin-bottom: 30px; 
+}
+
+.header-text h1 { 
+    color: var(--text-dark); 
+    font-size: 2.5rem; 
+}
+
+.user-profile-icon { 
+    font-size: 2.8rem; 
+    color: var(--sidebar-bg); 
+}
+
+/* Table Styling */
+.table-container {
+    background: white;
+    border-radius: 40px;
+    padding: 40px;
+    margin-bottom: 40px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+    overflow: hidden;
+}
+
+.lessons-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.lessons-table thead th {
+    background-color: var(--sidebar-bg);
+    color: white;
+    padding: 15px;
+    text-align: left;
+    font-size: 1.1rem;
+}
+
+.lessons-table thead th:first-child { 
+    border-radius: 20px 0 0 20px; 
+}
+
+.lessons-table thead th:last-child { 
+    border-radius: 0 20px 20px 0; 
+}
+
+.lessons-table td {
+    padding: 20px 15px;
+    color: var(--text-dark);
+    font-weight: 600;
+    border-bottom: 1px solid #eee;
+}
+
+/* ✨ Aesthetic Table Hover Effect */
+.lessons-table tbody tr {
+    transition: all 0.3s ease;
+}
+
+.lessons-table tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+    transform: scale(1.01);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+}
+
+/* Smooth cell transition */
+.lessons-table tbody td {
+    transition: color 0.3s ease;
+}
+
+.sign-img { 
+    width: 50px; 
+    height: auto; 
+}
+
+.description-cell {
+    font-size: 0.8rem;
+    color: #666;
+    line-height: 1.4;
+    font-weight: 400;
+}
+
+.delete-icon { 
+    color: var(--sidebar-bg); 
+    cursor: pointer; 
+    font-size: 1.2rem; 
+}
+
+/* Add Section Form */
+.add-section-card {
+    background: white;
+    border-radius: 40px;
+    padding: 40px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+}
+
+.section-title { 
+    color: var(--text-dark); 
+    margin-bottom: 25px; 
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.description-input { 
+    grid-column: span 2; 
+}
+
+.input-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-dark);
+}
+
+.input-group input {
+    width: 100%;
+    background-color: var(--input-bg);
+    border: none;
+    border-radius: 15px;
+    padding: 15px;
+}
+
+.form-buttons {
+    grid-column: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.btn-dark {
+    background-color: var(--sidebar-bg);
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.btn-dark.outline {
+    background: transparent;
+    border: 2px solid var(--sidebar-bg);
+    color: var(--sidebar-bg);
+    text-decoration: underline;
+}
+
+.main-footer { 
+    text-align: center; 
+    padding: 40px 0; 
+    color: var(--text-grey); 
+}

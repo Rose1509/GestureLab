@@ -199,3 +199,4 @@ body {
 @media (max-width: 950px) {
     .contact-grid { grid-template-columns: 1fr; }
 }
+

@@ -12,9 +12,15 @@ from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
-from .database import SessionLocal
-from .models import User, Lesson, Quiz, Admin
+from dotenv import load_dotenv
+
+from .database import SessionLocal, ensure_schema
+from .models import User, Lesson, Quiz, Admin, Notification
 from .authentication import hash_password, verify_password
+
+# Load environment variables
+load_dotenv()
+
 
 # -------------------------
 # FastAPI app
@@ -35,6 +41,12 @@ os.makedirs(IMAGES_DIR, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
+def _render_login(request: Request, error: Optional[str] = None) -> HTMLResponse:
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "error": error},
+    )
 
 
 # -------------------------
@@ -61,8 +73,12 @@ def init_admin():
     finally:
         db.close()
 
-# Initialize admin on startup
-init_admin()
+@app.on_event("startup")
+def on_startup() -> None:
+    # Ensure DB schema matches models for local/dev databases (no migrations in repo)
+    ensure_schema()
+    # Create default admin account if missing
+    init_admin()
 
 
 # -------------------------
@@ -87,6 +103,39 @@ async def save_uploaded_file(file: UploadFile) -> str:
     return f"/static/images/{unique_filename}"
 
 # -------------------------
+# Notification Helper
+# -------------------------
+def create_notification_for_all_users(
+    db: Session,
+    title: str,
+    message: str,
+    notification_type: str,
+    related_id: Optional[int] = None
+):
+    """Create a notification for all users when admin adds/updates lessons or quizzes."""
+    try:
+        # Get all users
+        all_users = db.query(User).all()
+        
+        # Create notification for each user
+        for user in all_users:
+            notification = Notification(
+                user_id=user.id,
+                title=title,
+                message=message,
+                notification_type=notification_type,
+                related_id=related_id,
+                is_read=False
+            )
+            db.add(notification)
+        
+        # Commit all notifications
+        db.commit()
+    except Exception as e:
+        print(f"Error creating notifications: {e}")
+        db.rollback()
+
+# -------------------------
 # DB Dependency
 # -------------------------
 def get_db():
@@ -95,6 +144,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 # -------------------------
 # GET Routes
@@ -109,7 +159,88 @@ def home_page(request: Request):
 
 @app.get("/login", response_class=HTMLResponse)
 def login_form(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request, "error": None})
+    return _render_login(request)
+
+# -------------------------
+# Google OAuth Routes (Demo Mode)
+# -------------------------
+@app.get("/auth/google")
+def auth_google_start(request: Request):
+    """
+    Starts the Google OAuth flow (Demo Mode).
+    Shows a Google-like login interface without real credentials.
+    """
+    # Check if running in demo mode
+    demo_mode = os.getenv("GOOGLE_OAUTH_DEMO_MODE", "true").lower() == "true"
+    
+    if demo_mode:
+        # Demo mode: show realistic Google login interface
+        return templates.TemplateResponse("google_demo_login.html", {"request": request})
+    
+    # If demo mode is disabled, show error
+    return _render_login(request, error="Google login is not configured. Please use demo mode or set up real credentials.")
+
+
+@app.post("/auth/google/demo-login")
+def auth_google_demo_login(request: Request, email: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
+    """
+    Demo mode: Handle fake Google login form submission.
+    Simulates Google authorization and logs user in.
+    """
+    try:
+        # Validate inputs
+        if not email or not password:
+            return templates.TemplateResponse("google_demo_login.html", {"request": request, "error": "Email and password are required"})
+        
+        # Generate demo Google ID (unique for this email)
+        google_id = f"demo_{email.split('@')[0]}_{uuid.uuid4().hex[:6]}"
+        
+        # 1) Check if user already exists with this Google ID
+        user = db.query(User).filter(User.google_id == google_id).first()
+
+        # 2) If not, check if user exists with this email
+        if not user:
+            user = db.query(User).filter(User.email == email).first()
+            if user and not user.google_id:
+                # Link existing account to Google
+                user.google_id = google_id
+                db.commit()
+
+        # 3) Otherwise create a new account
+        if not user:
+            username_seed = email.split("@")[0]
+            # Generate unique username
+            base_username = username_seed.lower().replace(".", "_")
+            username = base_username
+            counter = 1
+            while db.query(User).filter(User.username == username).first():
+                username = f"{base_username}_{counter}"
+                counter += 1
+            
+            user = User(
+                email=email,
+                username=username,
+                password=hash_password(uuid.uuid4().hex),
+                google_id=google_id,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        # Log in user
+        request.session["user_id"] = user.id
+        request.session["is_admin"] = False
+        # Redirect with success flag to show notification
+        return RedirectResponse(url="/home?login_success=1", status_code=303)
+
+    except Exception as e:
+        return _render_login(request, error=f"Google login failed: {str(e)}")
+
+@app.get("/forgot-password", response_class=HTMLResponse)
+def forgot_password_form(request: Request):
+    return templates.TemplateResponse(
+        "forgot_password.html", {"request": request, "error": None, "success": None}
+    )
 
 @app.get("/register", response_class=HTMLResponse)
 def register_form(request: Request):
@@ -123,11 +254,9 @@ def about_us(request: Request):
 def contact_us(request: Request):
     return templates.TemplateResponse("contact_us.html", {"request": request})
 
-
 @app.get("/practice", response_class=HTMLResponse)
 def practice_page(request: Request):
     return templates.TemplateResponse("practice.html", {"request": request})
-
 
 @app.get("/profile", response_class=HTMLResponse)
 def profile_page(request: Request, db: Session = Depends(get_db)):
@@ -259,6 +388,81 @@ def dashboard_page(request: Request, db: Session = Depends(get_db)):
         },
     )
 
+# -------------------------
+# Notification Routes
+# -------------------------
+@app.get("/send_notifications", response_class=HTMLResponse)
+def send_notifications_page(request: Request, db: Session = Depends(get_db)):
+    """Admin page to send custom notifications to all users."""
+    return templates.TemplateResponse("send_notifications.html", {"request": request})
+
+
+@app.post("/send_custom_notification")
+def send_custom_notification(
+    request: Request,
+    notification_type: str = Form(...),
+    title: str = Form(...),
+    message: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """Handle custom notification submission from admin."""
+    try:
+        # Validate inputs
+        if not title or not message or not notification_type:
+            return {"status": "error", "detail": "All fields are required"}
+        
+        if len(title) > 200:
+            return {"status": "error", "detail": "Title must be 200 characters or less"}
+        
+        if len(message) > 1000:
+            return {"status": "error", "detail": "Message must be 1000 characters or less"}
+        
+        # Create notification for all users
+        create_notification_for_all_users(
+            db=db,
+            title=title,
+            message=message,
+            notification_type=notification_type,
+            related_id=None
+        )
+        
+        return {"status": "success", "detail": "Notification sent to all users"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+
+@app.get("/admin/recent_notifications")
+def get_admin_recent_notifications(db: Session = Depends(get_db)):
+    """Get recent notifications (sent within last 30 days)."""
+    from datetime import datetime, timedelta
+    
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    
+    # Get the most recent 10 notifications that have custom types (admin-created)
+    notifications = db.query(Notification).filter(
+        Notification.created_at >= thirty_days_ago,
+        Notification.notification_type.in_(['announcement', 'update', 'reminder', 'alert', 'custom'])
+    ).order_by(Notification.created_at.desc()).limit(10).all()
+    
+    # Remove duplicates by getting unique ones (since each notification is created for all users)
+    unique_notifications = {}
+    for notif in notifications:
+        key = (notif.title, notif.created_at)
+        if key not in unique_notifications:
+            unique_notifications[key] = notif
+    
+    return {
+        "notifications": [
+            {
+                "title": n.title,
+                "message": n.message,
+                "notification_type": n.notification_type,
+                "created_at": n.created_at.isoformat() if n.created_at else None
+            }
+            for n in unique_notifications.values()
+        ]
+    }
+
 @app.get("/admin_profile", response_class=HTMLResponse)
 def admin_profile_page(request: Request, db: Session = Depends(get_db)):
     """Admin profile page with current admin data."""
@@ -292,6 +496,73 @@ def logout(request: Request):
     return RedirectResponse(url="/login", status_code=303)
 
 # -------------------------
+# Notification Routes
+# -------------------------
+@app.get("/api/notifications")
+def get_notifications(request: Request, db: Session = Depends(get_db)):
+    """Get all unread notifications for the logged-in user."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return {"notifications": [], "unread_count": 0}
+    
+    notifications = db.query(Notification).filter(
+        Notification.user_id == user_id
+    ).order_by(Notification.created_at.desc()).limit(10).all()
+    
+    unread_count = db.query(Notification).filter(
+        Notification.user_id == user_id,
+        Notification.is_read == False
+    ).count()
+    
+    return {
+        "notifications": [
+            {
+                "id": n.id,
+                "title": n.title,
+                "message": n.message,
+                "type": n.notification_type,
+                "is_read": n.is_read,
+                "created_at": n.created_at.isoformat() if n.created_at else None
+            }
+            for n in notifications
+        ],
+        "unread_count": unread_count
+    }
+
+
+@app.post("/api/notifications/{notification_id}/read")
+def mark_notification_as_read(notification_id: int, db: Session = Depends(get_db)):
+    """Mark a notification as read."""
+    notification = db.query(Notification).filter(Notification.id == notification_id).first()
+    if notification:
+        notification.is_read = True
+        db.commit()
+    return {"status": "success"}
+
+
+@app.post("/api/notifications/read-all")
+def mark_all_notifications_as_read(request: Request, db: Session = Depends(get_db)):
+    """Mark all notifications as read for logged-in user."""
+    user_id = request.session.get("user_id")
+    if user_id:
+        db.query(Notification).filter(
+            Notification.user_id == user_id,
+            Notification.is_read == False
+        ).update({Notification.is_read: True})
+        db.commit()
+    return {"status": "success"}
+
+
+@app.delete("/api/notifications/{notification_id}/delete")
+def delete_notification(notification_id: int, db: Session = Depends(get_db)):
+    """Delete a notification."""
+    notification = db.query(Notification).filter(Notification.id == notification_id).first()
+    if notification:
+        db.delete(notification)
+        db.commit()
+    return {"status": "success"}
+
+# -------------------------
 # POST Register
 # -------------------------
 @app.post("/register")
@@ -314,8 +585,8 @@ def register_submit(
     if admin:
         if username.lower() == admin.username.lower() or email.lower() == admin.email.lower():
             return templates.TemplateResponse(
-            "register.html",
-                {"request": request, "error": "This username or email is reserved!"}
+                "register.html",
+                    {"request": request, "error": "This username or email is reserved!"}
         )
 
     # Check if username or email exists
@@ -333,43 +604,71 @@ def register_submit(
     return RedirectResponse(url="/login", status_code=303)
 
 # -------------------------
+# POST Forgot Password
+# -------------------------
+@app.post("/forgot-password", response_class=HTMLResponse)
+def forgot_password_submit(
+    request: Request,
+    email: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    if new_password != confirm_password:
+        return templates.TemplateResponse(
+            "forgot_password.html",
+            {"request": request, "error": "Passwords do not match!", "success": None},
+        )
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        return templates.TemplateResponse(
+            "forgot_password.html",
+            {"request": request, "error": "Email not found.", "success": None},
+        )
+
+    user.password = hash_password(new_password)
+    db.commit()
+
+    return templates.TemplateResponse(
+        "forgot_password.html",
+        {
+            "request": request,
+            "error": None,
+            "success": "Password updated successfully. You can now log in.",
+        },
+    )
+
+# -------------------------
 # POST Login
 # -------------------------
 @app.post("/login")
 def login_submit(
     request: Request,
-    username: str = Form(...),
+    email: str = Form(...),
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    # Admin check from database
+    # Admin check (email + password)
     admin = db.query(Admin).first()
-    if admin and username == admin.username:
+    if admin and admin.email and email.strip().lower() == admin.email.strip().lower():
         if not verify_password(password, admin.password):
-            return templates.TemplateResponse(
-                "login.html", {"request": request, "error": "Incorrect password"}
-            )
-        # Store admin session
+            return _render_login(request, error="Incorrect password")
         request.session["admin_id"] = admin.id
         request.session["is_admin"] = True
         return RedirectResponse(url="/dashboard", status_code=303)
 
-    # Normal user check
-    user = db.query(User).filter(User.username == username).first()
+    # Normal user check (email + password)
+    user = db.query(User).filter(User.email == email).first()
     if not user:
-        return templates.TemplateResponse(
-            "login.html", {"request": request, "error": "User not found"}
-        )
+        return _render_login(request, error="User not found")
 
     if not verify_password(password, user.password):
-        return templates.TemplateResponse(
-            "login.html", {"request": request, "error": "Incorrect password"}
-        )
+        return _render_login(request, error="Incorrect password")
 
-    # Store user session
     request.session["user_id"] = user.id
     request.session["is_admin"] = False
-    return RedirectResponse(url="/home", status_code=303)
+    return RedirectResponse(url="/home?login_success=1", status_code=303)
 
 
 # -------------------------
@@ -480,7 +779,72 @@ async def add_lesson_submit(
     db.commit()
     db.refresh(lesson)
     
+    # Notify all users about new lesson
+    create_notification_for_all_users(
+        db=db,
+        title="New Lesson Added",
+        message=f"A new {sign_level} lesson '{name}' has been added to Gesture Lab!",
+        notification_type="lesson",
+        related_id=lesson.id
+    )
+    
     return RedirectResponse(url="/add_lessons", status_code=303)
+
+from .models import QuizResult
+
+# -------------------------
+# POST Save Quiz Result
+# -------------------------
+@app.post("/api/quiz_result")
+def save_quiz_result(
+    request: Request,
+    quiz_id: Optional[int] = Form(None),
+    quiz_level: Optional[str] = Form(None),
+    score: int = Form(...),
+    total_questions: int = Form(...),
+    db: Session = Depends(get_db)
+):
+    """Save a user's quiz result."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return {"status": "error", "detail": "User not logged in"}
+
+    if quiz_id is None and not quiz_level:
+        return {"status": "error", "detail": "quiz_id or quiz_level is required"}
+
+    quiz_result = QuizResult(
+        user_id=user_id,
+        quiz_id=quiz_id,
+        quiz_level=quiz_level,
+        score=score,
+        total_questions=total_questions
+    )
+    db.add(quiz_result)
+    db.commit()
+    db.refresh(quiz_result)
+    return {"status": "success", "quiz_result_id": quiz_result.id}
+
+# -------------------------
+# GET User Stats for Dashboard
+# -------------------------
+@app.get("/api/user_stats")
+def get_user_stats(request: Request, db: Session = Depends(get_db)):
+    """Return total points, badges, and quizzes taken for the logged-in user."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return {"status": "error", "detail": "User not logged in"}
+    # Fetch all quiz results for this user
+    results = db.query(QuizResult).filter(QuizResult.user_id == user_id).all()
+    quizzes_taken = len(results)
+    total_points = sum(r.score for r in results)
+    # Simple badge logic: 1 badge per 20 points
+    badges = total_points // 20
+    return {
+        "status": "success",
+        "quizzes_taken": quizzes_taken,
+        "total_points": total_points,
+        "badges": badges
+    }
 
 # -------------------------
 # POST Update Lesson
@@ -517,6 +881,15 @@ async def update_lesson_submit(
         lesson.image = existing_image
     
     db.commit()
+    
+    # Notify all users about lesson update
+    create_notification_for_all_users(
+        db=db,
+        title="Lesson Updated",
+        message=f"The lesson '{name}' has been updated!",
+        notification_type="update",
+        related_id=lesson.id
+    )
     
     return RedirectResponse(url="/add_lessons", status_code=303)
 
@@ -584,6 +957,15 @@ async def add_quiz_submit(
     db.add(quiz)
     db.commit()
     db.refresh(quiz)
+    
+    # Notify all users about new quiz
+    create_notification_for_all_users(
+        db=db,
+        title="New Quiz Added",
+        message=f"A new {level} level quiz has been added to Gesture Lab!",
+        notification_type="quiz",
+        related_id=quiz.id
+    )
 
     return RedirectResponse(url="/add_quizzes", status_code=303)
 
@@ -658,6 +1040,15 @@ async def update_quiz_submit(
     quiz.correct_option = correct_option
 
     db.commit()
+    
+    # Notify all users about quiz update
+    create_notification_for_all_users(
+        db=db,
+        title="Quiz Updated",
+        message=f"A {level} level quiz has been updated!",
+        notification_type="update",
+        related_id=quiz.id
+    )
 
     return RedirectResponse(url="/add_quizzes", status_code=303)
 

@@ -19,6 +19,41 @@
 </head>
 <body>
 
+    <!-- Success Notification -->
+    <div id="successNotification" class="success-notification">
+        <div class="notification-content">
+            <svg class="notification-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <div>
+                <h3>Welcome!</h3>
+                <p>You have successfully logged in. Start your sign language journey here!</p>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // Show success notification on page load after login
+        document.addEventListener('DOMContentLoaded', () => {
+            const notification = document.getElementById('successNotification');
+            const urlParams = new URLSearchParams(window.location.search);
+            const isNewLogin = urlParams.get('login_success') === '1' || sessionStorage.getItem('justLoggedIn');
+            
+            if (isNewLogin && notification) {
+                notification.style.display = 'flex';
+                // Auto-hide after 3.5 seconds
+                setTimeout(() => {
+                    notification.classList.add('hide');
+                    setTimeout(() => {
+                        notification.style.display = 'none';
+                    }, 400);
+                }, 3500);
+                sessionStorage.removeItem('justLoggedIn');
+            }
+        });
+    </script>
+
     <!-- ================= HEADER / NAVBAR ================= -->
     <nav class="navbar">
         <div class="logo">
@@ -57,6 +92,46 @@
                 <span>Profile</span>
             </a>
         </div>
+
+    <!-- Notification Bell Button -->
+    <div class="notification-container">
+        <button class="notification-bell" id="notificationBell" aria-label="Notifications">
+            <svg class="bell-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+        </button>
+        
+        <!-- Notification Dropdown Panel -->
+        <div class="notification-dropdown" id="notificationDropdown">
+            <div class="notification-dropdown-header">
+                <h3>Notifications</h3>
+                <button class="mark-all-read" id="markAllReadBtn" onclick="markAllNotificationsAsRead()">Mark all as read</button>
+            </div>
+            <div class="notification-dropdown-content" id="notificationList">
+                <div class="notification-empty">No notifications yet</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Detail Modal -->
+    <div class="notification-modal" id="notificationModal">
+        <div class="notification-modal-content">
+            <button class="modal-close-btn" onclick="closeNotificationModal()">&times;</button>
+            <div class="modal-header">
+                <div class="modal-badge" id="modalBadge"></div>
+                <h2 id="modalTitle"></h2>
+            </div>
+            <div class="modal-body">
+                <p id="modalMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <p class="modal-timestamp" id="modalTimestamp"></p>
+                <button class="modal-btn-primary" onclick="closeNotificationModal()">Close</button>
+            </div>
+        </div>
+    </div>
 
     <a href="/logout" class="action-btn" aria-label="Logout" onclick="return confirm('Are you sure you want to logout?')">
             <div class="arrow-box">
@@ -211,5 +286,193 @@
         </div>
     </footer>
     
+    <!-- Notification Scripts -->
+    <script>
+        // Toggle notification dropdown
+        document.getElementById('notificationBell').addEventListener('click', function(e) {
+            e.stopPropagation();
+            const dropdown = document.getElementById('notificationDropdown');
+            dropdown.classList.toggle('active');
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const container = document.querySelector('.notification-container');
+            if (!container.contains(e.target)) {
+                document.getElementById('notificationDropdown').classList.remove('active');
+            }
+        });
+
+        // Fetch notifications from server
+        async function fetchNotifications() {
+            try {
+                const response = await fetch('/api/notifications');
+                const data = await response.json();
+                
+                updateNotificationUI(data.notifications, data.unread_count);
+            } catch (error) {
+                console.error('Error fetching notifications:', error);
+            }
+        }
+
+        // Update notification UI
+        function updateNotificationUI(notifications, unreadCount) {
+            const notificationList = document.getElementById('notificationList');
+            const notificationBadge = document.getElementById('notificationBadge');
+            
+            // Update badge
+            if (unreadCount > 0) {
+                notificationBadge.textContent = unreadCount;
+                notificationBadge.style.display = 'flex';
+            } else {
+                notificationBadge.style.display = 'none';
+            }
+            
+            // Update notification list
+            if (notifications.length === 0) {
+                notificationList.innerHTML = '<div class="notification-empty">No notifications yet</div>';
+                return;
+            }
+            
+            notificationList.innerHTML = notifications.map(notif => {
+                const date = new Date(notif.created_at);
+                const timeAgo = getTimeAgo(date);
+                const fullDateTime = date.toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                
+                const notifData = JSON.stringify({
+                    id: notif.id,
+                    title: notif.title,
+                    message: notif.message,
+                    created_at: fullDateTime,
+                    is_read: notif.is_read
+                }).replace(/"/g, '&quot;');
+                
+                return `
+                    <div class="notification-item ${notif.is_read ? 'read' : 'unread'}" onclick="openNotificationModal(${notif.id}, '${notif.title.replace(/'/g, "\\'")}', '${notif.message.replace(/'/g, "\\'")}', '${fullDateTime.replace(/'/g, "\\'")}')">
+                        <div class="notification-item-icon"></div>
+                        <div class="notification-item-content">
+                            <h4 class="notification-item-title">${notif.title}</h4>
+                            <p class="notification-item-message">${notif.message}</p>
+                            <p class="notification-item-time" title="${fullDateTime}">${timeAgo}</p>
+                        </div>
+                        <button class="notification-item-close" onclick="event.stopPropagation(); deleteNotification(${notif.id});">×</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Get time ago string
+        function getTimeAgo(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            if (diffDays < 7) return `${diffDays}d ago`;
+            
+            return date.toLocaleDateString();
+        }
+
+        // Mark single notification as read
+        async function markNotificationAsRead(notificationId) {
+            try {
+                await fetch(`/api/notifications/${notificationId}/read`, {
+                    method: 'POST'
+                });
+                fetchNotifications(); // Refresh the list
+            } catch (error) {
+                console.error('Error marking notification as read:', error);
+            }
+        }
+
+        // Mark all notifications as read
+        async function markAllNotificationsAsRead() {
+            try {
+                await fetch('/api/notifications/read-all', {
+                    method: 'POST'
+                });
+                fetchNotifications(); // Refresh the list
+            } catch (error) {
+                console.error('Error marking all notifications as read:', error);
+            }
+        }
+
+        // Open notification detail modal
+        function openNotificationModal(notificationId, title, message, timestamp) {
+            const modal = document.getElementById('notificationModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage');
+            const modalTimestamp = document.getElementById('modalTimestamp');
+            
+            // Set modal content
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modalTimestamp.textContent = `Sent: ${timestamp}`;
+            
+            // Show modal
+            modal.classList.add('active');
+            
+            // Mark as read
+            markNotificationAsRead(notificationId);
+            
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Close notification detail modal
+        function closeNotificationModal() {
+            const modal = document.getElementById('notificationModal');
+            modal.classList.remove('active');
+            
+            // Restore body scroll
+            document.body.style.overflow = 'auto';
+        }
+
+        // Delete notification
+        async function deleteNotification(notificationId) {
+            try {
+                await fetch(`/api/notifications/${notificationId}/delete`, {
+                    method: 'DELETE'
+                });
+                fetchNotifications(); // Refresh the list
+            } catch (error) {
+                console.error('Error deleting notification:', error);
+            }
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('notificationModal');
+            if (e.target === modal) {
+                closeNotificationModal();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeNotificationModal();
+            }
+        });
+
+        // Fetch notifications on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchNotifications();
+            
+            // Poll for new notifications every 10 seconds
+            setInterval(fetchNotifications, 10000);
+        });
+    </script>
 </body>
 </html>

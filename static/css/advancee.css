@@ -28,6 +28,7 @@ body {
     box-shadow: 9px 20px 20px -3px rgba(26, 56, 80, 0.3);
 }
 
+
 .quiz-page-wrapper {
     max-width: 800px;
     margin: 0 auto;
@@ -233,3 +234,5 @@ input[type="radio"]:checked + .prefix {
     padding-top: 20px;
     font-size: 0.8rem;
 }
+
+

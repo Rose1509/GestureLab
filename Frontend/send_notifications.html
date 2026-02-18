@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Send Notifications - Gesture Lab Admin</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/send_notifications.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="logo">
+                <img src="/static/images/logo_white.png" alt="Logo">
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="/dashboard">Dashboard</a></li>
+                    <li><a href="/add_lessons">Lessons</a></li>
+                    <li><a href="/add_quizzes">Quizzes</a></li>
+                    <li class="active"><a href="/send_notifications">Notifications</a></li>
+                </ul>
+            </nav>
+            <div class="logout">
+                <a href="/logout" onclick="return confirm('Are you sure you want to logout?')"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header>
+                <div class="header-text">
+                    <h1>Send Notifications</h1>
+                    <p>Send custom notifications to all users</p>
+                </div>
+                <div class="header-actions">
+                    <a href="/admin_profile" class="user-profile-link">
+                        <div class="user-profile-icon">
+                            <i class="far fa-user-circle"></i>
+                        </div>
+                    </a>
+                </div>
+            </header>
+
+            <section class="notification-form-container">
+                <div class="notification-form-card">
+                    <h2><i class="fas fa-bell"></i> Create & Send Notification</h2>
+                    
+                    <form id="notificationForm" method="POST" action="/send_custom_notification">
+                        <div class="form-group">
+                            <label for="notification_type">Notification Type *</label>
+                            <select id="notification_type" name="notification_type" required>
+                                <option value="">Select a type...</option>
+                                <option value="announcement">Announcement</option>
+                                <option value="update">System Update</option>
+                                <option value="reminder">Reminder</option>
+                                <option value="alert">Alert</option>
+                                <option value="custom">Custom Message</option>
+                            </select>
+                            <small class="form-help">Choose the type of notification to send</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="notification_title">Title *</label>
+                            <input 
+                                type="text" 
+                                id="notification_title" 
+                                name="title" 
+                                placeholder="Enter notification title" 
+                                maxlength="200" 
+                                required
+                            >
+                            <small class="form-help">Brief title for the notification (max 200 characters)</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="notification_message">Message *</label>
+                            <textarea 
+                                id="notification_message" 
+                                name="message" 
+                                placeholder="Enter detailed message here..." 
+                                rows="6" 
+                                maxlength="1000"
+                                required
+                            ></textarea>
+                            <div class="char-count">
+                                <span id="charCount">0</span>/1000
+                            </div>
+                            <small class="form-help">Detailed message for the notification (max 1000 characters)</small>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn-send">
+                                <i class="fas fa-paper-plane"></i> Send Notification to All Users
+                            </button>
+                            <button type="reset" class="btn-clear">
+                                <i class="fas fa-redo"></i> Clear Form
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Success/Error Message -->
+                    <div id="responseMessage" class="response-message" style="display: none;"></div>
+                </div>
+
+                <!-- Recent Notifications Sent -->
+                <div class="recent-notifications-card">
+                    <h2><i class="fas fa-history"></i> Recent Notifications</h2>
+                    <div id="recentNotificationsList" class="recent-list">
+                        <p class="loading">Loading...</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Character counter
+        const textarea = document.getElementById('notification_message');
+        const charCount = document.getElementById('charCount');
+        
+        textarea.addEventListener('input', function() {
+            charCount.textContent = this.value.length;
+        });
+
+        // Form submission
+        document.getElementById('notificationForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const responseMessage = document.getElementById('responseMessage');
+            
+            try {
+                const response = await fetch('/send_custom_notification', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    responseMessage.className = 'response-message success';
+                    responseMessage.innerHTML = `
+                        <i class="fas fa-check-circle"></i>
+                        <div>
+                            <strong>Success!</strong>
+                            <p>Notification sent to all users</p>
+                        </div>
+                    `;
+                    this.reset();
+                    charCount.textContent = '0';
+                    loadRecentNotifications();
+                } else {
+                    responseMessage.className = 'response-message error';
+                    responseMessage.innerHTML = `
+                        <i class="fas fa-exclamation-circle"></i>
+                        <div>
+                            <strong>Error!</strong>
+                            <p>${data.detail || 'Failed to send notification'}</p>
+                        </div>
+                    `;
+                }
+                
+                responseMessage.style.display = 'flex';
+                setTimeout(() => {
+                    responseMessage.style.display = 'none';
+                }, 5000);
+            } catch (error) {
+                console.error('Error:', error);
+                responseMessage.className = 'response-message error';
+                responseMessage.innerHTML = `
+                    <i class="fas fa-exclamation-circle"></i>
+                    <div>
+                        <strong>Error!</strong>
+                        <p>Failed to send notification. Please try again.</p>
+                    </div>
+                `;
+                responseMessage.style.display = 'flex';
+            }
+        });
+
+        // Load recent notifications
+        async function loadRecentNotifications() {
+            try {
+                const response = await fetch('/admin/recent_notifications');
+                const data = await response.json();
+                
+                const container = document.getElementById('recentNotificationsList');
+                
+                if (data.notifications && data.notifications.length > 0) {
+                    container.innerHTML = data.notifications.map(notif => {
+                        const date = new Date(notif.created_at);
+                        const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                        
+                        return `
+                            <div class="recent-notification-item">
+                                <div class="notif-icon-badge" style="background-color: ${getTypeColor(notif.notification_type)};">
+                                    <i class="fas fa-${getTypeIcon(notif.notification_type)}"></i>
+                                </div>
+                                <div class="notif-content">
+                                    <h4>${notif.title}</h4>
+                                    <p>${notif.message}</p>
+                                    <span class="notif-type">${notif.notification_type}</span>
+                                </div>
+                                <div class="notif-time">
+                                    <small>${formattedDate}</small>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    container.innerHTML = '<p class="empty">No notifications sent yet</p>';
+                }
+            } catch (error) {
+                console.error('Error loading recent notifications:', error);
+                document.getElementById('recentNotificationsList').innerHTML = 
+                    '<p class="error">Failed to load recent notifications</p>';
+            }
+        }
+
+        // Helper functions
+        function getTypeColor(type) {
+            const colors = {
+                'announcement': '#3498db',
+                'update': '#9b59b6',
+                'reminder': '#f39c12',
+                'alert': '#e74c3c',
+                'custom': '#1abc9c'
+            };
+            return colors[type] || '#95a5a6';
+        }
+
+        function getTypeIcon(type) {
+            const icons = {
+                'announcement': 'megaphone',
+                'update': 'sync',
+                'reminder': 'clock',
+                'alert': 'exclamation-triangle',
+                'custom': 'comment'
+            };
+            return icons[type] || 'bell';
+        }
+
+        // Load on page load
+        document.addEventListener('DOMContentLoaded', loadRecentNotifications);
+    </script>
+</body>
+</html>
