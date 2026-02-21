@@ -5,7 +5,12 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 DATABASE_URL = "postgresql://postgres:Arpan%401509@localhost:5432/GestureLab"
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"connect_timeout": 5},  # 5-second timeout for connections
+    pool_pre_ping=True,  # Test connections before using them
+    pool_recycle=3600  # Recycle connections after 1 hour
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -57,5 +62,4 @@ def ensure_schema() -> None:
                         pass
     except Exception:
         # Don't block app startup if schema auto-fix fails; endpoints will surface errors.
-        # (Common causes: insufficient DB permissions, non-Postgres DB, etc.)
         return

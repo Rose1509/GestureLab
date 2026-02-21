@@ -6,6 +6,7 @@
     <title>Learn. Sign. Connect.</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/login.css">
 </head>
 <body>
@@ -25,6 +26,13 @@
 
     <div class="right-panel">
         <div class="login-box">
+            <!-- Logout Success Message -->
+            {% if logout_success %}
+                <div class="success-message" id="logoutSuccessMsg">
+                    <i class="fas fa-check-circle"></i> You have successfully been logged out
+                </div>
+            {% endif %}
+
             <h2>Login</h2>
             <p class="subtitle">Enter your login details below</p>
 
@@ -51,6 +59,20 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Auto-hide logout success message after 3.5 seconds
+    const logoutSuccessMsg = document.getElementById('logoutSuccessMsg');
+    if (logoutSuccessMsg) {
+        setTimeout(() => {
+            logoutSuccessMsg.style.opacity = '0';
+            logoutSuccessMsg.style.transition = 'opacity 0.5s ease-out';
+            setTimeout(() => {
+                logoutSuccessMsg.style.display = 'none';
+            }, 500);
+        }, 3500);
+    }
+</script>
 
 </body>
 </html>

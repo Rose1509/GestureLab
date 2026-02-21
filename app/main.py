@@ -75,10 +75,20 @@ def init_admin():
 
 @app.on_event("startup")
 def on_startup() -> None:
-    # Ensure DB schema matches models for local/dev databases (no migrations in repo)
-    ensure_schema()
-    # Create default admin account if missing
-    init_admin()
+    try:
+        # Create all tables defined in models
+        from .database import Base, engine
+        Base.metadata.create_all(bind=engine)
+        print("✓ Database tables created")
+        
+        # Ensure DB schema matches models for local/dev databases (no migrations in repo)
+        ensure_schema()
+        # Create default admin account if missing
+        init_admin()
+        print("✓ Database schema and admin initialization completed successfully")
+    except Exception as e:
+        print(f"⚠ Warning during startup: {e}")
+        print("App will continue, but database operations may fail until the database is available")
 
 
 # -------------------------
@@ -159,7 +169,11 @@ def home_page(request: Request):
 
 @app.get("/login", response_class=HTMLResponse)
 def login_form(request: Request):
-    return _render_login(request)
+    logout_success = request.query_params.get("logout_success")
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "error": None, "logout_success": logout_success},
+    )
 
 # -------------------------
 # Google OAuth Routes (Demo Mode)
@@ -261,7 +275,7 @@ def practice_page(request: Request):
 @app.get("/profile", response_class=HTMLResponse)
 def profile_page(request: Request, db: Session = Depends(get_db)):
     """
-    User profile page showing current user's login details.
+    User profile page showing current user's login details and progress.
     """
     user_id = request.session.get("user_id")
     if not user_id:
@@ -271,6 +285,31 @@ def profile_page(request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # Fetch user progress data
+    quiz_results = db.query(QuizResult).filter(QuizResult.user_id == user_id).all()
+    
+    # Calculate level-wise stats
+    beginner_results = [r for r in quiz_results if r.quiz_level == 'Beginner']
+    intermediate_results = [r for r in quiz_results if r.quiz_level == 'Intermediate']
+    advance_results = [r for r in quiz_results if r.quiz_level == 'Advance']
+    
+    total_quizzes = len(quiz_results)
+    total_points = sum(r.score for r in quiz_results)
+    badges = total_points // 20
+    
+    # Calculate average scores by level
+    beginner_avg = round(sum(r.score for r in beginner_results) / max(len(beginner_results), 1)) if beginner_results else 0
+    intermediate_avg = round(sum(r.score for r in intermediate_results) / max(len(intermediate_results), 1)) if intermediate_results else 0
+    advance_avg = round(sum(r.score for r in advance_results) / max(len(advance_results), 1)) if advance_results else 0
+    
+    # Determine current level based on total points
+    if total_points < 50:
+        current_level = "Beginner"
+    elif total_points < 100:
+        current_level = "Intermediate"
+    else:
+        current_level = "Advanced"
+    
     return templates.TemplateResponse(
         "profile.html",
         {
@@ -278,6 +317,16 @@ def profile_page(request: Request, db: Session = Depends(get_db)):
             "user": user,
             "error": None,
             "success": None,
+            "total_quizzes": total_quizzes,
+            "total_points": total_points,
+            "badges": badges,
+            "current_level": current_level,
+            "beginner_count": len(beginner_results),
+            "intermediate_count": len(intermediate_results),
+            "advance_count": len(advance_results),
+            "beginner_avg": beginner_avg,
+            "intermediate_avg": intermediate_avg,
+            "advance_avg": advance_avg,
         },
     )
 
@@ -375,6 +424,14 @@ def dashboard_page(request: Request, db: Session = Depends(get_db)):
     user_count = len(users)
     lesson_count = db.query(Lesson).count()
     quiz_count = db.query(Quiz).count()
+    
+    # Get admin name from session
+    admin_name = "Admin"
+    admin_id = request.session.get("admin_id")
+    if admin_id:
+        admin = db.query(Admin).filter(Admin.id == admin_id).first()
+        if admin and admin.full_name:
+            admin_name = admin.full_name
 
     return templates.TemplateResponse(
         "dashboard.html",
@@ -385,6 +442,7 @@ def dashboard_page(request: Request, db: Session = Depends(get_db)):
             "lesson_count": lesson_count,
             "quiz_count": quiz_count,
             "user_error": None,
+            "admin_name": admin_name,
         },
     )
 
@@ -493,7 +551,7 @@ def add_lessons_page(request: Request, db: Session = Depends(get_db)):
 def logout(request: Request):
     """Logout route - clears session and redirects to login."""
     request.session.clear()
-    return RedirectResponse(url="/login", status_code=303)
+    return RedirectResponse(url="/login?logout_success=1", status_code=303)
 
 # -------------------------
 # Notification Routes

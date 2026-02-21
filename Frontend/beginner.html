@@ -277,6 +277,14 @@
             </div>
         </form>
 
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay" style="display: none;">
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <p class="loading-text">Evaluating your answers...</p>
+            </div>
+        </div>
+
         <!-- Quiz Results Section -->
         <div id="quiz-results" class="quiz-results" style="display: none;">
             <div class="results-container">
@@ -385,10 +393,14 @@
                 return;
             }
             
+            // Show loading overlay
+            document.getElementById('loading-overlay').style.display = 'flex';
+            document.getElementById('quiz-form').style.display = 'none';
+            
+            // Calculate score immediately
             let correctAnswers = 0;
             let incorrectAnswers = 0;
             
-            // Calculate score
             questionCards.forEach((card, index) => {
                 const questionNumber = index + 1;
                 const correctOption = parseInt(card.getAttribute('data-correct'));
@@ -402,37 +414,40 @@
                 }
             });
             
-            // Calculate percentage
-            const percentage = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
-            
-            // Update results display
-            document.getElementById('score-percentage').textContent = percentage + '%';
-            document.getElementById('score-text').textContent = 
-                `You answered ${correctAnswers} out of ${totalQuestions} questions correctly.`;
-            
-            // Update bar chart
-            const maxValue = Math.max(correctAnswers, incorrectAnswers, 1);
-            const correctPercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
-            const incorrectPercentage = totalQuestions > 0 ? (incorrectAnswers / totalQuestions) * 100 : 0;
-            
-            document.getElementById('correct-bar').style.width = correctPercentage + '%';
-            document.getElementById('incorrect-bar').style.width = incorrectPercentage + '%';
-            document.getElementById('correct-value').textContent = correctAnswers;
-            document.getElementById('incorrect-value').textContent = incorrectAnswers;
-            
-            // Hide form and show results
-            document.getElementById('quiz-form').style.display = 'none';
-            document.getElementById('quiz-results').style.display = 'block';
-            
-            // Scroll to results
-            document.getElementById('quiz-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Wait 4-5 seconds before showing results
+            const randomDelay = 4000 + Math.random() * 1000; // 4-5 seconds
+            setTimeout(() => {
+                // Calculate percentage
+                const percentage = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+                
+                // Update results display
+                document.getElementById('score-percentage').textContent = percentage + '%';
+                document.getElementById('score-text').textContent = 
+                    `You answered ${correctAnswers} out of ${totalQuestions} questions correctly.`;
+                
+                // Update bar chart
+                const correctPercentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+                const incorrectPercentage = totalQuestions > 0 ? (incorrectAnswers / totalQuestions) * 100 : 0;
+                
+                document.getElementById('correct-bar').style.width = correctPercentage + '%';
+                document.getElementById('incorrect-bar').style.width = incorrectPercentage + '%';
+                document.getElementById('correct-value').textContent = correctAnswers;
+                document.getElementById('incorrect-value').textContent = incorrectAnswers;
+                
+                // Hide loading and show results
+                document.getElementById('loading-overlay').style.display = 'none';
+                document.getElementById('quiz-results').style.display = 'block';
+                
+                // Scroll to results
+                document.getElementById('quiz-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-            // Persist attempt to backend so Profile -> Progress Dashboard updates.
-            saveQuizAttempt({
-                quiz_level: 'Beginner',
-                score: correctAnswers,
-                total_questions: totalQuestions
-            });
+                // Persist attempt to backend
+                saveQuizAttempt({
+                    quiz_level: 'Beginner',
+                    score: correctAnswers,
+                    total_questions: totalQuestions
+                });
+            }, randomDelay);
         });
 
         async function saveQuizAttempt({ quiz_level, score, total_questions }) {

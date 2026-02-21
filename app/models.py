@@ -85,4 +85,5 @@ class QuizResult(Base):
     total_questions = Column(Integer, nullable=False)
     taken_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
-Base.metadata.create_all(bind=engine)
+# Metadata creation moved to startup event in main.py to avoid connection issues at import time
+# Base.metadata.create_all(bind=engine)
