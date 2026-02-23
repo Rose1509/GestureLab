@@ -3,6 +3,16 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Google OAuth scripts
+check_google_oauth.py
+GOOGLE_OAUTH_SETUP.md
+
+# Dummy/test files
+dummy
+dummy2
+test.db
+
+
 # C extensions
 *.so
 
