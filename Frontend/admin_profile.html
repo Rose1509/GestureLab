@@ -51,13 +51,13 @@
                 <p class="form-subtitle">Update your personal details</p>
 
                 {% if error %}
-                <div style="background-color: #fee; color: #c33; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+                <div class="admin-alert admin-alert-error" style="background-color: #fee; color: #c33; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
                     {{ error }}
                 </div>
                 {% endif %}
 
                 {% if success %}
-                <div style="background-color: #efe; color: #3c3; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+                <div class="admin-alert admin-alert-success" style="background-color: #efe; color: #3c3; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
                     {{ success }}
                 </div>
                 {% endif %}
@@ -111,5 +111,17 @@
 
         </main>
     </div>
+
+    <script>
+        // Auto-hide admin profile alerts after ~4.5 seconds
+        document.addEventListener('DOMContentLoaded', function () {
+            const alerts = document.querySelectorAll('.admin-alert');
+            alerts.forEach(alert => {
+                setTimeout(() => {
+                    alert.style.display = 'none';
+                }, 4500);
+            });
+        });
+    </script>
 </body>
 </html>

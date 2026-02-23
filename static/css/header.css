@@ -3,6 +3,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 :root {
@@ -93,9 +94,8 @@ body {
 }
 
 .arrow-box {
-    background-color: var(--light-blue);
     width: 48px;
-    height: 55px;
+    height: 47px;
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -105,10 +105,11 @@ body {
 }
 
 .arrow-box:hover {
-    transform: scale(1.05);
-    background-color: #bbcfdd; 
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, rgba(252, 248, 248, 0.9) 0%, rgba(202, 232, 253, 0.9) 100%);
     /* Adding the same shadow style to the arrow box for consistency */
     box-shadow: 0 8px 15px rgba(26, 43, 75, 0.15);
+    color: white;
 }
 
 .arrow-icon {

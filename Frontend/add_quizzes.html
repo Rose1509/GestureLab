@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quizzes - Gesture Lab</title>
-    <link rel="stylesheet" href="/static/css/add_lessons.css">
     <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/add_lessons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -74,7 +74,7 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ quiz.correct_option }}</td>
-                                <td>
+                                <td class="action-cell">
                                     <button class="edit-btn"
                                             data-id="{{ quiz.id }}"
                                             data-level="{{ quiz.level }}"
@@ -243,12 +243,6 @@
                     </div>
                 </form>
             </section>
-
-            <style>
-                .quiz-field {
-                    transition: opacity 0.3s ease;
-                }
-            </style>
             <script>
                 let isEditMode = false; // Track if we're in edit mode
 

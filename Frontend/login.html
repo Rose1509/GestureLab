@@ -33,6 +33,13 @@
                 </div>
             {% endif %}
 
+            <!-- Register Success Message -->
+            {% if register_success %}
+                <div class="success-message" id="registerSuccessMsg">
+                    <i class="fas fa-check-circle"></i> Account created successfully. You can now log in.
+                </div>
+            {% endif %}
+
             <h2>Login</h2>
             <p class="subtitle">Enter your login details below</p>
 
@@ -61,17 +68,18 @@
 </div>
 
 <script>
-    // Auto-hide logout success message after 3.5 seconds
-    const logoutSuccessMsg = document.getElementById('logoutSuccessMsg');
-    if (logoutSuccessMsg) {
-        setTimeout(() => {
-            logoutSuccessMsg.style.opacity = '0';
-            logoutSuccessMsg.style.transition = 'opacity 0.5s ease-out';
-            setTimeout(() => {
-                logoutSuccessMsg.style.display = 'none';
-            }, 500);
-        }, 3500);
+    // Auto-hide success messages after 3.5 seconds
+    function hideSuccessMsg(el) {
+        if (!el) return;
+        el.style.opacity = '0';
+        el.style.transition = 'opacity 0.5s ease-out';
+        setTimeout(() => { el.style.display = 'none'; }, 500);
     }
+    const logoutSuccessMsg = document.getElementById('logoutSuccessMsg');
+    const registerSuccessMsg = document.getElementById('registerSuccessMsg');
+    [logoutSuccessMsg, registerSuccessMsg].forEach(function(msg) {
+        if (msg) setTimeout(() => hideSuccessMsg(msg), 3500);
+    });
 </script>
 
 </body>

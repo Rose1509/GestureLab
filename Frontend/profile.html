@@ -24,84 +24,6 @@
         </div>
     </div>
 
-    <style>
-        .success-notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, #34a853 0%, #2d8659 100%);
-            color: white;
-            padding: 16px 24px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(52, 168, 83, 0.3);
-            z-index: 9999;
-            max-width: 400px;
-            display: none;
-            align-items: center;
-            gap: 12px;
-            animation: slideIn 0.4s ease-in-out;
-        }
-
-        .notification-content {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .notification-icon {
-            width: 24px;
-            height: 24px;
-            flex-shrink: 0;
-            animation: checkmark 0.6s ease-in-out 0.2s both;
-        }
-
-        .success-notification h3 {
-            margin: 0;
-            font-size: 16px;
-            font-weight: 600;
-        }
-
-        .success-notification p {
-            margin: 4px 0 0 0;
-            font-size: 13px;
-            opacity: 0.95;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        @keyframes checkmark {
-            0% {
-                transform: scale(0);
-            }
-            50% {
-                transform: scale(1.2);
-            }
-            100% {
-                transform: scale(1);
-            }
-        }
-
-        .success-notification.hide {
-            animation: slideOut 0.4s ease-in-out forwards;
-        }
-
-        @keyframes slideOut {
-            to {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-        }
-    </style>
-
     <script>
         // Show success notification on page load after login
         document.addEventListener('DOMContentLoaded', () => {
@@ -260,24 +182,49 @@
             <h2>Progress Dashboard</h2>
             <p class="subtitle">Your learning statistics</p>
 
+            <div class="streak-display" id="streakDisplay">
+                <span class="streak-icon">🔥</span>
+                <span class="streak-text"><span class="streak-value" id="currentStreak">0</span> Day Streak</span>
+            </div>
+
             <div class="stats-grid">
                 <div class="stat-item blue">
-                    <i class="fa-solid fa-trophy"></i>
+                    <div class="stat-icon-wrap"><i class="fa-solid fa-trophy"></i></div>
                     <span class="stat-value" id="totalPoints">0</span>
                     <span class="stat-label">Total Points</span>
                 </div>
-                <div class="stat-item orange">
-                    <i class="fa-solid fa-award"></i>
+                <div class="stat-item orange" id="badgesCard">
+                    <div class="stat-icon-wrap"><i class="fa-solid fa-award"></i></div>
                     <span class="stat-value" id="badges">0</span>
                     <span class="stat-label">Badges</span>
                 </div>
                 <div class="stat-item green">
-                    <i class="fa-solid fa-chart-column"></i>
+                    <div class="stat-icon-wrap"><i class="fa-solid fa-chart-column"></i></div>
                     <span class="stat-value" id="quizzesTaken">0</span>
                     <span class="stat-label">Quizzes Taken</span>
                 </div>
             </div>
+            <div class="stats-grid stats-grid-full">
+            <div class="stat-item progress-badge-card">
+                <div class="stat-icon-wrap"><i class="fa-solid fa-medal"></i></div>
+                <span class="progress-to-badge-label"><span class="progress-count" id="progressLabel">0/20</span> points to next badge</span>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progressBarFill"></div>
+                </div>
+            </div>
+            </div>
         </section>
+
+        <!-- Badge unlock modal -->
+        <div class="badge-modal-overlay" id="badgeModalOverlay">
+            <div class="badge-modal">
+                <div class="badge-modal-icon"><i class="fa-solid fa-award"></i></div>
+                <h3 class="badge-modal-title">New Badge Unlocked!</h3>
+                <p class="badge-modal-points" id="badgeModalPoints">0 total points</p>
+                <p class="badge-modal-trigger" id="badgeModalTrigger">Completed a quiz</p>
+                <button type="button" class="badge-modal-close" id="badgeModalClose">Awesome!</button>
+            </div>
+        </div>
     </main>
     <footer class="main-footer">
         <div class="footer-container">
@@ -337,566 +284,73 @@
             return false;
         }
 
-        // Fetch and update user stats for dashboard
+        function countUp(el, target, duration) {
+            if (!el || target === undefined) return;
+            var start = 0;
+            var startTime = null;
+            function step(timestamp) {
+                if (!startTime) startTime = timestamp;
+                var progress = Math.min((timestamp - startTime) / duration, 1);
+                var easeOut = 1 - Math.pow(1 - progress, 3);
+                var current = Math.round(start + (target - start) * easeOut);
+                el.textContent = current;
+                if (progress < 1) requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
+            var urlParams = new URLSearchParams(window.location.search);
+            var badgeUnlocked = urlParams.get('badge_unlocked');
+            var totalPointsParam = urlParams.get('total_points');
+            var quizParam = urlParams.get('quiz') || 'Quiz';
+
             fetch('/api/user_stats')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        document.getElementById('totalPoints').textContent = data.total_points;
-                        document.getElementById('badges').textContent = data.badges;
-                        document.getElementById('quizzesTaken').textContent = data.quizzes_taken;
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.status !== 'success') return;
+                    var totalPointsEl = document.getElementById('totalPoints');
+                    var badgesEl = document.getElementById('badges');
+                    var quizzesEl = document.getElementById('quizzesTaken');
+                    countUp(totalPointsEl, data.total_points, 1200);
+                    countUp(badgesEl, data.badges, 1200);
+                    countUp(quizzesEl, data.quizzes_taken, 1200);
+
+                    var pointsInChunk = data.points_in_chunk != null ? data.points_in_chunk : (data.total_points % 20);
+                    var fillPct = (pointsInChunk / 20) * 100;
+                    document.getElementById('progressLabel').textContent = pointsInChunk + '/20';
+                    var fillEl = document.getElementById('progressBarFill');
+                    if (fillEl) {
+                        setTimeout(function() { fillEl.style.width = fillPct + '%'; }, 200);
                     }
+
+                    var badgesCard = document.getElementById('badgesCard');
+                    if (badgesCard) {
+                        badgesCard.classList.remove('badge-tier-bronze', 'badge-tier-silver', 'badge-tier-gold');
+                        if (data.badge_tier) badgesCard.classList.add('badge-tier-' + data.badge_tier);
+                    }
+                    var streakEl = document.getElementById('currentStreak');
+                    if (streakEl) streakEl.textContent = data.current_streak != null ? data.current_streak : 0;
                 })
-                .catch(err => {
-                    // Optionally handle error
-                });
+                .catch(function() {});
+
+            if (badgeUnlocked === '1') {
+                var overlay = document.getElementById('badgeModalOverlay');
+                var pointsEl = document.getElementById('badgeModalPoints');
+                var triggerEl = document.getElementById('badgeModalTrigger');
+                if (pointsEl) pointsEl.textContent = (totalPointsParam || '0') + ' total points';
+                if (triggerEl) triggerEl.textContent = 'Achieved by completing: ' + (quizParam || 'Quiz');
+                if (overlay) overlay.classList.add('is-open');
+                history.replaceState({}, '', window.location.pathname);
+            }
+            document.getElementById('badgeModalClose').addEventListener('click', function() {
+                document.getElementById('badgeModalOverlay').classList.remove('is-open');
+            });
+            document.getElementById('badgeModalOverlay').addEventListener('click', function(e) {
+                if (e.target === this) this.classList.remove('is-open');
+            });
         });
     </script>
-
-    <!-- Notification Styles -->
-    <style>
-        /* Notification Container */
-        .notification-container {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-
-        /* Notification Bell Button */
-        .notification-bell {
-            background: rgba(255, 255, 255, 0.7);
-            border: 1px solid rgba(200, 200, 200, 0.3);
-            backdrop-filter: blur(5px);
-            cursor: pointer;
-            width: 44px;
-            height: 44px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 10px;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            position: relative;
-            color: #333;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        }
-
-        .notification-bell:hover {
-            background-color: rgba(47, 158, 255, 0.15);
-            border-color: rgba(47, 158, 255, 0.4);
-            transform: scale(1.05);
-            box-shadow: 0 4px 16px rgba(47, 158, 255, 0.2);
-        }
-
-        .notification-bell:active {
-            transform: scale(0.98);
-        }
-
-        .notification-bell .bell-icon {
-            width: 24px;
-            height: 24px;
-            stroke-width: 2;
-            color: #2f9eff;
-            transition: transform 0.3s ease;
-        }
-
-        .notification-bell:hover .bell-icon {
-            transform: scale(1.1);
-        }
-
-        /* Notification Badge */
-        .notification-badge {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background: linear-gradient(135deg, #ff4757 0%, #ee5a6f 100%);
-            color: white;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            font-weight: 700;
-            box-shadow: 0 4px 12px rgba(255, 71, 87, 0.4), 0 0 0 2px rgba(255, 255, 255, 0.8);
-            animation: badgePulse 2s ease-in-out infinite;
-            min-width: 24px;
-            letter-spacing: -0.3px;
-        }
-
-        @keyframes badgePulse {
-            0%, 100% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.1);
-            }
-        }
-
-        /* Notification Dropdown Panel */
-        .notification-dropdown {
-            position: absolute;
-            top: 100%;
-            right: 0;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            border-radius: 16px;
-            width: 380px;
-            max-height: 500px;
-            display: none;
-            flex-direction: column;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
-            z-index: 1000;
-            margin-top: 12px;
-            animation: slideDownNotification 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-            overflow: hidden;
-        }
-
-        .notification-dropdown.active {
-            display: flex;
-        }
-
-        @keyframes slideDownNotification {
-            from {
-                opacity: 0;
-                transform: translateY(-15px) scale(0.95);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-
-        .notification-dropdown-header {
-            padding: 18px 20px;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: linear-gradient(135deg, rgba(47, 158, 255, 0.08) 0%, rgba(47, 158, 255, 0.04) 100%);
-            backdrop-filter: blur(5px);
-        }
-
-        .notification-dropdown-header h3 {
-            margin: 0;
-            font-size: 16px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .mark-all-read {
-            background: rgba(47, 158, 255, 0.12);
-            border: none;
-            color: #2f9eff;
-            cursor: pointer;
-            font-size: 12px;
-            padding: 6px 12px;
-            border-radius: 6px;
-            transition: all 0.3s ease;
-            font-weight: 600;
-        }
-
-        .mark-all-read:hover {
-            background-color: rgba(47, 158, 255, 0.2);
-            transform: translateY(-1px);
-        }
-
-        .mark-all-read:active {
-            transform: translateY(0);
-        }
-
-        /* Notification List */
-        .notification-dropdown-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px 0;
-        }
-
-        .notification-empty {
-            padding: 40px 16px;
-            text-align: center;
-            color: #999;
-            font-size: 14px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .notification-empty::before {
-            content: '🔔';
-            font-size: 32px;
-            margin-bottom: 8px;
-            opacity: 0.5;
-        }
-
-        /* Notification Item */
-        .notification-item {
-            padding: 14px 16px;
-            margin: 6px 8px;
-            border-radius: 10px;
-            display: flex;
-            gap: 12px;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            background-color: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .notification-item::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 3px;
-            background: linear-gradient(180deg, #2f9eff 0%, #1e7fbf 100%);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .notification-item:hover {
-            background-color: rgba(47, 158, 255, 0.12);
-            border-color: rgba(47, 158, 255, 0.3);
-            transform: translateX(4px);
-            box-shadow: 0 4px 12px rgba(47, 158, 255, 0.15);
-        }
-
-        .notification-item:hover::before {
-            opacity: 1;
-        }
-
-        .notification-item.unread {
-            background-color: rgba(47, 158, 255, 0.15);
-            border-color: rgba(47, 158, 255, 0.3);
-        }
-
-        .notification-item.unread:hover {
-            background-color: rgba(47, 158, 255, 0.25);
-        }
-
-        .notification-item-icon {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            flex-shrink: 0;
-            margin-top: 8px;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                box-shadow: 0 0 0 0 rgba(47, 158, 255, 0.7);
-            }
-            50% {
-                box-shadow: 0 0 0 6px rgba(47, 158, 255, 0);
-            }
-        }
-
-        .notification-item.unread .notification-item-icon {
-            background: linear-gradient(135deg, #2f9eff 0%, #1e7fbf 100%);
-        }
-
-        .notification-item.read .notification-item-icon {
-            background-color: transparent;
-        }
-
-        .notification-item-content {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .notification-item-title {
-            font-weight: 700;
-            color: #1a1a1a;
-            font-size: 14px;
-            margin: 0;
-            letter-spacing: -0.3px;
-        }
-
-        .notification-item-message {
-            color: #555;
-            font-size: 13px;
-            margin: 6px 0 0 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            line-height: 1.4;
-        }
-
-        .notification-item-time {
-            color: #888;
-            font-size: 11px;
-            margin: 6px 0 0 0;
-            cursor: help;
-            position: relative;
-            border-bottom: 1px dotted #ccc;
-            font-weight: 500;
-            letter-spacing: 0.2px;
-            transition: color 0.2s ease;
-        }
-
-        .notification-item:hover .notification-item-time {
-            color: #2f9eff;
-        }
-
-        .notification-item-time:hover::after {
-            content: attr(title);
-            position: absolute;
-            bottom: 120%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(30, 127, 191, 0.9) 100%);
-            color: white;
-            padding: 6px 10px;
-            border-radius: 4px;
-            font-size: 11px;
-            white-space: nowrap;
-            z-index: 1001;
-            pointer-events: none;
-            margin-bottom: 4px;
-        }
-
-        .notification-item-close {
-            flex-shrink: 0;
-            background: rgba(255, 255, 255, 0.5);
-            border: 1px solid rgba(200, 200, 200, 0.3);
-            color: #999;
-            cursor: pointer;
-            padding: 4px 8px;
-            font-size: 18px;
-            border-radius: 6px;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 28px;
-            height: 28px;
-        }
-
-        .notification-item-close:hover {
-            background: rgba(220, 53, 69, 0.15);
-            color: #dc3545;
-            border-color: rgba(220, 53, 69, 0.3);
-            transform: scale(1.1);
-        }
-
-        .notification-item-close:active {
-            transform: scale(0.95);
-        }
-
-        /* Scrollbar Styling */
-        .notification-dropdown-content::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .notification-dropdown-content::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .notification-dropdown-content::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, rgba(47, 158, 255, 0.5) 0%, rgba(30, 127, 191, 0.5) 100%);
-            border-radius: 10px;
-            transition: all 0.2s ease;
-        }
-
-        .notification-dropdown-content::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, rgba(47, 158, 255, 0.8) 0%, rgba(30, 127, 191, 0.8) 100%);
-        }
-
-        /* Notification Detail Modal */
-        .notification-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-            animation: fadeInOverlay 0.3s ease;
-        }
-
-        .notification-modal.active {
-            display: flex;
-        }
-
-        @keyframes fadeInOverlay {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
-        }
-
-        .notification-modal-content {
-            background: white;
-            border-radius: 16px;
-            padding: 32px;
-            max-width: 600px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 1px rgba(0, 0, 0, 0.1);
-            animation: slideUpModal 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-            position: relative;
-        }
-
-        @keyframes slideUpModal {
-            from {
-                opacity: 0;
-                transform: translateY(30px) scale(0.95);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-
-        .modal-close-btn {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            background: none;
-            border: none;
-            font-size: 28px;
-            cursor: pointer;
-            color: #999;
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-            z-index: 1;
-        }
-
-        .modal-close-btn:hover {
-            background: rgba(0, 0, 0, 0.08);
-            color: #333;
-        }
-
-        .modal-header {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 20px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        .modal-badge {
-            width: 48px;
-            height: 48px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            flex-shrink: 0;
-            background: linear-gradient(135deg, rgba(47, 158, 255, 0.2) 0%, rgba(47, 158, 255, 0.1) 100%);
-            border: 2px solid rgba(47, 158, 255, 0.3);
-        }
-
-        #modalTitle {
-            margin: 0;
-            font-size: 22px;
-            font-weight: 700;
-            color: #1a1a1a;
-            letter-spacing: -0.5px;
-        }
-
-        .modal-body {
-            margin: 28px 0;
-            line-height: 1.8;
-        }
-
-        #modalMessage {
-            color: #333;
-            font-size: 15px;
-            margin: 0;
-            word-wrap: break-word;
-            white-space: pre-wrap;
-            letter-spacing: 0.3px;
-        }
-
-        .modal-footer {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding-top: 16px;
-            border-top: 1px solid #f0f0f0;
-            gap: 16px;
-        }
-
-        .modal-timestamp {
-            margin: 0;
-            font-size: 13px;
-            color: #888;
-            font-weight: 500;
-        }
-
-        .modal-btn-primary {
-            padding: 10px 24px;
-            background: linear-gradient(135deg, #2f9eff 0%, #1e7fbf 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(47, 158, 255, 0.3);
-        }
-
-        .modal-btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(47, 158, 255, 0.4);
-        }
-
-        .modal-btn-primary:active {
-            transform: translateY(0);
-        }
-
-        /* For mobile responsiveness */
-        @media (max-width: 600px) {
-            .notification-dropdown {
-                width: 320px;
-                right: -10px;
-            }
-
-            .notification-modal-content {
-                padding: 24px;
-                max-width: calc(100% - 32px);
-            }
-
-            #modalTitle {
-                font-size: 18px;
-            }
-
-            #modalMessage {
-                font-size: 14px;
-            }
-
-            .modal-footer {
-                flex-direction: column;
-            }
-
-            .modal-btn-primary {
-                width: 100%;
-            }
-        }
-    </style>
 
     <!-- Notification Scripts -->
     <script>

@@ -160,6 +160,7 @@ body {
 }
 
 .btn-secondary {
+    display: inline-block;
     background: white;
     color: #1a2e4c;
     border: none;
@@ -169,6 +170,7 @@ body {
     font-size: 1.2rem;
     cursor: pointer;
     box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    text-decoration: none;
 }
 
 /* ABOUT & CONTACT BOX */

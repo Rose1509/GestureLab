@@ -64,7 +64,7 @@
                                 <td><img src="{{ lesson.image }}" alt="{{ lesson.name }}" class="sign-img" style="max-width: 100px; max-height: 100px;"></td>
                                 <td>{{ lesson.heading }}</td>
                                 <td class="description-cell">{{ lesson.description[:100] }}{% if lesson.description|length > 100 %}...{% endif %}</td>
-                                <td>
+                                <td class="action-cell">
                                     <button class="edit-btn" 
                                             data-id="{{ lesson.id }}"
                                             data-level="{{ lesson.sign_level }}"

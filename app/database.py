@@ -58,8 +58,23 @@ def ensure_schema() -> None:
                     try:
                         conn.execute(text("ALTER TABLE quiz_results ALTER COLUMN quiz_id DROP NOT NULL"))
                     except Exception:
-                        # If the DB doesn't support it or it's already nullable, ignore.
                         pass
+                if "taken_at" not in qr_cols:
+                    conn.execute(
+                        text("ALTER TABLE quiz_results ADD COLUMN taken_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()")
+                    )
+
+            # Notifications: admin-created flag and batch id for admin panel
+            if "notifications" in inspector.get_table_names():
+                notif_cols = {c["name"] for c in inspector.get_columns("notifications")}
+                if "is_admin_created" not in notif_cols:
+                    conn.execute(
+                        text("ALTER TABLE notifications ADD COLUMN is_admin_created BOOLEAN NOT NULL DEFAULT FALSE")
+                    )
+                if "admin_batch_id" not in notif_cols:
+                    conn.execute(
+                        text("ALTER TABLE notifications ADD COLUMN admin_batch_id VARCHAR(100)")
+                    )
     except Exception:
         # Don't block app startup if schema auto-fix fails; endpoints will surface errors.
         return

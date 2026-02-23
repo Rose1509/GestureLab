@@ -104,9 +104,10 @@
                     <div id="responseMessage" class="response-message" style="display: none;"></div>
                 </div>
 
-                <!-- Recent Notifications Sent -->
+                <!-- Recent Notifications Sent (admin-created only) -->
                 <div class="recent-notifications-card">
                     <h2><i class="fas fa-history"></i> Recent Notifications</h2>
+                    <p class="form-help" style="margin-bottom: 12px;">Only notifications you sent from this page are listed.</p>
                     <div id="recentNotificationsList" class="recent-list">
                         <p class="loading">Loading...</p>
                     </div>
@@ -192,16 +193,17 @@
                     container.innerHTML = data.notifications.map(notif => {
                         const date = new Date(notif.created_at);
                         const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-                        
+                        const titleEsc = (notif.title || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                        const messageEsc = (notif.message || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                         return `
                             <div class="recent-notification-item">
                                 <div class="notif-icon-badge" style="background-color: ${getTypeColor(notif.notification_type)};">
                                     <i class="fas fa-${getTypeIcon(notif.notification_type)}"></i>
                                 </div>
                                 <div class="notif-content">
-                                    <h4>${notif.title}</h4>
-                                    <p>${notif.message}</p>
-                                    <span class="notif-type">${notif.notification_type}</span>
+                                    <h4>${titleEsc}</h4>
+                                    <p>${messageEsc}</p>
+                                    <span class="notif-type">${(notif.notification_type || '').replace(/</g, '&lt;')}</span>
                                 </div>
                                 <div class="notif-time">
                                     <small>${formattedDate}</small>
@@ -210,7 +212,7 @@
                         `;
                     }).join('');
                 } else {
-                    container.innerHTML = '<p class="empty">No notifications sent yet</p>';
+                    container.innerHTML = '<p class="empty">No notifications sent yet. Notifications you send from the form above will appear here.</p>';
                 }
             } catch (error) {
                 console.error('Error loading recent notifications:', error);

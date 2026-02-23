@@ -47,20 +47,33 @@
             </header>
 
             <section class="stats-container">
-                <div class="card card-blue">
-                    <i class="fas fa-question-circle"></i>
-                    <h2>{{ quiz_count or 0 }}</h2>
-                    <p>Quizzes</p>
+                <div class="stat-card stat-card-blue">
+                    <div class="stat-icon-wrap">
+                        <i class="fas fa-question-circle"></i>
+                    </div>
+                    <div class="stat-value">{{ quiz_count or 0 }}</div>
+                    <div class="stat-label">Quizzes</div>
                 </div>
-                <div class="card card-orange">
-                    <i class="fas fa-award"></i>
-                    <h2>{{ lesson_count or 0 }}</h2>
-                    <p>Lessons</p>
+                <div class="stat-card stat-card-orange">
+                    <div class="stat-icon-wrap">
+                        <i class="fas fa-book-open"></i>
+                    </div>
+                    <div class="stat-value">{{ lesson_count or 0 }}</div>
+                    <div class="stat-label">Lessons</div>
                 </div>
-                <div class="card card-green">
-                    <i class="fas fa-chart-bar"></i>
-                    <h2>{{ user_count or 0 }}</h2>
-                    <p>Users</p>
+                <div class="stat-card stat-card-green">
+                    <div class="stat-icon-wrap">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-value">{{ user_count or 0 }}</div>
+                    <div class="stat-label">Users</div>
+                </div>
+                <div class="stat-card stat-card-purple">
+                    <div class="stat-icon-wrap">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="stat-value">{{ quiz_attempts_count or 0 }}</div>
+                    <div class="stat-label">Quiz Attempts</div>
                 </div>
             </section>
 

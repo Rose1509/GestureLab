@@ -2,6 +2,7 @@
 
 import os
 import uuid
+from datetime import date, timedelta, timezone, datetime
 from typing import Optional
 
 from fastapi import FastAPI, Request, Form, Depends, File, UploadFile
@@ -15,8 +16,8 @@ from sqlalchemy import or_
 from dotenv import load_dotenv
 
 from .database import SessionLocal, ensure_schema
-from .models import User, Lesson, Quiz, Admin, Notification
-from .authentication import hash_password, verify_password
+from .models import User, Lesson, Quiz, Admin, Notification, QuizResult
+from .authentication import hash_password, verify_password, validate_username, validate_password, validate_email
 
 # Load environment variables
 load_dotenv()
@@ -115,19 +116,27 @@ async def save_uploaded_file(file: UploadFile) -> str:
 # -------------------------
 # Notification Helper
 # -------------------------
+def is_user_also_admin(user_id: int, db: Session) -> bool:
+    """Return True if this user's email matches an admin (so we don't send system notifications to admins)."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not user.email:
+        return False
+    admin = db.query(Admin).filter(Admin.email.ilike(user.email.strip())).first()
+    return admin is not None
+
+
 def create_notification_for_all_users(
     db: Session,
     title: str,
     message: str,
     notification_type: str,
-    related_id: Optional[int] = None
+    related_id: Optional[int] = None,
+    is_admin_created: bool = False,
+    admin_batch_id: Optional[str] = None,
 ):
-    """Create a notification for all users when admin adds/updates lessons or quizzes."""
+    """Create a notification for all users when admin adds/updates lessons or quizzes (or sends from Notifications page)."""
     try:
-        # Get all users
         all_users = db.query(User).all()
-        
-        # Create notification for each user
         for user in all_users:
             notification = Notification(
                 user_id=user.id,
@@ -135,15 +144,69 @@ def create_notification_for_all_users(
                 message=message,
                 notification_type=notification_type,
                 related_id=related_id,
-                is_read=False
+                is_read=False,
+                is_admin_created=is_admin_created,
+                admin_batch_id=admin_batch_id,
             )
             db.add(notification)
-        
-        # Commit all notifications
         db.commit()
     except Exception as e:
         print(f"Error creating notifications: {e}")
         db.rollback()
+
+
+def create_notification_for_user(
+    db: Session,
+    user_id: int,
+    title: str,
+    message: str,
+    notification_type: str,
+    related_id: Optional[int] = None,
+):
+    """Create a notification for a single user (e.g. quiz completed, points earned, badge unlocked). Only for non-admin users for system messages."""
+    try:
+        notification = Notification(
+            user_id=user_id,
+            title=title,
+            message=message,
+            notification_type=notification_type,
+            related_id=related_id,
+            is_read=False,
+            is_admin_created=False,
+            admin_batch_id=None,
+        )
+        db.add(notification)
+        db.commit()
+    except Exception as e:
+        print(f"Error creating user notification: {e}")
+        db.rollback()
+
+
+# -------------------------
+# Streak helpers (daily activity: at least one quiz per day)
+# -------------------------
+def get_activity_dates(user_id: int, db: Session):
+    """Return set of calendar dates (UTC) on which the user took at least one quiz."""
+    results = db.query(QuizResult).filter(QuizResult.user_id == user_id).all()
+    dates = set()
+    for r in results:
+        if getattr(r, "taken_at", None):
+            d = r.taken_at.date() if hasattr(r.taken_at, "date") else r.taken_at
+            dates.add(d)
+    return dates
+
+
+def compute_streak(activity_dates: set, reference_date: date) -> int:
+    """Consecutive days with activity ending on reference_date. Returns 0 if reference_date not in set."""
+    if not activity_dates or reference_date not in activity_dates:
+        return 0
+    count = 0
+    d = reference_date
+    while d in activity_dates:
+        count += 1
+        d -= timedelta(days=1)
+    return count
+
 
 # -------------------------
 # DB Dependency
@@ -170,9 +233,10 @@ def home_page(request: Request):
 @app.get("/login", response_class=HTMLResponse)
 def login_form(request: Request):
     logout_success = request.query_params.get("logout_success")
+    register_success = request.query_params.get("register_success")
     return templates.TemplateResponse(
         "login.html",
-        {"request": request, "error": None, "logout_success": logout_success},
+        {"request": request, "error": None, "logout_success": logout_success, "register_success": register_success},
     )
 
 # -------------------------
@@ -202,9 +266,12 @@ def auth_google_demo_login(request: Request, email: str = Form(...), password: s
     Simulates Google authorization and logs user in.
     """
     try:
-        # Validate inputs
+        # Validate inputs: email must contain @
         if not email or not password:
             return templates.TemplateResponse("google_demo_login.html", {"request": request, "error": "Email and password are required"})
+        ok, err = validate_email(email)
+        if not ok:
+            return templates.TemplateResponse("google_demo_login.html", {"request": request, "error": err})
         
         # Generate demo Google ID (unique for this email)
         google_id = f"demo_{email.split('@')[0]}_{uuid.uuid4().hex[:6]}"
@@ -269,8 +336,12 @@ def contact_us(request: Request):
     return templates.TemplateResponse("contact_us.html", {"request": request})
 
 @app.get("/practice", response_class=HTMLResponse)
-def practice_page(request: Request):
-    return templates.TemplateResponse("practice.html", {"request": request})
+def practice_page(request: Request, lesson_id: Optional[int] = None, db: Session = Depends(get_db)):
+    """Practice page; if lesson_id is given, show that lesson's image and instructions."""
+    lesson = None
+    if lesson_id is not None:
+        lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+    return templates.TemplateResponse("practice.html", {"request": request, "lesson": lesson})
 
 @app.get("/profile", response_class=HTMLResponse)
 def profile_page(request: Request, db: Session = Depends(get_db)):
@@ -424,8 +495,8 @@ def dashboard_page(request: Request, db: Session = Depends(get_db)):
     user_count = len(users)
     lesson_count = db.query(Lesson).count()
     quiz_count = db.query(Quiz).count()
-    
-    # Get admin name from session
+    quiz_attempts_count = db.query(QuizResult).count()
+
     admin_name = "Admin"
     admin_id = request.session.get("admin_id")
     if admin_id:
@@ -441,6 +512,7 @@ def dashboard_page(request: Request, db: Session = Depends(get_db)):
             "user_count": user_count,
             "lesson_count": lesson_count,
             "quiz_count": quiz_count,
+            "quiz_attempts_count": quiz_attempts_count,
             "user_error": None,
             "admin_name": admin_name,
         },
@@ -464,26 +536,24 @@ def send_custom_notification(
     db: Session = Depends(get_db)
 ):
     """Handle custom notification submission from admin."""
+    import uuid
     try:
-        # Validate inputs
         if not title or not message or not notification_type:
             return {"status": "error", "detail": "All fields are required"}
-        
         if len(title) > 200:
             return {"status": "error", "detail": "Title must be 200 characters or less"}
-        
         if len(message) > 1000:
             return {"status": "error", "detail": "Message must be 1000 characters or less"}
-        
-        # Create notification for all users
+        admin_batch_id = str(uuid.uuid4())
         create_notification_for_all_users(
             db=db,
             title=title,
             message=message,
             notification_type=notification_type,
-            related_id=None
+            related_id=None,
+            is_admin_created=True,
+            admin_batch_id=admin_batch_id,
         )
-        
         return {"status": "success", "detail": "Notification sent to all users"}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
@@ -491,35 +561,40 @@ def send_custom_notification(
 
 @app.get("/admin/recent_notifications")
 def get_admin_recent_notifications(db: Session = Depends(get_db)):
-    """Get recent notifications (sent within last 30 days)."""
+    """Get recent notifications added by admin only (sent from Notifications page), within last 30 days."""
     from datetime import datetime, timedelta
-    
     thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-    
-    # Get the most recent 10 notifications that have custom types (admin-created)
-    notifications = db.query(Notification).filter(
-        Notification.created_at >= thirty_days_ago,
-        Notification.notification_type.in_(['announcement', 'update', 'reminder', 'alert', 'custom'])
-    ).order_by(Notification.created_at.desc()).limit(10).all()
-    
-    # Remove duplicates by getting unique ones (since each notification is created for all users)
-    unique_notifications = {}
+    notifications = (
+        db.query(Notification)
+        .filter(
+            Notification.created_at >= thirty_days_ago,
+            Notification.is_admin_created == True,
+            Notification.admin_batch_id.isnot(None),
+        )
+        .order_by(Notification.created_at.desc())
+        .limit(500)
+    ).all()
+    # One row per user per batch; dedupe by admin_batch_id (show one per batch)
+    by_batch = {}
     for notif in notifications:
-        key = (notif.title, notif.created_at)
-        if key not in unique_notifications:
-            unique_notifications[key] = notif
-    
+        if notif.admin_batch_id and notif.admin_batch_id not in by_batch:
+            by_batch[notif.admin_batch_id] = notif
+    # Return most recent 10 batches
+    unique_list = list(by_batch.values())[:10]
     return {
         "notifications": [
             {
+                "id": n.id,
+                "admin_batch_id": n.admin_batch_id,
                 "title": n.title,
                 "message": n.message,
                 "notification_type": n.notification_type,
-                "created_at": n.created_at.isoformat() if n.created_at else None
+                "created_at": n.created_at.isoformat() if n.created_at else None,
             }
-            for n in unique_notifications.values()
+            for n in unique_list
         ]
     }
+
 
 @app.get("/admin_profile", response_class=HTMLResponse)
 def admin_profile_page(request: Request, db: Session = Depends(get_db)):
@@ -632,6 +707,17 @@ def register_submit(
     confirm_password: str = Form(...),
     db: Session = Depends(get_db)
 ):
+    # Validation: username (max 15), password (must have #/@/$), email (must have @)
+    ok, err = validate_username(username)
+    if not ok:
+        return templates.TemplateResponse("register.html", {"request": request, "error": err})
+    ok, err = validate_email(email)
+    if not ok:
+        return templates.TemplateResponse("register.html", {"request": request, "error": err})
+    ok, err = validate_password(password)
+    if not ok:
+        return templates.TemplateResponse("register.html", {"request": request, "error": err})
+
     # Password match check
     if password != confirm_password:
         return templates.TemplateResponse(
@@ -659,7 +745,7 @@ def register_submit(
     db.add(user)
     db.commit()
 
-    return RedirectResponse(url="/login", status_code=303)
+    return RedirectResponse(url="/login?register_success=1", status_code=303)
 
 # -------------------------
 # POST Forgot Password
@@ -672,6 +758,19 @@ def forgot_password_submit(
     confirm_password: str = Form(...),
     db: Session = Depends(get_db),
 ):
+    # Validation: email must contain @, new password must have #/@/$
+    ok, err = validate_email(email)
+    if not ok:
+        return templates.TemplateResponse(
+            "forgot_password.html",
+            {"request": request, "error": err, "success": None},
+        )
+    ok, err = validate_password(new_password)
+    if not ok:
+        return templates.TemplateResponse(
+            "forgot_password.html",
+            {"request": request, "error": err, "success": None},
+        )
     if new_password != confirm_password:
         return templates.TemplateResponse(
             "forgot_password.html",
@@ -707,6 +806,10 @@ def login_submit(
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
+    # Validation: email must contain @
+    ok, err = validate_email(email)
+    if not ok:
+        return _render_login(request, error=err)
     # Admin check (email + password)
     admin = db.query(Admin).first()
     if admin and admin.email and email.strip().lower() == admin.email.strip().lower():
@@ -743,6 +846,45 @@ def update_user_submit(
     """
     Allow admin to update a user's email and username.
     """
+    # Validation: username max 15, email must contain @
+    admin_name = "Admin"
+    aid = request.session.get("admin_id")
+    if aid:
+        adm = db.query(Admin).filter(Admin.id == aid).first()
+        if adm and adm.full_name:
+            admin_name = adm.full_name
+    ok, err = validate_username(username)
+    if not ok:
+        users = db.query(User).all()
+        return templates.TemplateResponse(
+            "dashboard.html",
+            {
+                "request": request,
+                "users": users,
+                "user_count": len(users),
+                "lesson_count": db.query(Lesson).count(),
+                "quiz_count": db.query(Quiz).count(),
+                "quiz_attempts_count": db.query(QuizResult).count(),
+                "user_error": err,
+                "admin_name": admin_name,
+            },
+        )
+    ok, err = validate_email(email)
+    if not ok:
+        users = db.query(User).all()
+        return templates.TemplateResponse(
+            "dashboard.html",
+            {
+                "request": request,
+                "users": users,
+                "user_count": len(users),
+                "lesson_count": db.query(Lesson).count(),
+                "quiz_count": db.query(Quiz).count(),
+                "quiz_attempts_count": db.query(QuizResult).count(),
+                "user_error": err,
+                "admin_name": admin_name,
+            },
+        )
     # Check if the new email/username is already used by another user
     existing = (
         db.query(User)
@@ -758,7 +900,6 @@ def update_user_submit(
         user_count = len(users)
         lesson_count = db.query(Lesson).count()
         quiz_count = db.query(Quiz).count()
-
         return templates.TemplateResponse(
             "dashboard.html",
             {
@@ -767,7 +908,9 @@ def update_user_submit(
                 "user_count": user_count,
                 "lesson_count": lesson_count,
                 "quiz_count": quiz_count,
+                "quiz_attempts_count": db.query(QuizResult).count(),
                 "user_error": "Email or username is already in use by another account.",
+                "admin_name": admin_name,
             },
         )
 
@@ -848,8 +991,6 @@ async def add_lesson_submit(
     
     return RedirectResponse(url="/add_lessons", status_code=303)
 
-from .models import QuizResult
-
 # -------------------------
 # POST Save Quiz Result
 # -------------------------
@@ -870,6 +1011,14 @@ def save_quiz_result(
     if quiz_id is None and not quiz_level:
         return {"status": "error", "detail": "quiz_id or quiz_level is required"}
 
+    results_before = db.query(QuizResult).filter(QuizResult.user_id == user_id).all()
+    total_points_before = sum(r.score for r in results_before)
+    badges_before = total_points_before // 20
+
+    activity_dates_before = get_activity_dates(user_id, db)
+    reference_old = max(activity_dates_before) if activity_dates_before else None
+    old_streak = compute_streak(activity_dates_before, reference_old) if reference_old else 0
+
     quiz_result = QuizResult(
         user_id=user_id,
         quiz_id=quiz_id,
@@ -880,28 +1029,140 @@ def save_quiz_result(
     db.add(quiz_result)
     db.commit()
     db.refresh(quiz_result)
-    return {"status": "success", "quiz_result_id": quiz_result.id}
+
+    total_points_after = total_points_before + score
+    badges_after = total_points_after // 20
+    badge_just_unlocked = badges_after > badges_before
+    level_name = quiz_level or "Quiz"
+
+    activity_dates_after = get_activity_dates(user_id, db)
+    today_utc = date.today()
+    if activity_dates_after:
+        new_date = max(activity_dates_after)
+        new_streak = compute_streak(activity_dates_after, new_date)
+    else:
+        new_date = today_utc
+        new_streak = 1
+
+    streak_continued = False
+    streak_broken = False
+    streak_milestone = False
+    if reference_old is None:
+        pass
+    elif new_date == reference_old:
+        new_streak = old_streak
+    elif new_date == reference_old + timedelta(days=1):
+        streak_continued = True
+        if new_streak in (7, 30):
+            streak_milestone = True
+    else:
+        streak_broken = old_streak > 0
+
+    # System notifications (quiz completed, points, badge, streak) go only to regular users, not to admins
+    user_is_admin = is_user_also_admin(user_id, db)
+    create_notification_for_user(
+        db,
+        user_id,
+        title="Quiz completed!",
+        message=f"You completed the {level_name} quiz and earned {score} point(s). Your total is now {total_points_after} points.",
+        notification_type="quiz",
+        related_id=quiz_result.id,
+    )
+    if not user_is_admin:
+        if score > 0:
+            create_notification_for_user(
+                db,
+                user_id,
+                title="Points earned!",
+                message=f"You earned {score} point(s) from the {level_name} quiz. Total points: {total_points_after}.",
+                notification_type="update",
+                related_id=quiz_result.id,
+            )
+        if badge_just_unlocked:
+            create_notification_for_user(
+                db,
+                user_id,
+                title="New badge unlocked!",
+                message=f"You earned a new badge! You now have {badges_after} badge(s). Keep it up!",
+                notification_type="update",
+                related_id=quiz_result.id,
+            )
+        if streak_continued:
+            create_notification_for_user(
+                db,
+                user_id,
+                title="Streak continued!",
+                message=f"You're on a {new_streak}-day streak! Keep it up!",
+                notification_type="update",
+                related_id=quiz_result.id,
+            )
+        if streak_broken:
+            create_notification_for_user(
+                db,
+                user_id,
+                title="Streak reset",
+                message="Your streak was reset. Start again today!",
+                notification_type="update",
+                related_id=quiz_result.id,
+            )
+        if streak_milestone:
+            create_notification_for_user(
+                db,
+                user_id,
+                title="Milestone streak!",
+                message=f"Amazing! You've reached a {new_streak}-day streak!",
+                notification_type="update",
+                related_id=quiz_result.id,
+            )
+
+    return {
+        "status": "success",
+        "quiz_result_id": quiz_result.id,
+        "total_points_after": total_points_after,
+        "badges_after": badges_after,
+        "badge_just_unlocked": badge_just_unlocked,
+        "quiz_level": level_name,
+        "current_streak": new_streak,
+        "streak_continued": streak_continued,
+        "streak_broken": streak_broken,
+        "streak_milestone": streak_milestone,
+    }
 
 # -------------------------
 # GET User Stats for Dashboard
 # -------------------------
 @app.get("/api/user_stats")
 def get_user_stats(request: Request, db: Session = Depends(get_db)):
-    """Return total points, badges, and quizzes taken for the logged-in user."""
+    """Return total points, badges, quizzes taken, streak, and progress for the logged-in user."""
     user_id = request.session.get("user_id")
     if not user_id:
         return {"status": "error", "detail": "User not logged in"}
-    # Fetch all quiz results for this user
     results = db.query(QuizResult).filter(QuizResult.user_id == user_id).all()
     quizzes_taken = len(results)
     total_points = sum(r.score for r in results)
-    # Simple badge logic: 1 badge per 20 points
     badges = total_points // 20
+    points_in_chunk = total_points % 20
+    points_to_next_badge = 20 - points_in_chunk if points_in_chunk else 20
+    if badges == 0:
+        badge_tier = "bronze"
+    elif badges == 1:
+        badge_tier = "bronze"
+    elif 2 <= badges <= 3:
+        badge_tier = "silver"
+    else:
+        badge_tier = "gold"
+    activity_dates = get_activity_dates(user_id, db)
+    reference = max(activity_dates) if activity_dates else None
+    current_streak = compute_streak(activity_dates, reference) if reference else 0
     return {
         "status": "success",
         "quizzes_taken": quizzes_taken,
         "total_points": total_points,
-        "badges": badges
+        "badges": badges,
+        "points_in_chunk": points_in_chunk,
+        "points_to_next_badge": points_to_next_badge,
+        "badge_tier": badge_tier,
+        "current_streak": current_streak,
     }
 
 # -------------------------
@@ -1151,6 +1412,19 @@ def update_admin_profile_submit(
         init_admin()
         admin = db.query(Admin).first()
     
+    # Validation: username max 15, email must contain @
+    ok, err = validate_username(username)
+    if not ok:
+        return templates.TemplateResponse(
+            "admin_profile.html",
+            {"request": request, "admin": admin, "error": err, "success": None},
+        )
+    ok, err = validate_email(email)
+    if not ok:
+        return templates.TemplateResponse(
+            "admin_profile.html",
+            {"request": request, "admin": admin, "error": err, "success": None},
+        )
     # Check if new username or email conflicts with existing users
     existing_user = db.query(User).filter(
         or_(User.username == username, User.email == email)
@@ -1166,7 +1440,7 @@ def update_admin_profile_submit(
             },
         )
     
-    # Validate password if provided
+    # Validate password if provided (must contain at least one of #, @, $)
     if new_password:
         if new_password != confirm_password:
             return templates.TemplateResponse(
@@ -1178,16 +1452,34 @@ def update_admin_profile_submit(
                     "success": None,
                 },
             )
-        if len(new_password) < 6:
+        ok, err = validate_password(new_password)
+        if not ok:
             return templates.TemplateResponse(
                 "admin_profile.html",
                 {
                     "request": request,
                     "admin": admin,
-                    "error": "Password must be at least 6 characters long.",
+                    "error": err,
                     "success": None,
                 },
             )
+
+    # If nothing actually changed and no new password, show a different message
+    if (
+        full_name == admin.full_name
+        and username == admin.username
+        and email == admin.email
+        and not new_password
+    ):
+        return templates.TemplateResponse(
+            "admin_profile.html",
+            {
+                "request": request,
+                "admin": admin,
+                "error": None,
+                "success": "No changes made. Your profile is already up to date.",
+            },
+        )
     
     # Update admin fields
     admin.full_name = full_name
@@ -1234,6 +1526,19 @@ def update_user_profile_submit(
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     
+    # Validation: username max 15, email must contain @
+    ok, err = validate_username(username)
+    if not ok:
+        return templates.TemplateResponse(
+            "profile.html",
+            {"request": request, "user": user, "error": err, "success": None},
+        )
+    ok, err = validate_email(email)
+    if not ok:
+        return templates.TemplateResponse(
+            "profile.html",
+            {"request": request, "user": user, "error": err, "success": None},
+        )
     # Check if new username or email conflicts with another user
     existing_user = db.query(User).filter(
         or_(User.username == username, User.email == email),
@@ -1264,7 +1569,7 @@ def update_user_profile_submit(
                 },
             )
     
-    # Validate password if provided
+    # Validate password if provided (must contain at least one of #, @, $)
     if new_password:
         if new_password != confirm_password:
             return templates.TemplateResponse(
@@ -1276,13 +1581,14 @@ def update_user_profile_submit(
                     "success": None,
                 },
             )
-        if len(new_password) < 6:
+        ok, err = validate_password(new_password)
+        if not ok:
             return templates.TemplateResponse(
                 "profile.html",
                 {
                     "request": request,
                     "user": user,
-                    "error": "Password must be at least 6 characters long.",
+                    "error": err,
                     "success": None,
                 },
             )

@@ -66,8 +66,9 @@ class Notification(Base):
     notification_type = Column(String(50), nullable=False)  # "lesson", "quiz", "update"
     related_id = Column(Integer, nullable=True)  # ID of lesson/quiz that triggered notification
     is_read = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc),nullable=False
-)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    is_admin_created = Column(Boolean, default=False, nullable=False)  # True only for notifications sent from admin panel
+    admin_batch_id = Column(String(100), nullable=True)  # Groups notifications sent in one batch (for admin update/dedup)
 
 
 
