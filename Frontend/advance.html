@@ -83,6 +83,19 @@
             </a>
         </div>
 
+        <div class="nav-search">
+            <form method="get" action="/lessons" class="nav-search-form">
+                <input
+                    type="text"
+                    name="q"
+                    class="nav-search-input"
+                    placeholder="Search lessons..."
+                    aria-label="Search lessons by name"
+                >
+                <button type="submit" class="nav-search-btn">Search</button>
+            </form>
+        </div>
+
     <!-- Notification Bell Button -->
     <div class="notification-container">
         <button class="notification-bell" id="notificationBell" aria-label="Notifications">
@@ -265,6 +278,15 @@
                         </div>
                     </div>
                 </div>
+                <div id="certificate-earned-box" class="certificate-earned-box" style="display: none;">
+                    <div class="certificate-earned-icon">🏆</div>
+                    <h3 class="certificate-earned-title">Perfect score!</h3>
+                    <p class="certificate-earned-text">You scored 10 out of 10. You've earned a certificate for the Advance level.</p>
+                    <a id="certificate-download-btn" href="#" class="certificate-download-btn" download>
+                        <span class="certificate-download-icon">📥</span>
+                        Download certificate
+                    </a>
+                </div>
                 <div class="results-buttons">
                     <button class="retry-btn" id="retry-btn">Retry</button>
                     <button class="next-btn" id="next-btn">Next</button>
@@ -286,30 +308,30 @@
                 <div class="link-column">
                     <h3>Learn</h3>
                     <ul>
-                        <li><a href="#">Basics</a></li>
+                        <li><a href="/lessons">Basics</a></li>
                         <li><a href="#">Finger-Spelling</a></li>
                         <li><a href="#">Everyday Signs</a></li>
                         <li><a href="#">Conversation Packs</a></li>
-                        <li><a href="#">Advanced Lessons</a></li>
+                        <li><a href="/advancee">Advanced Lessons</a></li>
                     </ul>
                 </div>
 
                 <div class="link-column">
                     <h3>Practice</h3>
                     <ul>
-                        <li><a href="#">AI Gesture Practice</a></li>
+                        <li><a href="/practice">AI Gesture Practice</a></li>
                         <li><a href="#">Mini Games</a></li>
                         <li><a href="#">Speed Drills</a></li>
                         <li><a href="#">Scenario Practice</a></li>
-                        <li><a href="#">Progress Dashboard</a></li>
+                        <li><a href="/profile">Progress Dashboard</a></li>
                     </ul>
                 </div>
 
                 <div class="link-column">
                     <h3>Support</h3>
                     <ul>
-                        <li><a href="#">About Us</a></li>
-                        <li><a href="#">Contact</a></li>
+                        <li><a href="/about">About Us</a></li>
+                        <li><a href="/contact">Contact</a></li>
                         <li><a href="#">FAQs</a></li>
                         <li><a href="#">Privacy Policy</a></li>
                         <li><a href="#">Terms of Use</a></li>
@@ -399,11 +421,11 @@
                     quiz_level: 'Advance',
                     score: correctAnswers,
                     total_questions: totalQuestions
-                });
+                }, { correctAnswers, totalQuestions });
             }, randomDelay);
         });
 
-        async function saveQuizAttempt({ quiz_level, score, total_questions }) {
+        async function saveQuizAttempt({ quiz_level, score, total_questions }, _display) {
             try {
                 const formData = new FormData();
                 formData.append('quiz_level', quiz_level);
@@ -418,6 +440,17 @@
                         toast.textContent = '🎉 Badge unlocked!';
                         toast.style.display = 'block';
                         setTimeout(function() { toast.style.display = 'none'; }, 3500);
+                    }
+                }
+                if (data.status === 'success' && data.certificate_earned && data.certificate_level) {
+                    var box = document.getElementById('certificate-earned-box');
+                    var btn = document.getElementById('certificate-download-btn');
+                    var textEl = document.querySelector('#certificate-earned-box .certificate-earned-text');
+                    if (box && btn) {
+                        if (textEl) textEl.textContent = "You scored 10 out of 10. You've earned a certificate for the " + data.certificate_level + " level.";
+                        btn.href = '/api/certificate/' + encodeURIComponent(data.certificate_level) + '/download';
+                        btn.setAttribute('download', 'GestureLab_Certificate_' + data.certificate_level.replace(/\s/g, '_') + '.pdf');
+                        box.style.display = 'block';
                     }
                 }
                 if (!res.ok || data.status !== 'success') {

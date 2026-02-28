@@ -83,6 +83,19 @@
             </a>
         </div>
 
+        <div class="nav-search">
+            <form method="get" action="/lessons" class="nav-search-form">
+                <input
+                    type="text"
+                    name="q"
+                    class="nav-search-input"
+                    placeholder="Search lessons..."
+                    aria-label="Search lessons by name"
+                >
+                <button type="submit" class="nav-search-btn">Search</button>
+            </form>
+        </div>
+
     <!-- Notification Bell Button -->
     <div class="notification-container">
         <button class="notification-bell" id="notificationBell" aria-label="Notifications">
@@ -213,6 +226,21 @@
                 </div>
             </div>
             </div>
+
+            <div class="view-results-row">
+                <a href="/quiz_results" class="view-results-btn">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>View all quiz results</span>
+                </a>
+            </div>
+
+            <section class="certificates-section" id="certificatesSection">
+                <h2 class="certificates-section-title"><i class="fa-solid fa-certificate"></i> My Certificates</h2>
+                <p class="certificates-section-desc">Download certificates for levels you completed with a perfect score (10/10).</p>
+                <div class="certificates-grid" id="certificatesGrid">
+                    <div class="certificates-empty" id="certificatesEmpty">Earn certificates by scoring 10/10 on Beginner, Intermediate, or Advance quizzes.</div>
+                </div>
+            </section>
         </section>
 
         <!-- Badge unlock modal -->
@@ -239,30 +267,30 @@
                 <div class="link-column">
                     <h3>Learn</h3>
                     <ul>
-                        <li><a href="#">Basics</a></li>
+                        <li><a href="/lessons">Basics</a></li>
                         <li><a href="#">Finger-Spelling</a></li>
                         <li><a href="#">Everyday Signs</a></li>
                         <li><a href="#">Conversation Packs</a></li>
-                        <li><a href="#">Advanced Lessons</a></li>
+                        <li><a href="/advancee">Advanced Lessons</a></li>
                     </ul>
                 </div>
 
                 <div class="link-column">
                     <h3>Practice</h3>
                     <ul>
-                        <li><a href="#">AI Gesture Practice</a></li>
+                        <li><a href="/practice">AI Gesture Practice</a></li>
                         <li><a href="#">Mini Games</a></li>
                         <li><a href="#">Speed Drills</a></li>
                         <li><a href="#">Scenario Practice</a></li>
-                        <li><a href="#">Progress Dashboard</a></li>
+                        <li><a href="/profile">Progress Dashboard</a></li>
                     </ul>
                 </div>
 
                 <div class="link-column">
                     <h3>Support</h3>
                     <ul>
-                        <li><a href="#">About Us</a></li>
-                        <li><a href="#">Contact</a></li>
+                        <li><a href="/about">About Us</a></li>
+                        <li><a href="/contact">Contact</a></li>
                         <li><a href="#">FAQs</a></li>
                         <li><a href="#">Privacy Policy</a></li>
                         <li><a href="#">Terms of Use</a></li>
@@ -299,6 +327,47 @@
             requestAnimationFrame(step);
         }
 
+        function applyUserStats(data) {
+            if (!data || data.status !== 'success') return;
+            var totalPointsEl = document.getElementById('totalPoints');
+            var badgesEl = document.getElementById('badges');
+            var quizzesEl = document.getElementById('quizzesTaken');
+            if (totalPointsEl) countUp(totalPointsEl, data.total_points, 1200);
+            if (badgesEl) countUp(badgesEl, data.badges, 1200);
+            if (quizzesEl) countUp(quizzesEl, data.quizzes_taken, 1200);
+            var pointsInChunk = data.points_in_chunk != null ? data.points_in_chunk : (data.total_points % 20);
+            var fillPct = (pointsInChunk / 20) * 100;
+            document.getElementById('progressLabel').textContent = pointsInChunk + '/20';
+            var fillEl = document.getElementById('progressBarFill');
+            if (fillEl) setTimeout(function() { fillEl.style.width = fillPct + '%'; }, 200);
+            var badgesCard = document.getElementById('badgesCard');
+            if (badgesCard) {
+                badgesCard.classList.remove('badge-tier-bronze', 'badge-tier-silver', 'badge-tier-gold');
+                if (data.badge_tier) badgesCard.classList.add('badge-tier-' + data.badge_tier);
+            }
+            var streakEl = document.getElementById('currentStreak');
+            if (streakEl) streakEl.textContent = data.current_streak != null ? data.current_streak : 0;
+            var list = data.certificates_earned;
+            var grid = document.getElementById('certificatesGrid');
+            var empty = document.getElementById('certificatesEmpty');
+            if (grid) {
+                if (list && list.length > 0) {
+                    if (empty) empty.style.display = 'none';
+                    grid.innerHTML = list.map(function(level) {
+                        var safe = encodeURIComponent(level);
+                        var filename = 'GestureLab_Certificate_' + level.replace(/\s/g, '_') + '.pdf';
+                        return '<div class="certificate-card">' +
+                            '<div class="certificate-card-icon"><i class="fa-solid fa-award"></i></div>' +
+                            '<span class="certificate-card-level">' + level + '</span>' +
+                            '<a href="/api/certificate/' + safe + '/download" class="certificate-card-download" download="' + filename + '">' +
+                            '<i class="fa-solid fa-download"></i> Download</a></div>';
+                    }).join('');
+                } else {
+                    grid.innerHTML = '<div class="certificates-empty" id="certificatesEmpty">Earn certificates by scoring 10/10 on Beginner, Intermediate, or Advance quizzes.</div>';
+                }
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             var urlParams = new URLSearchParams(window.location.search);
             var badgeUnlocked = urlParams.get('badge_unlocked');
@@ -307,32 +376,17 @@
 
             fetch('/api/user_stats')
                 .then(function(response) { return response.json(); })
-                .then(function(data) {
-                    if (data.status !== 'success') return;
-                    var totalPointsEl = document.getElementById('totalPoints');
-                    var badgesEl = document.getElementById('badges');
-                    var quizzesEl = document.getElementById('quizzesTaken');
-                    countUp(totalPointsEl, data.total_points, 1200);
-                    countUp(badgesEl, data.badges, 1200);
-                    countUp(quizzesEl, data.quizzes_taken, 1200);
-
-                    var pointsInChunk = data.points_in_chunk != null ? data.points_in_chunk : (data.total_points % 20);
-                    var fillPct = (pointsInChunk / 20) * 100;
-                    document.getElementById('progressLabel').textContent = pointsInChunk + '/20';
-                    var fillEl = document.getElementById('progressBarFill');
-                    if (fillEl) {
-                        setTimeout(function() { fillEl.style.width = fillPct + '%'; }, 200);
-                    }
-
-                    var badgesCard = document.getElementById('badgesCard');
-                    if (badgesCard) {
-                        badgesCard.classList.remove('badge-tier-bronze', 'badge-tier-silver', 'badge-tier-gold');
-                        if (data.badge_tier) badgesCard.classList.add('badge-tier-' + data.badge_tier);
-                    }
-                    var streakEl = document.getElementById('currentStreak');
-                    if (streakEl) streakEl.textContent = data.current_streak != null ? data.current_streak : 0;
-                })
+                .then(applyUserStats)
                 .catch(function() {});
+
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'visible') {
+                    fetch('/api/user_stats')
+                        .then(function(response) { return response.json(); })
+                        .then(applyUserStats)
+                        .catch(function() {});
+                }
+            });
 
             if (badgeUnlocked === '1') {
                 var overlay = document.getElementById('badgeModalOverlay');
@@ -421,17 +475,42 @@
                 }).replace(/"/g, '&quot;');
                 
                 return `
-                    <div class="notification-item ${notif.is_read ? 'read' : 'unread'}" onclick="openNotificationModal(${notif.id}, '${notif.title.replace(/'/g, "\\'")}', '${notif.message.replace(/'/g, "\\'")}', '${fullDateTime.replace(/'/g, "\\'")}')">
+                    <div class="notification-item ${notif.is_read ? 'read' : 'unread'}" data-notif="${notifData}">
                         <div class="notification-item-icon"></div>
                         <div class="notification-item-content">
                             <h4 class="notification-item-title">${notif.title}</h4>
                             <p class="notification-item-message">${notif.message}</p>
                             <p class="notification-item-time" title="${fullDateTime}">${timeAgo}</p>
                         </div>
-                        <button class="notification-item-close" onclick="event.stopPropagation(); deleteNotification(${notif.id});">×</button>
+                        <button class="notification-item-close" data-id="${notif.id}">×</button>
                     </div>
                 `;
             }).join('');
+
+            // Attach click handlers to open modal safely (handles quotes/newlines)
+            document.querySelectorAll('.notification-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    try {
+                        const raw = item.getAttribute('data-notif');
+                        if (!raw) return;
+                        const data = JSON.parse(raw);
+                        openNotificationModal(data.id, data.title, data.message, data.created_at);
+                    } catch (e) {
+                        console.error('Error opening notification modal', e);
+                    }
+                });
+            });
+
+            // Attach delete handlers without inline JS
+            document.querySelectorAll('.notification-item-close').forEach(btn => {
+                btn.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const id = btn.getAttribute('data-id');
+                    if (id) {
+                        deleteNotification(id);
+                    }
+                });
+            });
         }
 
         // Get time ago string

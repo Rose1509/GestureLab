@@ -4,9 +4,10 @@ import os
 import uuid
 from datetime import date, timedelta, timezone, datetime
 from typing import Optional
+from urllib.parse import quote
 
 from fastapi import FastAPI, Request, Form, Depends, File, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -18,6 +19,7 @@ from dotenv import load_dotenv
 from .database import SessionLocal, ensure_schema
 from .models import User, Lesson, Quiz, Admin, Notification, QuizResult
 from .authentication import hash_password, verify_password, validate_username, validate_password, validate_email
+from .certificate import generate_certificate_pdf
 
 # Load environment variables
 load_dotenv()
@@ -185,13 +187,24 @@ def create_notification_for_user(
 # -------------------------
 # Streak helpers (daily activity: at least one quiz per day)
 # -------------------------
+def _utc_date(dt):
+    """Return the calendar date in UTC for a datetime (aware or naive)."""
+    if dt is None:
+        return None
+    if getattr(dt, "tzinfo", None) is not None:
+        return dt.astimezone(timezone.utc).date()
+    # Naive: assume UTC (e.g. from DB without TZ)
+    return dt.date() if hasattr(dt, "date") else dt
+
+
 def get_activity_dates(user_id: int, db: Session):
     """Return set of calendar dates (UTC) on which the user took at least one quiz."""
     results = db.query(QuizResult).filter(QuizResult.user_id == user_id).all()
     dates = set()
     for r in results:
-        if getattr(r, "taken_at", None):
-            d = r.taken_at.date() if hasattr(r.taken_at, "date") else r.taken_at
+        raw = getattr(r, "taken_at", None)
+        d = _utc_date(raw)
+        if d is not None:
             dates.add(d)
     return dates
 
@@ -206,6 +219,52 @@ def compute_streak(activity_dates: set, reference_date: date) -> int:
         count += 1
         d -= timedelta(days=1)
     return count
+
+
+# -------------------------
+# Certificate helpers (perfect score = 10/10 per level)
+# -------------------------
+CERTIFICATE_LEVELS = ("Beginner", "Intermediate", "Advance")
+
+
+def _has_perfect_for_level(db: Session, user_id: int, level: str) -> bool:
+    """True if user has at least one quiz result for this level with 10/10 (perfect)."""
+    from sqlalchemy import and_
+    q = db.query(QuizResult).filter(
+        and_(
+            QuizResult.user_id == user_id,
+            QuizResult.quiz_level == level,
+            QuizResult.score == 10,
+            QuizResult.total_questions == 10,
+        )
+    ).first()
+    return q is not None
+
+
+def _certificate_achieved_date(db: Session, user_id: int, level: str) -> Optional[date]:
+    """Return the date of the most recent 10/10 result for this level, or None."""
+    from sqlalchemy import and_, desc
+    r = (
+        db.query(QuizResult)
+        .filter(
+            and_(
+                QuizResult.user_id == user_id,
+                QuizResult.quiz_level == level,
+                QuizResult.score == 10,
+                QuizResult.total_questions == 10,
+            )
+        )
+        .order_by(desc(QuizResult.taken_at))
+        .first()
+    )
+    if not r or not getattr(r, "taken_at", None):
+        return None
+    return _utc_date(r.taken_at)
+
+
+def get_certificates_earned(db: Session, user_id: int) -> list:
+    """Return list of level names for which the user has earned a certificate (perfect score)."""
+    return [lev for lev in CERTIFICATE_LEVELS if _has_perfect_for_level(db, user_id, lev)]
 
 
 # -------------------------
@@ -468,10 +527,28 @@ def advance_quiz(request: Request, db: Session = Depends(get_db)):
     )
 
 @app.get("/lessons", response_class=HTMLResponse)
-def lessons_page(request: Request, db: Session = Depends(get_db)):
-    # Fetch only Basic level lessons
-    lessons = db.query(Lesson).filter(Lesson.sign_level == "Basic").all()
-    return templates.TemplateResponse("lessons.html", {"request": request, "lessons": lessons})
+def lessons_page(
+    request: Request,
+    q: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Basic level lessons page with optional search by lesson name.
+    """
+    lessons_query = db.query(Lesson).filter(Lesson.sign_level == "Basic")
+    if q and q.strip():
+        term = f"%{q.strip()}%"
+        lessons_query = lessons_query.filter(Lesson.name.ilike(term))
+
+    lessons = lessons_query.all()
+    return templates.TemplateResponse(
+        "lessons.html",
+        {
+            "request": request,
+            "lessons": lessons,
+            "search_query": q.strip() if q and q.strip() else "",
+        },
+    )
 
 @app.get("/intermediatee", response_class=HTMLResponse)
 def intermediate_lessons_page(request: Request, db: Session = Depends(get_db)):
@@ -487,11 +564,25 @@ def advance_lessons_page(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
-def dashboard_page(request: Request, db: Session = Depends(get_db)):
+def dashboard_page(
+    request: Request,
+    q: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
     """
     Admin dashboard showing basic stats and user list.
+    Optional query param 'q' filters users by username or email (case-insensitive).
     """
-    users = db.query(User).all()
+    users_query = db.query(User)
+    if q and q.strip():
+        term = f"%{q.strip()}%"
+        users_query = users_query.filter(
+            or_(
+                User.username.ilike(term),
+                User.email.ilike(term),
+            )
+        )
+    users = users_query.all()
     user_count = len(users)
     lesson_count = db.query(Lesson).count()
     quiz_count = db.query(Quiz).count()
@@ -515,6 +606,7 @@ def dashboard_page(request: Request, db: Session = Depends(get_db)):
             "quiz_attempts_count": quiz_attempts_count,
             "user_error": None,
             "admin_name": admin_name,
+            "search_query": q.strip() if q and q.strip() else None,
         },
     )
 
@@ -841,11 +933,21 @@ def update_user_submit(
     user_id: int = Form(...),
     email: str = Form(...),
     username: str = Form(...),
+    search_query: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     """
     Allow admin to update a user's email and username.
     """
+    def get_users_for_dashboard(db_session, q=None):
+        users_query = db_session.query(User)
+        if q and str(q).strip():
+            term = f"%{q.strip()}%"
+            users_query = users_query.filter(
+                or_(User.username.ilike(term), User.email.ilike(term))
+            )
+        return users_query.all()
+
     # Validation: username max 15, email must contain @
     admin_name = "Admin"
     aid = request.session.get("admin_id")
@@ -855,7 +957,7 @@ def update_user_submit(
             admin_name = adm.full_name
     ok, err = validate_username(username)
     if not ok:
-        users = db.query(User).all()
+        users = get_users_for_dashboard(db, search_query)
         return templates.TemplateResponse(
             "dashboard.html",
             {
@@ -867,11 +969,12 @@ def update_user_submit(
                 "quiz_attempts_count": db.query(QuizResult).count(),
                 "user_error": err,
                 "admin_name": admin_name,
+                "search_query": search_query.strip() if search_query and search_query.strip() else None,
             },
         )
     ok, err = validate_email(email)
     if not ok:
-        users = db.query(User).all()
+        users = get_users_for_dashboard(db, search_query)
         return templates.TemplateResponse(
             "dashboard.html",
             {
@@ -883,6 +986,7 @@ def update_user_submit(
                 "quiz_attempts_count": db.query(QuizResult).count(),
                 "user_error": err,
                 "admin_name": admin_name,
+                "search_query": search_query.strip() if search_query and search_query.strip() else None,
             },
         )
     # Check if the new email/username is already used by another user
@@ -896,7 +1000,7 @@ def update_user_submit(
     )
 
     if existing:
-        users = db.query(User).all()
+        users = get_users_for_dashboard(db, search_query)
         user_count = len(users)
         lesson_count = db.query(Lesson).count()
         quiz_count = db.query(Quiz).count()
@@ -911,18 +1015,25 @@ def update_user_submit(
                 "quiz_attempts_count": db.query(QuizResult).count(),
                 "user_error": "Email or username is already in use by another account.",
                 "admin_name": admin_name,
+                "search_query": search_query.strip() if search_query and search_query.strip() else None,
             },
         )
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        return RedirectResponse(url="/dashboard", status_code=303)
+        redirect_url = "/dashboard"
+        if search_query and str(search_query).strip():
+            redirect_url = f"/dashboard?q={quote(search_query.strip())}"
+        return RedirectResponse(url=redirect_url, status_code=303)
 
     user.email = email
     user.username = username
     db.commit()
 
-    return RedirectResponse(url="/dashboard", status_code=303)
+    redirect_url = "/dashboard"
+    if search_query and str(search_query).strip():
+        redirect_url = f"/dashboard?q={quote(search_query.strip())}"
+    return RedirectResponse(url=redirect_url, status_code=303)
 
 
 # -------------------------
@@ -932,6 +1043,7 @@ def update_user_submit(
 def delete_user_submit(
     request: Request,
     user_id: int = Form(...),
+    search_query: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     """
@@ -950,7 +1062,10 @@ def delete_user_submit(
             db.delete(user)
             db.commit()
 
-    return RedirectResponse(url="/dashboard", status_code=303)
+    redirect_url = "/dashboard"
+    if search_query and str(search_query).strip():
+        redirect_url = f"/dashboard?q={quote(search_query.strip())}"
+    return RedirectResponse(url=redirect_url, status_code=303)
 
 # -------------------------
 # POST Add Lesson
@@ -1036,7 +1151,7 @@ def save_quiz_result(
     level_name = quiz_level or "Quiz"
 
     activity_dates_after = get_activity_dates(user_id, db)
-    today_utc = date.today()
+    today_utc = datetime.now(timezone.utc).date()
     if activity_dates_after:
         new_date = max(activity_dates_after)
         new_streak = compute_streak(activity_dates_after, new_date)
@@ -1126,6 +1241,8 @@ def save_quiz_result(
         "streak_continued": streak_continued,
         "streak_broken": streak_broken,
         "streak_milestone": streak_milestone,
+        "certificate_earned": score == 10 and total_questions == 10,
+        "certificate_level": level_name if (score == 10 and total_questions == 10) else None,
     }
 
 # -------------------------
@@ -1154,6 +1271,7 @@ def get_user_stats(request: Request, db: Session = Depends(get_db)):
     activity_dates = get_activity_dates(user_id, db)
     reference = max(activity_dates) if activity_dates else None
     current_streak = compute_streak(activity_dates, reference) if reference else 0
+    certificates_earned = get_certificates_earned(db, user_id)
     return {
         "status": "success",
         "quizzes_taken": quizzes_taken,
@@ -1163,7 +1281,73 @@ def get_user_stats(request: Request, db: Session = Depends(get_db)):
         "points_to_next_badge": points_to_next_badge,
         "badge_tier": badge_tier,
         "current_streak": current_streak,
+        "certificates_earned": certificates_earned,
     }
+
+
+# -------------------------
+# GET Certificate PDF Download
+# -------------------------
+@app.get("/api/certificate/{level}/download")
+def download_certificate(
+    level: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Generate and return a PDF certificate for the given level if the user has earned it (perfect score)."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return {"status": "error", "detail": "User not logged in"}
+    level_normalized = level.strip()
+    if level_normalized not in CERTIFICATE_LEVELS:
+        return {"status": "error", "detail": "Invalid level"}
+    if not _has_perfect_for_level(db, user_id, level_normalized):
+        return {"status": "error", "detail": "Certificate not earned for this level"}
+    user = db.query(User).filter(User.id == user_id).first()
+    user_name = user.username if user else "Learner"
+    achieved_date = _certificate_achieved_date(db, user_id, level_normalized)
+    if not achieved_date:
+        achieved_date = datetime.now(timezone.utc).date()
+    try:
+        pdf_bytes = generate_certificate_pdf(user_name, level_normalized, achieved_date)
+    except Exception:
+        return {"status": "error", "detail": "Certificate generation failed"}
+    safe_name = quote(level_normalized.replace(" ", "_"))
+    filename = f"GestureLab_Certificate_{safe_name}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# -------------------------
+# GET All Quiz Results (User)
+# -------------------------
+@app.get("/quiz_results", response_class=HTMLResponse)
+def quiz_results_page(request: Request, db: Session = Depends(get_db)):
+    """
+    Show a table of all quiz results for the logged-in user.
+    """
+    user_id = request.session.get("user_id")
+    if not user_id:
+        # If not logged in, send to login page
+        return RedirectResponse(url="/login", status_code=303)
+
+    results = (
+        db.query(QuizResult)
+        .filter(QuizResult.user_id == user_id)
+        .order_by(QuizResult.taken_at.desc())
+        .all()
+    )
+
+    return templates.TemplateResponse(
+        "quiz_results.html",
+        {
+            "request": request,
+            "results": results,
+        },
+    )
 
 # -------------------------
 # POST Update Lesson

@@ -86,6 +86,20 @@
             </a>
         </div>
 
+        <div class="nav-search">
+            <form method="get" action="/lessons" class="nav-search-form">
+                <input
+                    type="text"
+                    name="q"
+                    class="nav-search-input"
+                    placeholder="Search lessons..."
+                    value="{{ search_query or '' }}"
+                    aria-label="Search lessons by name"
+                >
+                <button type="submit" class="nav-search-btn">Search</button>
+            </form>
+        </div>
+
     <!-- Notification Bell Button -->
     <div class="notification-container">
         <button class="notification-bell" id="notificationBell" aria-label="Notifications">
@@ -188,30 +202,30 @@
                 <div class="link-column">
                     <h3>Learn</h3>
                     <ul>
-                        <li><a href="#">Basics</a></li>
+                        <li><a href="/lessons">Basics</a></li>
                         <li><a href="#">Finger-Spelling</a></li>
                         <li><a href="#">Everyday Signs</a></li>
                         <li><a href="#">Conversation Packs</a></li>
-                        <li><a href="#">Advanced Lessons</a></li>
+                        <li><a href="/advancee">Advanced Lessons</a></li>
                     </ul>
                 </div>
 
                 <div class="link-column">
                     <h3>Practice</h3>
                     <ul>
-                        <li><a href="#">AI Gesture Practice</a></li>
+                        <li><a href="/practice">AI Gesture Practice</a></li>
                         <li><a href="#">Mini Games</a></li>
                         <li><a href="#">Speed Drills</a></li>
                         <li><a href="#">Scenario Practice</a></li>
-                        <li><a href="#">Progress Dashboard</a></li>
+                        <li><a href="/profile">Progress Dashboard</a></li>
                     </ul>
                 </div>
 
                 <div class="link-column">
                     <h3>Support</h3>
                     <ul>
-                        <li><a href="#">About Us</a></li>
-                        <li><a href="#">Contact</a></li>
+                        <li><a href="/about">About Us</a></li>
+                        <li><a href="/contact">Contact</a></li>
                         <li><a href="#">FAQs</a></li>
                         <li><a href="#">Privacy Policy</a></li>
                         <li><a href="#">Terms of Use</a></li>
@@ -295,17 +309,42 @@
                 }).replace(/"/g, '&quot;');
                 
                 return `
-                    <div class="notification-item ${notif.is_read ? 'read' : 'unread'}" onclick="openNotificationModal(${notif.id}, '${notif.title.replace(/'/g, "\\'")}', '${notif.message.replace(/'/g, "\\'")}', '${fullDateTime.replace(/'/g, "\\'")}')">
+                    <div class="notification-item ${notif.is_read ? 'read' : 'unread'}" data-notif="${notifData}">
                         <div class="notification-item-icon"></div>
                         <div class="notification-item-content">
                             <h4 class="notification-item-title">${notif.title}</h4>
                             <p class="notification-item-message">${notif.message}</p>
                             <p class="notification-item-time" title="${fullDateTime}">${timeAgo}</p>
                         </div>
-                        <button class="notification-item-close" onclick="event.stopPropagation(); deleteNotification(${notif.id});">×</button>
+                        <button class="notification-item-close" data-id="${notif.id}">×</button>
                     </div>
                 `;
             }).join('');
+
+            // Attach click handlers to open modal safely (handles quotes/newlines)
+            document.querySelectorAll('.notification-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    try {
+                        const raw = item.getAttribute('data-notif');
+                        if (!raw) return;
+                        const data = JSON.parse(raw);
+                        openNotificationModal(data.id, data.title, data.message, data.created_at);
+                    } catch (e) {
+                        console.error('Error opening notification modal', e);
+                    }
+                });
+            });
+
+            // Attach delete handlers without inline JS
+            document.querySelectorAll('.notification-item-close').forEach(btn => {
+                btn.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const id = btn.getAttribute('data-id');
+                    if (id) {
+                        deleteNotification(id);
+                    }
+                });
+            });
         }
 
         // Get time ago string

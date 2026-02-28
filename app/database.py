@@ -63,6 +63,11 @@ def ensure_schema() -> None:
                     conn.execute(
                         text("ALTER TABLE quiz_results ADD COLUMN taken_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()")
                     )
+                else:
+                    # Backfill any NULL taken_at (e.g. from old app version) so streak can count them
+                    conn.execute(
+                        text("UPDATE quiz_results SET taken_at = COALESCE(taken_at, NOW()) WHERE taken_at IS NULL")
+                    )
 
             # Notifications: admin-created flag and batch id for admin panel
             if "notifications" in inspector.get_table_names():

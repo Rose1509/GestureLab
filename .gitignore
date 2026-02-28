@@ -13,6 +13,11 @@ dummy2
 test.db
 
 
+# SQL & test files
+*.sql
+.env.example
+
+
 # C extensions
 *.so
 

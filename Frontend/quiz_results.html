@@ -3,48 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Language Lessons</title>
-    <link rel="stylesheet" href="/static/css/intermediatee.css">
+    <title>My Quiz Results - Gesture Lab</title>
+    <link rel="stylesheet" href="/static/css/quiz_results.css">
     <link rel="stylesheet" href="/static/css/header.css">
-    <link rel="stylesheet" href="/static/css/footer.css">    
-
+    <link rel="stylesheet" href="/static/css/footer.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
-
 <body>
-
-    <!-- Success Notification -->
-    <div id="successNotification" class="success-notification">
-        <div class="notification-content">
-            <svg class="notification-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-            <div>
-                <h3>Welcome!</h3>
-                <p>You have successfully logged in. Start your sign language journey here!</p>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Show success notification on page load after login
-        document.addEventListener('DOMContentLoaded', () => {
-            const notification = document.getElementById('successNotification');
-            const urlParams = new URLSearchParams(window.location.search);
-            const isNewLogin = urlParams.get('login_success') === '1' || sessionStorage.getItem('justLoggedIn');
-            
-            if (isNewLogin && notification) {
-                notification.style.display = 'flex';
-                // Auto-hide after 3.5 seconds
-                setTimeout(() => {
-                    notification.classList.add('hide');
-                    setTimeout(() => {
-                        notification.style.display = 'none';
-                    }, 400);
-                }, 3500);
-                sessionStorage.removeItem('justLoggedIn');
-            }
-        });
-    </script>
 
     <nav class="navbar">
         <div class="logo">
@@ -58,7 +23,7 @@
                 </div>
                 <span>Home</span>
             </a>
-            <a href="/lessons" class="nav-item active">
+            <a href="/lessons" class="nav-item">
                 <div class="icon-container">
                     <img src="/static/images/lesson.png" alt="Lessons" class="nav-icon">
                 </div>
@@ -97,45 +62,42 @@
             </form>
         </div>
 
-    <!-- Notification Bell Button -->
-    <div class="notification-container">
-        <button class="notification-bell" id="notificationBell" aria-label="Notifications">
-            <svg class="bell-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-            </svg>
-            <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
-        </button>
-        
-        <!-- Notification Dropdown Panel -->
-        <div class="notification-dropdown" id="notificationDropdown">
-            <div class="notification-dropdown-header">
-                <h3>Notifications</h3>
-                <button class="mark-all-read" id="markAllReadBtn" onclick="markAllNotificationsAsRead()">Mark all as read</button>
-            </div>
-            <div class="notification-dropdown-content" id="notificationList">
-                <div class="notification-empty">No notifications yet</div>
+        <div class="notification-container">
+            <button class="notification-bell" id="notificationBell" aria-label="Notifications">
+                <svg class="bell-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+                <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+            </button>
+            
+            <div class="notification-dropdown" id="notificationDropdown">
+                <div class="notification-dropdown-header">
+                    <h3>Notifications</h3>
+                    <button class="mark-all-read" id="markAllReadBtn" onclick="markAllNotificationsAsRead()">Mark all as read</button>
+                </div>
+                <div class="notification-dropdown-content" id="notificationList">
+                    <div class="notification-empty">No notifications yet</div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Notification Detail Modal -->
-    <div class="notification-modal" id="notificationModal">
-        <div class="notification-modal-content">
-            <button class="modal-close-btn" onclick="closeNotificationModal()">&times;</button>
-            <div class="modal-header">
-                <div class="modal-badge" id="modalBadge"></div>
-                <h2 id="modalTitle"></h2>
-            </div>
-            <div class="modal-body">
-                <p id="modalMessage"></p>
-            </div>
-            <div class="modal-footer">
-                <p class="modal-timestamp" id="modalTimestamp"></p>
-                <button class="modal-btn-primary" onclick="closeNotificationModal()">Close</button>
+        <div class="notification-modal" id="notificationModal">
+            <div class="notification-modal-content">
+                <button class="modal-close-btn" onclick="closeNotificationModal()">&times;</button>
+                <div class="modal-header">
+                    <div class="modal-badge" id="modalBadge"></div>
+                    <h2 id="modalTitle"></h2>
+                </div>
+                <div class="modal-body">
+                    <p id="modalMessage"></p>
+                </div>
+                <div class="modal-footer">
+                    <p class="modal-timestamp" id="modalTimestamp"></p>
+                    <button class="modal-btn-primary" onclick="closeNotificationModal()">Close</button>
+                </div>
             </div>
         </div>
-    </div>
 
         <a href="/logout" class="action-btn" aria-label="Logout" onclick="return confirm('Are you sure you want to logout?')">
             <div class="arrow-box">
@@ -144,58 +106,63 @@
         </a>
     </nav>
 
-    <main class="container">
-        <header class="page-header">
-            <h1>Sign Language Lessons</h1>
-            <p>Choose your level and start learning</p>
+    <main class="results-page">
+        <header class="results-header">
+            <h1>My Quiz Results</h1>
+            <p>Review all your past quiz attempts and scores.</p>
         </header>
 
-        <!-- LEVEL SELECTOR (FIXED) -->
-        <nav class="level-selector">
-            <a href="/lessons" class="btn-level">Basic</a>
-            <a href="/intermediatee" class="btn-level">Intermediate</a>
-            <a href="/advancee" class="btn-level active">Advance</a>
-        </nav>
-
-        <section class="lesson-grid">
-            {% if lessons %}
-                {% for lesson in lessons %}
-                <div class="card">
-                    <div class="card-header">
-                        <h2>{{ lesson.name }}</h2>
-                    </div>
-                    <div class="card-body">
-                        <img src="{{ lesson.image }}" alt="Sign for {{ lesson.name }}" class="sign-img">
-                        <h3>{{ lesson.heading }}</h3>
-                        <ol>
-                            {% set steps = lesson.description.split('\n') %}
-                            {% for step in steps %}
-                                {% if step.strip() %}
-                                    <li>{{ step.strip() }}</li>
+        <section class="results-card">
+            {% if results and results|length > 0 %}
+            <div class="results-table-wrapper">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Level</th>
+                            <th>Score</th>
+                            <th>Total Questions</th>
+                            <th>Percent</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in results %}
+                        <tr>
+                            <td>
+                                {% if r.taken_at %}
+                                    {{ r.taken_at.strftime('%b %d, %Y %I:%M %p') }}
+                                {% else %}
+                                    -
                                 {% endif %}
-                            {% endfor %}
-                        </ol>
-                        <a href="/practice?lesson_id={{ lesson.id }}" class="btn-practice">Start Practice Now</a>
-                    </div>
-                </div>
-                {% endfor %}
+                            </td>
+                            <td>{{ r.quiz_level or 'Quiz' }}</td>
+                            <td>{{ r.score }}</td>
+                            <td>{{ r.total_questions }}</td>
+                            <td>
+                                {% if r.total_questions %}
+                                    {{ ((r.score / r.total_questions) * 100)|round(0) }}%
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
             {% else %}
-                <div style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
-                    <p>No advanced lessons available yet. Please check back later!</p>
-                </div>
+            <div class="results-empty">
+                <p>You haven't taken any quizzes yet. Start a quiz from the <a href="/quizzes">Quizzes</a> page.</p>
+            </div>
             {% endif %}
         </section>
     </main>
 
     <footer class="main-footer">
         <div class="footer-container">
-
-            <!-- Brand -->
             <div class="footer-brand">
                 <h2 class="footer-logo">Gesture Lab</h2>
             </div>
-
-            <!-- Links -->
             <nav class="footer-links">
                 <div class="link-column">
                     <h3>Learn</h3>
@@ -207,7 +174,6 @@
                         <li><a href="/advancee">Advanced Lessons</a></li>
                     </ul>
                 </div>
-
                 <div class="link-column">
                     <h3>Practice</h3>
                     <ul>
@@ -218,7 +184,6 @@
                         <li><a href="/profile">Progress Dashboard</a></li>
                     </ul>
                 </div>
-
                 <div class="link-column">
                     <h3>Support</h3>
                     <ul>
@@ -237,7 +202,6 @@
         </div>
     </footer>
 
-    <!-- Notification Scripts -->
     <script>
         // Toggle notification dropdown
         document.getElementById('notificationBell').addEventListener('click', function(e) {
@@ -306,17 +270,42 @@
                 }).replace(/"/g, '&quot;');
                 
                 return `
-                    <div class="notification-item ${notif.is_read ? 'read' : 'unread'}" onclick="openNotificationModal(${notif.id}, '${notif.title.replace(/'/g, "\\'")}', '${notif.message.replace(/'/g, "\\'")}', '${fullDateTime.replace(/'/g, "\\'")}')">
+                    <div class="notification-item ${notif.is_read ? 'read' : 'unread'}" data-notif="${notifData}">
                         <div class="notification-item-icon"></div>
                         <div class="notification-item-content">
                             <h4 class="notification-item-title">${notif.title}</h4>
                             <p class="notification-item-message">${notif.message}</p>
                             <p class="notification-item-time" title="${fullDateTime}">${timeAgo}</p>
                         </div>
-                        <button class="notification-item-close" onclick="event.stopPropagation(); deleteNotification(${notif.id});">×</button>
+                        <button class="notification-item-close" data-id="${notif.id}">×</button>
                     </div>
                 `;
             }).join('');
+
+            // Attach click handlers to open modal safely (handles quotes/newlines)
+            document.querySelectorAll('.notification-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    try {
+                        const raw = item.getAttribute('data-notif');
+                        if (!raw) return;
+                        const data = JSON.parse(raw);
+                        openNotificationModal(data.id, data.title, data.message, data.created_at);
+                    } catch (e) {
+                        console.error('Error opening notification modal', e);
+                    }
+                });
+            });
+
+            // Attach delete handlers without inline JS
+            document.querySelectorAll('.notification-item-close').forEach(btn => {
+                btn.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const id = btn.getAttribute('data-id');
+                    if (id) {
+                        deleteNotification(id);
+                    }
+                });
+            });
         }
 
         // Get time ago string
@@ -366,18 +355,12 @@
             const modalMessage = document.getElementById('modalMessage');
             const modalTimestamp = document.getElementById('modalTimestamp');
             
-            // Set modal content
             modalTitle.textContent = title;
             modalMessage.textContent = message;
             modalTimestamp.textContent = `Sent: ${timestamp}`;
             
-            // Show modal
             modal.classList.add('active');
-            
-            // Mark as read
             markNotificationAsRead(notificationId);
-            
-            // Prevent body scroll
             document.body.style.overflow = 'hidden';
         }
 
@@ -385,8 +368,6 @@
         function closeNotificationModal() {
             const modal = document.getElementById('notificationModal');
             modal.classList.remove('active');
-            
-            // Restore body scroll
             document.body.style.overflow = 'auto';
         }
 
@@ -420,11 +401,8 @@
         // Fetch notifications on page load
         document.addEventListener('DOMContentLoaded', function() {
             fetchNotifications();
-            
-            // Poll for new notifications every 10 seconds
-            setInterval(fetchNotifications, 10000);
         });
     </script>
-
 </body>
 </html>
+
