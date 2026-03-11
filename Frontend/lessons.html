@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/static/css/lessons.css">
     <link rel="stylesheet" href="/static/css/header.css">
     <link rel="stylesheet" href="/static/css/footer.css">
+    <link rel="stylesheet" href="/static/css/logout_modal.css">
 </head>
 
 
@@ -141,7 +142,7 @@
     </div>
 
 
-        <a href="/logout" class="action-btn" aria-label="Logout" onclick="return confirm('Are you sure you want to logout?')">
+        <a href="/logout" class="action-btn" aria-label="Logout">
             <div class="arrow-box">
                 <img src="/static/images/log-out.png" alt="Logout" class="arrow-icon">
             </div>
@@ -160,6 +161,13 @@
             <a href="/intermediatee" class="btn-level">Intermediate</a>
             <a href="/advancee" class="btn-level">Advance</a>
         </nav>
+
+        {% if search_query %}
+        <p class="search-hint-lessons">
+            Showing results for <strong>"{{ search_query }}"</strong>
+            <a href="/lessons" class="search-clear-link">Clear</a>
+        </p>
+        {% endif %}
 
         <section class="lesson-grid">
             {% if lessons %}
@@ -454,5 +462,6 @@
         });
     </script>
     
+    {% include "logout_modal.html" %}
 </body>
 </html>

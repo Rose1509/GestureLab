@@ -44,3 +44,24 @@ def validate_email(email: str) -> Tuple[bool, Optional[str]]:
     if "@" not in email.strip():
         return False, "Email must contain @."
     return True, None
+
+
+# Contact form: email must be @gmail.com, subject max 200 words
+CONTACT_SUBJECT_MAX_WORDS = 200
+
+def validate_contact_email(email: str) -> Tuple[bool, Optional[str]]:
+    """Returns (valid, error_message). Contact email must contain @gmail.com."""
+    if not email or not email.strip():
+        return False, "Email is required."
+    if "@gmail.com" not in email.strip().lower():
+        return False, "Email must contain @gmail.com."
+    return True, None
+
+def validate_subject_word_count(subject: str, max_words: int = CONTACT_SUBJECT_MAX_WORDS) -> Tuple[bool, Optional[str]]:
+    """Returns (valid, error_message). Subject must have at most max_words words."""
+    if not subject or not subject.strip():
+        return False, "Subject is required."
+    words = subject.strip().split()
+    if len(words) > max_words:
+        return False, f"Subject must not contain more than {max_words} words."
+    return True, None

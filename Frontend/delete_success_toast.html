@@ -1,0 +1,65 @@
+<!-- Success toast after delete - include on dashboard, add_lessons, add_quizzes -->
+<div id="deleteSuccessToast" class="delete-success-toast" role="alert" aria-live="polite">
+    <div class="delete-success-toast-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+        </svg>
+    </div>
+    <p id="deleteSuccessMessage" class="delete-success-toast-message"></p>
+    <button type="button" class="delete-success-toast-close" id="deleteSuccessToastClose" aria-label="Close">&times;</button>
+</div>
+<script>
+(function() {
+    var toast = document.getElementById('deleteSuccessToast');
+    var messageEl = document.getElementById('deleteSuccessMessage');
+    var closeBtn = document.getElementById('deleteSuccessToastClose');
+    if (!toast || !messageEl) return;
+
+    var messages = {
+        user: 'User deleted successfully.',
+        lesson: 'Lesson deleted successfully.',
+        quiz: 'Quiz deleted successfully.'
+    };
+
+    function showToast(key) {
+        var msg = messages[key];
+        if (!msg) return;
+        messageEl.textContent = msg;
+        toast.classList.remove('is-hiding');
+        toast.classList.add('is-visible');
+        var t = setTimeout(function() {
+            hideToast();
+        }, 3500);
+        toast._hideTimer = t;
+    }
+
+    function hideToast() {
+        if (toast._hideTimer) {
+            clearTimeout(toast._hideTimer);
+            toast._hideTimer = null;
+        }
+        toast.classList.add('is-hiding');
+        setTimeout(function() {
+            toast.classList.remove('is-visible', 'is-hiding');
+        }, 300);
+        var u = new URL(window.location.href);
+        u.searchParams.delete('delete_success');
+        var newUrl = u.pathname + (u.search || '') + u.hash;
+        window.history.replaceState({}, '', newUrl);
+    }
+
+    closeBtn.addEventListener('click', hideToast);
+
+    function init() {
+        var params = new URLSearchParams(window.location.search);
+        var key = params.get('delete_success');
+        if (key && messages[key]) showToast(key);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>

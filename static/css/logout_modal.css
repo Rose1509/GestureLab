@@ -1,0 +1,128 @@
+/* Logout confirmation modal – shared for user and admin pages */
+
+.logout-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 43, 75, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: logoutModalFadeIn 0.2s ease;
+}
+
+.logout-modal-overlay.is-open {
+    display: flex;
+}
+
+@keyframes logoutModalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.logout-modal-card {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(26, 43, 75, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.04);
+    max-width: 400px;
+    width: 100%;
+    overflow: hidden;
+    animation: logoutModalSlideIn 0.25s ease;
+}
+
+@keyframes logoutModalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.logout-modal-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 16px;
+    background: #fef3c7;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logout-modal-icon svg {
+    width: 28px;
+    height: 28px;
+    color: #d97706;
+}
+
+.logout-modal-body {
+    padding: 24px 28px 20px;
+    text-align: center;
+}
+
+.logout-modal-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1a2b4b;
+    margin: 0 0 8px;
+    line-height: 1.35;
+}
+
+.logout-modal-message {
+    font-size: 0.95rem;
+    color: #64748b;
+    margin: 0 0 24px;
+    line-height: 1.5;
+}
+
+.logout-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.logout-modal-btn {
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s, color 0.2s, transform 0.1s;
+    min-width: 120px;
+}
+
+.logout-modal-btn:active {
+    transform: scale(0.98);
+}
+
+.logout-modal-btn-cancel {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.logout-modal-btn-cancel:hover {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.logout-modal-btn-confirm {
+    background: #1a2b4b;
+    color: #ffffff;
+}
+
+.logout-modal-btn-confirm:hover {
+    background: #243b5e;
+    color: #fff;
+}
+
+/* Admin pages: modal can sit above sidebar */
+body .logout-modal-overlay {
+    z-index: 10001;
+}

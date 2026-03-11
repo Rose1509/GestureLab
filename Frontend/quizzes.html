@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/static/css/header.css">
     <link rel="stylesheet" href="/static/css/footer.css">    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/logout_modal.css">
 </head>
 <body>
 
@@ -136,7 +137,7 @@
         </div>
     </div>
 
-        <a href="/logout" class="action-btn" aria-label="Logout" onclick="return confirm('Are you sure you want to logout?')">
+        <a href="/logout" class="action-btn" aria-label="Logout">
             <div class="arrow-box">
                 <img src="/static/images/log-out.png" alt="Logout" class="arrow-icon">
             </div>
@@ -450,5 +451,6 @@
         });
     </script>
 
+    {% include "logout_modal.html" %}
 </body>
 </html>

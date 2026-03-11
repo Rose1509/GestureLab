@@ -88,6 +88,34 @@ body {
     margin-top: 10px;
 }
 
+.form-hint {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    margin-left: 120px;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.contact-alert {
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+}
+
+.contact-alert-success {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.contact-alert-error {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
 .form-submit {
     text-align: center;
     margin-top: 20px;

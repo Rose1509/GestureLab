@@ -191,13 +191,13 @@ input:focus {
     right: 0;
 }
 
-/* Google Button */
+/* Google Button – full width, matches login button shape and spacing */
 .google-btn {
     display: flex;
     align-items: center;
     justify-content: center;
     width: 100%;
-    padding: 13px;
+    padding: 14px 16px;
     margin-bottom: 14px;
     border: 2px solid #e0e0e0;
     border-radius: 40px;
@@ -207,21 +207,38 @@ input:focus {
     font-weight: 600;
     text-decoration: none;
     cursor: pointer;
+    box-sizing: border-box;
     box-shadow: 0 3px 6px rgba(0,0,0,0.08);
-    transition: all 0.25s ease;
+    transition: background-color 0.25s ease, border-color 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
 }
 
 .google-btn:hover {
-    background-color: #f5f5f5;
-    border-color: #bbb;
-    transform: translateY(-1px);
-    box-shadow: 0 5px 10px rgba(0,0,0,0.12);
+    background-color: #f8f9fa;
+    border-color: #1a2a44;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.12);
+}
+
+.google-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(26, 42, 68, 0.5);
+}
+
+.google-btn:active {
+    transform: translateY(0);
 }
 
 .google-icon {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     margin-right: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.google-icon i {
+    font-size: 1.1rem;
 }
 
 
@@ -295,5 +312,16 @@ input:focus {
 
     .illustration-container img {
         width: 105%;
+    }
+
+    .google-btn {
+        padding: 14px 12px;
+        font-size: 0.9rem;
+    }
+
+    .google-icon {
+        width: 18px;
+        height: 18px;
+        margin-right: 8px;
     }
 }

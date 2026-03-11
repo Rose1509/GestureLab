@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/static/css/header.css">
     <link rel="stylesheet" href="/static/css/footer.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/logout_modal.css">
 </head>
 <body>
 
@@ -136,7 +137,7 @@
         </div>
     </div>
 
-        <a href="/logout" class="action-btn" aria-label="Logout" onclick="return confirm('Are you sure you want to logout?')">
+        <a href="/logout" class="action-btn" aria-label="Logout">
             <div class="arrow-box">
                 <img src="/static/images/log-out.png" alt="Logout" class="arrow-icon">
             </div>
@@ -148,21 +149,27 @@
 
         <div class="contact-grid">
             <div class="form-card">
-                <form>
+                {% if contact_success %}
+                <div class="contact-alert contact-alert-success">Your message was sent successfully. We'll get back to you soon!</div>
+                {% endif %}
+                {% if contact_error %}
+                <div class="contact-alert contact-alert-error">{{ contact_error }}</div>
+                {% endif %}
+                <form id="contact-form" action="/contact" method="post">
                     <div class="form-group">
                         <label for="name">Name:</label>
-                        <input type="text" id="name" name="name">
+                        <input type="text" id="name" name="name" value="{{ contact_name or '' }}">
                     </div>
                     <div class="form-group">
                         <label for="email">Email:</label>
-                        <input type="email" id="email" name="email">
+                        <input type="email" id="email" name="email" value="{{ contact_email or '' }}" placeholder="e.g. you@gmail.com">
                     </div>
                     <div class="form-group">
                         <label for="subject">Subject:</label>
-                        <input type="text" id="subject" name="subject">
+                        <input type="text" id="subject" name="subject" value="{{ contact_subject or '' }}">
                     </div>
                     <div class="form-group">
-                        <textarea id="message" name="message" placeholder="Your message......."></textarea>
+                        <textarea id="message" name="message" placeholder="Your message.......">{{ contact_message or '' }}</textarea>
                     </div>
                     <div class="form-submit">
                         <button type="submit" class="btn-submit">Submit</button>
@@ -472,6 +479,77 @@
             setInterval(fetchNotifications, 10000);
         });
     </script>
-    
+
+    <!-- Contact form validation: email must contain @gmail.com, subject max 200 words -->
+    <script>
+        (function() {
+            var form = document.getElementById('contact-form');
+            if (!form) return;
+            var emailInput = document.getElementById('email');
+            var subjectInput = document.getElementById('subject');
+            var SUBJECT_MAX_WORDS = 200;
+
+            function countWords(str) {
+                if (!str || !str.trim()) return 0;
+                return str.trim().split(/\s+/).length;
+            }
+
+            function hideError() {
+                var card = form.closest('.form-card');
+                var alertBox = (card && card.querySelector('.contact-alert-error')) || form.querySelector('.contact-alert-error');
+                if (alertBox) {
+                    alertBox.style.display = 'none';
+                }
+            }
+
+            if (emailInput) {
+                emailInput.addEventListener('input', hideError);
+            }
+            if (subjectInput) {
+                subjectInput.addEventListener('input', hideError);
+            }
+
+            form.addEventListener('submit', function(e) {
+                var email = (emailInput && emailInput.value) ? emailInput.value.trim() : '';
+                var subject = (subjectInput && subjectInput.value) ? subjectInput.value.trim() : '';
+
+                var err = null;
+                if (!email) {
+                    err = 'Email is required.';
+                } else if (email.toLowerCase().indexOf('@gmail.com') === -1) {
+                    err = 'Email must contain @gmail.com.';
+                } else if (countWords(subject) > SUBJECT_MAX_WORDS) {
+                    err = 'Subject must not contain more than ' + SUBJECT_MAX_WORDS + ' words.';
+                }
+
+                if (err) {
+                    e.preventDefault();
+                    var card = form.closest('.form-card');
+                    var alertBox = (card && card.querySelector('.contact-alert-error')) || form.querySelector('.contact-alert-error');
+                    if (!alertBox) {
+                        alertBox = document.createElement('div');
+                        alertBox.className = 'contact-alert contact-alert-error';
+                        form.insertBefore(alertBox, form.firstChild);
+                    }
+                    alertBox.textContent = err;
+                    alertBox.style.display = 'block';
+                }
+            });
+        })();
+    </script>
+
+    <!-- Auto-hide contact success message after ~5.5 seconds -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var successBox = document.querySelector('.contact-alert-success');
+            if (successBox) {
+                setTimeout(function () {
+                    successBox.style.display = 'none';
+                }, 5500);
+            }
+        });
+    </script>
+
+    {% include "logout_modal.html" %}
 </body>
 </html>

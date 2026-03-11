@@ -6,6 +6,7 @@
     <title>Gesture Lab Admin Dashboard</title>
     <link rel="stylesheet" href="/static/css/admin_profile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/logout_modal.css">
 </head>
 <body>
     <div class="container">
@@ -25,7 +26,7 @@
             </nav>
 
             <div class="logout">
-                <a href="/logout" onclick="return confirm('Are you sure you want to logout?')"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                <a href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
             </div>
         </aside>
 
@@ -123,5 +124,6 @@
             });
         });
     </script>
+    {% include "logout_modal.html" %}
 </body>
 </html>

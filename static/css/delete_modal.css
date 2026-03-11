@@ -1,0 +1,127 @@
+/* Delete confirmation modal – user, lesson, quiz */
+
+.delete-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 43, 75, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: deleteModalFadeIn 0.2s ease;
+}
+
+.delete-modal-overlay.is-open {
+    display: flex;
+}
+
+@keyframes deleteModalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.delete-modal-card {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(26, 43, 75, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.04);
+    max-width: 420px;
+    width: 100%;
+    overflow: hidden;
+    animation: deleteModalSlideIn 0.25s ease;
+}
+
+@keyframes deleteModalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.delete-modal-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 16px;
+    background: #fee2e2;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-modal-icon svg {
+    width: 28px;
+    height: 28px;
+    color: #dc2626;
+}
+
+.delete-modal-body {
+    padding: 24px 28px 20px;
+    text-align: center;
+}
+
+.delete-modal-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1a2b4b;
+    margin: 0 0 8px;
+    line-height: 1.35;
+}
+
+.delete-modal-message {
+    font-size: 0.95rem;
+    color: #64748b;
+    margin: 0 0 24px;
+    line-height: 1.5;
+}
+
+.delete-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.delete-modal-btn {
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s, color 0.2s, transform 0.1s;
+    min-width: 120px;
+}
+
+.delete-modal-btn:active {
+    transform: scale(0.98);
+}
+
+.delete-modal-btn-cancel {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.delete-modal-btn-cancel:hover {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.delete-modal-btn-confirm {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.delete-modal-btn-confirm:hover {
+    background: #b91c1c;
+    color: #fff;
+}
+
+body .delete-modal-overlay {
+    z-index: 10001;
+}

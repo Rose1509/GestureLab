@@ -16,6 +16,7 @@
 
     <!-- FOOTER CSS -->
     <link rel="stylesheet" href="/static/css/footer.css">
+    <link rel="stylesheet" href="/static/css/logout_modal.css">
 </head>
 <body>
 
@@ -146,7 +147,7 @@
         </div>
     </div>
 
-    <a href="/logout" class="action-btn" aria-label="Logout" onclick="return confirm('Are you sure you want to logout?')">
+    <a href="/logout" class="action-btn" aria-label="Logout">
             <div class="arrow-box">
                 <img src="/static/images/log-out.png" alt="Logout" class="arrow-icon">
             </div>
@@ -512,5 +513,7 @@
             setInterval(fetchNotifications, 10000);
         });
     </script>
+
+    {% include "logout_modal.html" %}
 </body>
 </html>

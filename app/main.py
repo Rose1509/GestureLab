@@ -1,6 +1,7 @@
 # app/main.py
 
 import os
+import json
 import uuid
 from datetime import date, timedelta, timezone, datetime
 from typing import Optional
@@ -14,15 +15,29 @@ from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
+try:
+    from authlib.integrations.starlette_client import OAuth
+    _OAUTH_AVAILABLE = True
+except ImportError:
+    OAuth = None
+    _OAUTH_AVAILABLE = False
+
 from dotenv import load_dotenv
 
 from .database import SessionLocal, ensure_schema
 from .models import User, Lesson, Quiz, Admin, Notification, QuizResult
-from .authentication import hash_password, verify_password, validate_username, validate_password, validate_email
+from .authentication import hash_password, verify_password, validate_username, validate_password, validate_email, validate_contact_email, validate_subject_word_count
 from .certificate import generate_certificate_pdf
+from . import sign_model
 
-# Load environment variables
-load_dotenv()
+# -------------------------
+# Paths for static and templates (project root = BASE_DIR)
+# -------------------------
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Load environment variables explicitly from project root so it works
+# even if the working directory is different when running uvicorn.
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 
 # -------------------------
@@ -34,7 +49,6 @@ app.add_middleware(SessionMiddleware, secret_key="your-secret-key-change-in-prod
 # -------------------------
 # Paths for static and templates
 # -------------------------
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 IMAGES_DIR = os.path.join(STATIC_DIR, "images")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "Frontend")
@@ -44,6 +58,74 @@ os.makedirs(IMAGES_DIR, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
+
+# -------------------------
+# OAuth (Google) – real OAuth 2.0 (no demo mode)
+# Supports credentials from environment variables or credentials.json
+# -------------------------
+
+
+def _load_google_oauth_client() -> tuple[Optional[str], Optional[str]]:
+    """
+    Load Google OAuth client id/secret.
+
+    Priority:
+    1. Environment variables: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+    2. JSON file (GOOGLE_OAUTH_CREDENTIALS_FILE or credentials.json in project root)
+       using the standard Google format with a "web" or "installed" section.
+    """
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    if client_id and client_secret:
+        return client_id.strip(), client_secret.strip()
+
+    # Fallback to credentials.json file
+    default_path = os.path.join(BASE_DIR, "credentials.json")
+    cred_path = (os.getenv("GOOGLE_OAUTH_CREDENTIALS_FILE") or "").strip() or default_path
+    # Resolve relative paths against project root
+    if not os.path.isabs(cred_path):
+        cred_path = os.path.join(BASE_DIR, cred_path)
+
+    paths_to_try = [cred_path]
+    if cred_path != default_path:
+        paths_to_try.append(default_path)
+    # Also try cwd in case server is run from project root
+    cwd_path = os.path.join(os.getcwd(), "credentials.json")
+    if cwd_path not in paths_to_try:
+        paths_to_try.append(cwd_path)
+
+    for path in paths_to_try:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError, OSError):
+            continue
+        section = data.get("web") or data.get("installed") or {}
+        file_client_id = section.get("client_id")
+        file_client_secret = section.get("client_secret")
+        if file_client_id and file_client_secret:
+            return file_client_id, file_client_secret
+    return None, None
+
+
+GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET = _load_google_oauth_client()
+GOOGLE_OAUTH_REDIRECT_URI = (os.getenv("GOOGLE_OAUTH_REDIRECT_URI") or "").strip() or "http://127.0.0.1:8000/auth/google/callback"
+GOOGLE_OAUTH_ENABLED = (
+    _OAUTH_AVAILABLE and bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
+)
+
+oauth = None
+if GOOGLE_OAUTH_ENABLED:
+    oauth = OAuth()
+    oauth.register(
+        name="google",
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
+        server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+        client_kwargs={"scope": "openid email profile"},
+    )
+
 
 def _render_login(request: Request, error: Optional[str] = None) -> HTMLResponse:
     return templates.TemplateResponse(
@@ -78,6 +160,16 @@ def init_admin():
 
 @app.on_event("startup")
 def on_startup() -> None:
+    # Log Google OAuth status so we can see why it might be disabled
+    if GOOGLE_OAUTH_ENABLED:
+        print("✓ Google Sign-In configured (credentials loaded)")
+    else:
+        if not _OAUTH_AVAILABLE:
+            print("⚠ Google Sign-In disabled: install authlib (pip install authlib)")
+        elif not (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET):
+            print("⚠ Google Sign-In disabled: no credentials (check .env or credentials.json in project root)")
+        else:
+            print("⚠ Google Sign-In disabled")
     try:
         # Create all tables defined in models
         from .database import Base, engine
@@ -279,6 +371,27 @@ def get_db():
 
 
 # -------------------------
+# Admin-only dependency (redirect to login if not admin)
+# -------------------------
+class AdminRequiredRedirect(Exception):
+    """Raised when admin auth is required but session is not admin. Handled by redirecting to login."""
+    def __init__(self, url: str = "/login", status_code: int = 303):
+        self.url = url
+        self.status_code = status_code
+
+
+def require_admin(request: Request) -> None:
+    """Dependency: redirect to login if the request session is not an admin."""
+    if not request.session.get("admin_id") or not request.session.get("is_admin"):
+        raise AdminRequiredRedirect()
+
+
+@app.exception_handler(AdminRequiredRedirect)
+def admin_required_redirect_handler(request: Request, exc: AdminRequiredRedirect):
+    return RedirectResponse(url=exc.url, status_code=exc.status_code)
+
+
+# -------------------------
 # GET Routes
 # -------------------------
 @app.get("/", response_class=HTMLResponse)
@@ -299,23 +412,114 @@ def login_form(request: Request):
     )
 
 # -------------------------
-# Google OAuth Routes (Demo Mode)
+# Google OAuth Routes (Real OAuth + Demo Mode)
 # -------------------------
 @app.get("/auth/google")
-def auth_google_start(request: Request):
+async def auth_google_start(request: Request):
     """
-    Starts the Google OAuth flow (Demo Mode).
-    Shows a Google-like login interface without real credentials.
+    Redirect the user to the official Google account chooser page using
+    OAuth 2.0 Authorization Code Flow.
+
+    The redirect URI used is configured as GOOGLE_OAUTH_REDIRECT_URI
+    (default: http://127.0.0.1:8000/auth/google/callback) and must be
+    registered in your Google Cloud Console.
     """
-    # Check if running in demo mode
-    demo_mode = os.getenv("GOOGLE_OAUTH_DEMO_MODE", "true").lower() == "true"
-    
-    if demo_mode:
-        # Demo mode: show realistic Google login interface
-        return templates.TemplateResponse("google_demo_login.html", {"request": request})
-    
-    # If demo mode is disabled, show error
-    return _render_login(request, error="Google login is not configured. Please use demo mode or set up real credentials.")
+    if not GOOGLE_OAUTH_ENABLED:
+        return _render_login(
+            request,
+            error=(
+                "Google sign-in is not configured. "
+                "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment "
+                "or provide a credentials.json file, and install: pip install authlib."
+            ),
+        )
+
+    # Always use real Google OAuth (no demo mode)
+    return await oauth.google.authorize_redirect(request, GOOGLE_OAUTH_REDIRECT_URI)
+
+
+@app.get("/auth/google/login")
+async def auth_google_login(request: Request):
+    """
+    Convenience route so the frontend can call /auth/google/login.
+    This simply delegates to the main Google OAuth start endpoint,
+    which redirects the user to Google's official account chooser page.
+    """
+    return await auth_google_start(request)
+
+
+@app.get("/auth/google/callback")
+async def auth_google_callback(request: Request, db: Session = Depends(get_db)):
+    """
+    Google redirects here after the user signs in and grants permission.
+    We exchange the authorization code for tokens, fetch basic profile
+    (email, name, picture, etc.), authenticate the user in our system,
+    and redirect to the home page.
+    """
+    if not GOOGLE_OAUTH_ENABLED:
+        return _render_login(
+            request,
+            error=(
+                "Google sign-in is not configured. "
+                "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment "
+                "or provide a credentials.json file."
+            ),
+        )
+
+    try:
+        # Exchange authorization code for access token
+        token = await oauth.google.authorize_access_token(request)
+
+        # Fetch user info from Google (OpenID Connect userinfo)
+        resp = await oauth.google.get("userinfo", token=token)
+        profile = resp.json()
+
+        # Basic profile fields we care about
+        email = profile.get("email")
+        google_sub = profile.get("sub")  # stable Google user id
+
+        if not email or not google_sub:
+            return _render_login(request, error="Google did not return a valid email or user ID.")
+
+        google_id = google_sub
+
+        # 1) Check if user already exists with this Google ID
+        user = db.query(User).filter(User.google_id == google_id).first()
+
+        # 2) If not, check if user exists with this email and link it
+        if not user:
+            user = db.query(User).filter(User.email == email).first()
+            if user and not user.google_id:
+                user.google_id = google_id
+                db.commit()
+
+        # 3) Otherwise create a new account
+        if not user:
+            username_seed = email.split("@")[0]
+            base_username = username_seed.lower().replace(".", "_")
+            username = base_username
+            counter = 1
+            while db.query(User).filter(User.username == username).first():
+                username = f"{base_username}_{counter}"
+                counter += 1
+
+            user = User(
+                email=email,
+                username=username,
+                password=hash_password(uuid.uuid4().hex),  # random password (not used)
+                google_id=google_id,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        # Log in user and redirect home
+        request.session["user_id"] = user.id
+        request.session["is_admin"] = False
+        return RedirectResponse(url="/home?login_success=1", status_code=303)
+
+    except Exception as e:
+        return _render_login(request, error=f"Google login failed: {str(e)}")
 
 
 @app.post("/auth/google/demo-login")
@@ -392,7 +596,43 @@ def about_us(request: Request):
 
 @app.get("/contact", response_class=HTMLResponse)
 def contact_us(request: Request):
-    return templates.TemplateResponse("contact_us.html", {"request": request})
+    contact_success = request.query_params.get("contact_success") == "1"
+    return templates.TemplateResponse(
+        "contact_us.html",
+        {
+            "request": request,
+            "contact_success": contact_success,
+            "contact_error": None,
+            "contact_name": "",
+            "contact_email": "",
+            "contact_subject": "",
+            "contact_message": "",
+        },
+    )
+
+@app.post("/contact", response_class=HTMLResponse)
+def contact_us_submit(
+    request: Request,
+    name: str = Form(""),
+    email: str = Form(""),
+    subject: str = Form(""),
+    message: str = Form(""),
+):
+    """Validate contact form: email must contain @gmail.com, subject max 200 words."""
+    ok_email, err_email = validate_contact_email(email)
+    ok_subject, err_subject = validate_subject_word_count(subject)
+    if not ok_email:
+        return templates.TemplateResponse(
+            "contact_us.html",
+            {"request": request, "contact_error": err_email, "contact_name": name, "contact_email": email, "contact_subject": subject, "contact_message": message},
+        )
+    if not ok_subject:
+        return templates.TemplateResponse(
+            "contact_us.html",
+            {"request": request, "contact_error": err_subject, "contact_name": name, "contact_email": email, "contact_subject": subject, "contact_message": message},
+        )
+    # Success: redirect so refresh doesn't resubmit
+    return RedirectResponse(url="/contact?contact_success=1", status_code=303)
 
 @app.get("/practice", response_class=HTMLResponse)
 def practice_page(request: Request, lesson_id: Optional[int] = None, db: Session = Depends(get_db)):
@@ -461,7 +701,7 @@ def profile_page(request: Request, db: Session = Depends(get_db)):
     )
 
 @app.get("/add_quizzes", response_class=HTMLResponse)
-def quizzes_page(request: Request, db: Session = Depends(get_db)):
+def quizzes_page(request: Request, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     """Admin view to add/edit quizzes."""
     quizzes = db.query(Quiz).all()
     return templates.TemplateResponse(
@@ -568,6 +808,7 @@ def dashboard_page(
     request: Request,
     q: Optional[str] = None,
     db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
 ):
     """
     Admin dashboard showing basic stats and user list.
@@ -614,7 +855,7 @@ def dashboard_page(
 # Notification Routes
 # -------------------------
 @app.get("/send_notifications", response_class=HTMLResponse)
-def send_notifications_page(request: Request, db: Session = Depends(get_db)):
+def send_notifications_page(request: Request, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     """Admin page to send custom notifications to all users."""
     return templates.TemplateResponse("send_notifications.html", {"request": request})
 
@@ -625,7 +866,8 @@ def send_custom_notification(
     notification_type: str = Form(...),
     title: str = Form(...),
     message: str = Form(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
 ):
     """Handle custom notification submission from admin."""
     import uuid
@@ -652,7 +894,7 @@ def send_custom_notification(
 
 
 @app.get("/admin/recent_notifications")
-def get_admin_recent_notifications(db: Session = Depends(get_db)):
+def get_admin_recent_notifications(db: Session = Depends(get_db), _: None = Depends(require_admin)):
     """Get recent notifications added by admin only (sent from Notifications page), within last 30 days."""
     from datetime import datetime, timedelta
     thirty_days_ago = datetime.utcnow() - timedelta(days=30)
@@ -689,7 +931,7 @@ def get_admin_recent_notifications(db: Session = Depends(get_db)):
 
 
 @app.get("/admin_profile", response_class=HTMLResponse)
-def admin_profile_page(request: Request, db: Session = Depends(get_db)):
+def admin_profile_page(request: Request, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     """Admin profile page with current admin data."""
     admin = db.query(Admin).first()
     if not admin:
@@ -708,7 +950,7 @@ def admin_profile_page(request: Request, db: Session = Depends(get_db)):
     )
 
 @app.get("/add_lessons", response_class=HTMLResponse)
-def add_lessons_page(request: Request, db: Session = Depends(get_db)):
+def add_lessons_page(request: Request, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     # Fetch all lessons for display in table
     lessons = db.query(Lesson).all()
     return templates.TemplateResponse("add_lessons.html", {"request": request, "lessons": lessons})
@@ -935,6 +1177,7 @@ def update_user_submit(
     username: str = Form(...),
     search_query: Optional[str] = Form(None),
     db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
 ):
     """
     Allow admin to update a user's email and username.
@@ -1045,6 +1288,7 @@ def delete_user_submit(
     user_id: int = Form(...),
     search_query: Optional[str] = Form(None),
     db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
 ):
     """
     Allow admin to delete a user account.
@@ -1062,9 +1306,9 @@ def delete_user_submit(
             db.delete(user)
             db.commit()
 
-    redirect_url = "/dashboard"
+    redirect_url = "/dashboard?delete_success=user"
     if search_query and str(search_query).strip():
-        redirect_url = f"/dashboard?q={quote(search_query.strip())}"
+        redirect_url = f"/dashboard?q={quote(search_query.strip())}&delete_success=user"
     return RedirectResponse(url=redirect_url, status_code=303)
 
 # -------------------------
@@ -1078,7 +1322,8 @@ async def add_lesson_submit(
     image: UploadFile = File(...),
     heading: str = Form(...),
     description: str = Form(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
 ):
     # Save uploaded image file
     image_path = await save_uploaded_file(image)
@@ -1288,6 +1533,57 @@ def get_user_stats(request: Request, db: Session = Depends(get_db)):
 # -------------------------
 # GET Certificate PDF Download
 # -------------------------
+@app.post("/api/predict-sign")
+async def predict_sign(frame: UploadFile = File(..., alias="frame"), target: Optional[str] = Form(None)):
+    """
+    Accept a single image (webcam frame), run the sign language CNN, return predicted letter and confidence.
+    Expects multipart form with field 'frame' containing an image file (e.g. image/jpeg, image/png).
+    """
+    if not frame.content_type or not frame.content_type.startswith("image/"):
+        return {"letter": None, "confidence": 0.0, "error": "Invalid image type"}
+    try:
+        data = await frame.read()
+    except Exception as e:
+        return {"letter": None, "confidence": 0.0, "error": str(e)}
+    if not data:
+        return {"letter": None, "confidence": 0.0, "error": "Empty image"}
+    try:
+        from io import BytesIO
+        from PIL import Image
+        img = Image.open(BytesIO(data)).copy()
+    except Exception as e:
+        return {"letter": None, "confidence": 0.0, "error": f"Image open failed: {e}"}
+    labels, probs = sign_model.predict_proba(img)
+    if labels is None or probs is None:
+        err = sign_model.get_load_error()
+        return {"letter": None, "confidence": 0.0, "error": err or "Prediction failed"}
+
+    idx = int(probs.argmax()) if probs.size else 0
+    letter = labels[idx] if idx < len(labels) else None
+    confidence = float(probs[idx]) if probs.size and idx < probs.size else 0.0
+
+    target_conf = None
+    target_label = None
+    if target:
+        raw_target = target.strip()
+        # Extract a single A-Z letter from whatever lesson.name contains (e.g. "B", "Letter B", "B - Basics")
+        import re
+        m = re.search(r"[A-Za-z]", raw_target)
+        target_label = m.group(0).upper() if m else raw_target.upper()
+
+        lookup = {str(l).strip().upper(): i for i, l in enumerate(labels)}
+        ti = lookup.get(target_label)
+        if ti is not None and ti < probs.size:
+            target_conf = float(probs[ti])
+
+    return {
+        "letter": letter,
+        "confidence": round(confidence, 4),
+        "target": target_label,
+        "target_confidence": round(target_conf, 4) if target_conf is not None else None,
+    }
+
+
 @app.get("/api/certificate/{level}/download")
 def download_certificate(
     level: str,
@@ -1362,7 +1658,8 @@ async def update_lesson_submit(
     existing_image: Optional[str] = Form(None),
     heading: str = Form(...),
     description: str = Form(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
 ):
     # Find lesson by ID
     lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
@@ -1403,7 +1700,8 @@ async def update_lesson_submit(
 def delete_lesson_submit(
     request: Request,
     lesson_id: int = Form(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
 ):
     # Find and delete lesson
     lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
@@ -1411,7 +1709,7 @@ def delete_lesson_submit(
         db.delete(lesson)
         db.commit()
     
-    return RedirectResponse(url="/add_lessons", status_code=303)
+    return RedirectResponse(url="/add_lessons?delete_success=lesson", status_code=303)
 
 
 # -------------------------
@@ -1434,6 +1732,7 @@ async def add_quiz_submit(
     option4_image: Optional[UploadFile] = File(None),
     correct_option: int = Form(...),
     db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
 ):
     # Save images if provided
     question_image_path = await save_uploaded_file(question_image) if question_image and question_image.filename else None
@@ -1499,6 +1798,7 @@ async def update_quiz_submit(
     existing_option4_image: Optional[str] = Form(None),
     correct_option: int = Form(...),
     db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
 ):
     quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
     if not quiz:
@@ -1564,13 +1864,14 @@ def delete_quiz_submit(
     request: Request,
     quiz_id: int = Form(...),
     db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
 ):
     quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
     if quiz:
         db.delete(quiz)
         db.commit()
 
-    return RedirectResponse(url="/add_quizzes", status_code=303)
+    return RedirectResponse(url="/add_quizzes?delete_success=quiz", status_code=303)
 
 
 # -------------------------
@@ -1585,6 +1886,7 @@ def update_admin_profile_submit(
     new_password: Optional[str] = Form(None),
     confirm_password: Optional[str] = Form(None),
     db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
 ):
     """
     Allow admin to update their profile information.

@@ -57,11 +57,18 @@
                 {% endif %}
 
                 <button type="submit" class="login-btn">Login</button>
-
-                <p class="register-text">
-                    Don't have an account? <a href="/register">Register One</a>
-                </p>
             </form>
+
+            <div class="divider">or continue with</div>
+
+            <a href="/auth/google/login" class="google-btn" aria-label="Sign in with Google">
+                <span class="google-icon"><i class="fab fa-google" aria-hidden="true"></i></span>
+                Sign in with Google
+            </a>
+
+            <p class="register-text">
+                Don't have an account? <a href="/register">Register One</a>
+            </p>
 
         </div>
     </div>

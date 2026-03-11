@@ -11,3 +11,6 @@ email-validator>=2.1.0
 authlib>=1.2.1
 python-dotenv>=1.0.0
 reportlab>=4.0.0
+tensorflow>=2.15.0
+pillow>=10.0.0
+numpy>=1.24.0
