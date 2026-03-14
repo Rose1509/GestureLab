@@ -13,7 +13,7 @@
 </head>
 <body>
 
-    <!-- Success Notification -->
+    <!-- Small login success toast shown once after redirect -->
     <div id="successNotification" class="success-notification">
         <div class="notification-content">
             <svg class="notification-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -98,7 +98,7 @@
             </form>
         </div>
 
-    <!-- Notification Bell Button -->
+    <!-- Global notifications bell (shared header component) -->
     <div class="notification-container">
         <button class="notification-bell" id="notificationBell" aria-label="Notifications">
             <svg class="bell-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -145,6 +145,7 @@
         </a>
     </nav>
 
+    <!-- Main practice layout: camera on the left, live prediction + lesson info on the right -->
     <main class="practice-main-content">
         <div class="practice-page-header">
             <h1>Practice Mode</h1>
@@ -186,6 +187,12 @@
                         <p>Letter and confidence update as you sign</p>
                     </div>
                     <div class="prediction-display">
+                        <div class="prediction-loading" id="prediction-loading" style="display:none;">
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                            <span class="loading-text">Analyzing your sign…</span>
+                        </div>
                         <div class="prediction-target-wrap" id="prediction-target-wrap" style="display: none;">
                             <span class="prediction-label">Target</span>
                             <span class="prediction-target" id="prediction-target">—</span>
@@ -199,7 +206,7 @@
                             <span class="prediction-confidence" id="prediction-confidence">—%</span>
                         </div>
                         <div class="prediction-target-confidence-wrap" id="prediction-target-confidence-wrap" style="display: none;">
-                            <span class="prediction-label">Target confidence</span>
+                            <span class="prediction-label">Final prediction</span>
                             <span class="prediction-confidence" id="prediction-target-confidence">—%</span>
                         </div>
                         <p class="prediction-error" id="prediction-error" style="display: none;"></p>
@@ -243,6 +250,15 @@
             </aside>
         </div>
     </main>
+
+    <!-- Simple popup shown when Mediapipe stops seeing any hand for a short time -->
+    <div class="no-hand-modal-overlay" id="no-hand-modal" style="display: none;">
+        <div class="no-hand-modal">
+            <h2>No hand detected</h2>
+            <p>Please show your hand clearly inside the camera view to continue practicing.</p>
+            <button type="button" class="no-hand-close-btn" id="no-hand-close-btn">OK</button>
+        </div>
+    </div>
 
     <footer class="main-footer">
         <div class="footer-container">
@@ -505,10 +521,10 @@
         });
     </script>
 
-    <!-- MediaPipe Hands (browser-side hand ROI crop) -->
+    <!-- MediaPipe Hands: used only to find the hand region (no ML here) -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
 
-    <!-- Practice page camera access + real-time sign prediction -->
+    <!-- Practice page camera access + real-time sign prediction using /api/predict-sign -->
     <script>
         (function () {
             const videoEl = document.getElementById('practice-camera-stream');
@@ -519,6 +535,7 @@
             const letterEl = document.getElementById('prediction-letter');
             const confidenceEl = document.getElementById('prediction-confidence');
             const errorEl = document.getElementById('prediction-error');
+            const loadingEl = document.getElementById('prediction-loading');
             const targetWrap = document.getElementById('prediction-target-wrap');
             const targetEl = document.getElementById('prediction-target');
             const targetConfWrap = document.getElementById('prediction-target-confidence-wrap');
@@ -530,18 +547,27 @@
             let predictInFlight = false;
             let isPracticing = false;
             let bestTargetConfidence = null; // track best target confidence during session
+            let bestOverallLetter = null;    // track best overall predicted letter
+            let bestOverallConfidence = 0;   // track best overall confidence (0–1)
             const PREDICTION_INTERVAL_MS = 300;
             let handBox = null; // {x,y,w,h} in source video pixels
             let handLoopRafId = null;
             let hands = null;
+            const noHandModal = document.getElementById('no-hand-modal');
+            const noHandCloseBtn = document.getElementById('no-hand-close-btn');
+            let lastHandSeenAt = null;
+            // How long we wait with no detected hand before showing the popup
+            const NO_HAND_TIMEOUT_MS = 1000;
             const TARGET_LETTER = (function () {
                 try {
-                    // lesson.name is the alphabet letter in your dataset/lessons
+                    // lesson.name may be just the letter (\"A\") or include text (\"Letter A\", \"A - Apple\").
+                    // We take the LAST alphabetic character so names like \"Letter A\" still resolve to \"A\".
                     const raw = `{% if lesson %}{{ lesson.name }}{% else %}{% endif %}`;
                     if (!raw) return '';
                     const s = String(raw).trim();
-                    const m = s.match(/[A-Za-z]/);
-                    return m ? m[0].toUpperCase() : s.toUpperCase();
+                    const matches = s.match(/[A-Za-z]/g);
+                    const ch = matches && matches.length ? matches[matches.length - 1] : null;
+                    return ch ? ch.toUpperCase() : s.toUpperCase();
                 } catch (_) {
                     return '';
                 }
@@ -590,6 +616,27 @@
                 if (confidenceEl) confidenceEl.textContent = '';
                 if (targetConfEl) targetConfEl.textContent = '';
                 if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+                if (loadingEl) loadingEl.style.display = 'none';
+                if (noHandModal) noHandModal.style.display = 'none';
+            }
+
+            function setAnalyzing(isAnalyzing) {
+                if (!loadingEl) return;
+                loadingEl.style.display = isAnalyzing ? 'flex' : 'none';
+                // While analyzing, hide the numeric results so the user focuses on the loading state
+                const showBlocks = !isAnalyzing;
+                if (targetWrap) {
+                    // Target letter can stay visible to remind what you're trying to sign
+                    targetWrap.style.display = TARGET_LETTER ? 'block' : 'none';
+                }
+                const letterWrap = letterEl ? letterEl.parentElement : null;
+                const confWrap = confidenceLabelEl ? confidenceLabelEl.parentElement : null;
+                if (letterWrap) letterWrap.style.display = showBlocks ? 'block' : 'none';
+                if (confWrap) confWrap.style.display = showBlocks ? 'block' : 'none';
+                if (TARGET_LETTER && targetConfWrap) {
+                    // Final prediction must always wait until analyzing finishes
+                    targetConfWrap.style.display = showBlocks && !isPracticing ? 'block' : 'none';
+                }
             }
 
             function setPredictionVisible(visible) {
@@ -600,8 +647,17 @@
                 if (confWrap) confWrap.style.display = show ? 'block' : 'none';
 
                 if (TARGET_LETTER && targetConfWrap) {
-                    targetConfWrap.style.display = show ? 'block' : 'none';
-                    if (targetConfEl) targetConfEl.textContent = show ? '—%' : '';
+                    // Hide final prediction while practicing; it will be shown on stop after analyzing.
+                    const shouldShowFinal = show && !isPracticing;
+                    targetConfWrap.style.display = shouldShowFinal ? 'block' : 'none';
+                    if (targetConfEl && shouldShowFinal) {
+                        if (bestTargetConfidence == null) {
+                            targetConfEl.textContent = '—%';
+                        }
+                    }
+                }
+                if (loadingEl && !show) {
+                    loadingEl.style.display = 'none';
                 }
             }
 
@@ -632,7 +688,7 @@
                 if (!isPracticing) return;
                 if (!videoEl || !videoEl.videoWidth || !videoEl.videoHeight) return;
                 if (!handBox) {
-                    setOverlayHint('Show your hand in the box');
+                    setOverlayHint('Please show your hand clearly inside the camera view');
                     return;
                 }
 
@@ -680,6 +736,7 @@
                     const lm = results && results.multiHandLandmarks && results.multiHandLandmarks[0];
                     if (!lm || !videoEl || !videoEl.videoWidth || !videoEl.videoHeight) {
                         handBox = null;
+                        // No landmarks this frame; don't update lastHandSeenAt (so timeout logic can trigger)
                         return;
                     }
                     let minX = 1, minY = 1, maxX = 0, maxY = 0;
@@ -723,6 +780,8 @@
                         return;
                     }
                     handBox = { x, y, w, h };
+                    lastHandSeenAt = Date.now();
+                    if (noHandModal) noHandModal.style.display = 'none';
                     updatePositionHint();
                 });
                 return hands;
@@ -747,6 +806,16 @@
                         // Ignore; keep previous box if any
                     } finally {
                         sending = false;
+                    }
+
+                    // If practicing and no hand has been seen recently, show the modal
+                    if (isPracticing) {
+                        const now = Date.now();
+                        const tooLong =
+                            !lastHandSeenAt || (now - lastHandSeenAt) >= NO_HAND_TIMEOUT_MS;
+                        if (tooLong && noHandModal) {
+                            noHandModal.style.display = 'flex';
+                        }
                     }
                 }
                 tick();
@@ -803,15 +872,49 @@
                             fetch('/api/predict-sign', { method: 'POST', body: form })
                                 .then(function (r) { return r.json(); })
                                 .then(function (data) {
-                                    if (data && !data.error && TARGET_LETTER) {
-                                        const t = data.target_confidence;
-                                        if (typeof t === 'number') {
-                                            if (bestTargetConfidence == null || t > bestTargetConfidence) bestTargetConfidence = t;
+                                    if (!data || data.error) {
+                                        // Final snapshot failed – show a neutral state
+                                        letterEl.textContent = '—';
+                                        confidenceEl.textContent = '—%';
+                                        if (targetConfEl) targetConfEl.textContent = '—%';
+                                        if (errorEl && data && data.error) {
+                                            errorEl.textContent = data.error;
+                                            errorEl.style.display = 'block';
+                                        }
+                                        resolve(data || null);
+                                        return;
+                                    }
+                                    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+                                    // Update final predicted letter & confidence from this snapshot
+                                    letterEl.textContent = data.letter != null ? String(data.letter) : '—';
+                                    const pct = data.confidence != null ? (data.confidence * 100).toFixed(1) : '0';
+                                    confidenceEl.textContent = pct + '%';
+                                    // Track best overall prediction during the session
+                                    if (data.letter != null && typeof data.confidence === 'number') {
+                                        if (data.confidence > bestOverallConfidence) {
+                                            bestOverallConfidence = data.confidence;
+                                            bestOverallLetter = String(data.letter);
                                         }
                                     }
-                                    resolve(data || null);
+                                    // Track best target confidence as summary
+                                    if (TARGET_LETTER) {
+                                        const t = data.target_confidence;
+                                        if (typeof t === 'number') {
+                                            if (bestTargetConfidence == null || t > bestTargetConfidence) {
+                                                bestTargetConfidence = t;
+                                            }
+                                        }
+                                    }
+                                    resolve(data);
                                 })
                                 .catch(function () {
+                                    letterEl.textContent = '—';
+                                    confidenceEl.textContent = '—%';
+                                    if (targetConfEl) targetConfEl.textContent = '—%';
+                                    if (errorEl) {
+                                        errorEl.textContent = 'Network error. Is the server running?';
+                                        errorEl.style.display = 'block';
+                                    }
                                     resolve(null);
                                 })
                                 .finally(function () {
@@ -849,6 +952,13 @@
                                 letterEl.textContent = data.letter != null ? String(data.letter) : '—';
                                 const pct = data.confidence != null ? (data.confidence * 100).toFixed(1) : '0';
                                 confidenceEl.textContent = pct + '%';
+                                // Track best overall prediction during the session
+                                if (data.letter != null && typeof data.confidence === 'number') {
+                                    if (data.confidence > bestOverallConfidence) {
+                                        bestOverallConfidence = data.confidence;
+                                        bestOverallLetter = String(data.letter);
+                                    }
+                                }
                                 if (TARGET_LETTER) {
                                     const t = data.target_confidence;
                                     if (typeof t === 'number') {
@@ -883,18 +993,21 @@
                     predictionIntervalId = null;
                 }
                 stopHandTrackingLoop();
-                setPredictionVisible(false);
             }
 
             function startPractice() {
                 if (isPracticing) return;
                 isPracticing = true;
                 bestTargetConfidence = null;
+                bestOverallLetter = null;
+                bestOverallConfidence = 0;
+                lastHandSeenAt = null;
                 setPredictionPlaceholder();
                 setPredictionVisible(true);
+                setAnalyzing(false);
                 if (startBtn) startBtn.style.display = 'none';
                 if (stopBtn) stopBtn.style.display = 'inline-flex';
-                setOverlayHint('Show your hand in the box');
+                setOverlayHint('Please show your hand clearly inside the camera view');
                 startHandTrackingLoop();
                 startPredictionLoop();
             }
@@ -902,15 +1015,35 @@
             async function stopPractice(showFinalScore) {
                 isPracticing = false;
                 setOverlayHint('');
+                if (noHandModal) noHandModal.style.display = 'none';
 
                 // On stop: do one final prediction, then compute/display final best target score.
                 if (showFinalScore && typeof startPredictionLoop._captureAndPredictOnce === 'function') {
                     try {
+                        setAnalyzing(true);
                         await startPredictionLoop._captureAndPredictOnce();
+                        // After we have processed the last frame, override the live
+                        // prediction with the best overall prediction seen during
+                        // the session so the top score is shown.
+                        if (bestOverallLetter != null) {
+                            letterEl.textContent = bestOverallLetter;
+                            const finalTopPct = (bestOverallConfidence * 100).toFixed(1);
+                            confidenceEl.textContent = finalTopPct + '%';
+                        }
+                        // Keep analyzing spinner visible a bit so it feels deliberate
+                        setTimeout(function () {
+                            setAnalyzing(false);
+                        }, 4500);
                     } catch (_) {}
                 }
 
                 stopPredictionLoop();
+                // After stopping, either hide or show the prediction summary
+                if (showFinalScore) {
+                    setPredictionVisible(true);
+                } else {
+                    setPredictionVisible(false);
+                }
                 if (startBtn) startBtn.style.display = 'inline-flex';
                 if (stopBtn) stopBtn.style.display = 'none';
 
@@ -961,6 +1094,12 @@
                 if (TARGET_LETTER && targetWrap && targetEl) {
                     targetWrap.style.display = 'block';
                     targetEl.textContent = TARGET_LETTER;
+                }
+
+                if (noHandCloseBtn && noHandModal) {
+                    noHandCloseBtn.addEventListener('click', function () {
+                        noHandModal.style.display = 'none';
+                    });
                 }
             });
         })();

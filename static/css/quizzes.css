@@ -41,6 +41,12 @@ body {
     padding: 60px 20px;
 }
 
+/* If a level selector is used here, remove underline from its links */
+.level-selector a {
+    text-decoration: none;
+    color: inherit;
+}
+
 /* Typography */
 .quiz-intro h1 {
     font-size: 2.5rem;
@@ -103,6 +109,11 @@ body {
 }
 
 /* Button Styling */
+a.btn-start {
+    text-decoration: none;
+    color: #ffffff;
+    display: inline-block;
+}
 .btn-start {
     background-color: #1e293b; /* Dark navy */
     color: #ffffff;

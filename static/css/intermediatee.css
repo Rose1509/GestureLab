@@ -59,6 +59,11 @@ body {
     max-width: 1900px;
 }
 
+.level-selector a {
+    text-decoration: none;
+    color: inherit; /* keeps the same text color */
+}
+
 .btn-level {
     flex: 1;
     padding: 12px;

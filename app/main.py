@@ -1,4 +1,4 @@
-# app/main.py
+"""Main FastAPI application for Gesture Lab (routing, auth, quizzes, practice API)."""
 
 import os
 import json
@@ -35,16 +35,26 @@ from . import sign_model
 # -------------------------
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Load environment variables explicitly from project root so it works
-# even if the working directory is different when running uvicorn.
-load_dotenv(os.path.join(BASE_DIR, ".env"))
+# Load .env from multiple locations so credentials are found however the app is run
+_env_paths = [
+    os.path.join(BASE_DIR, ".env"),
+    os.path.join(os.getcwd(), ".env"),
+    ".env",
+]
+for _p in _env_paths:
+    _res = load_dotenv(_p)
+    if _res:
+        break
+# Also use dotenv's default discovery (current dir and parents)
+load_dotenv()
 
 
 # -------------------------
 # FastAPI app
 # -------------------------
 app = FastAPI()
-app.add_middleware(SessionMiddleware, secret_key="your-secret-key-change-in-production")
+_session_secret = (os.getenv("SESSION_SECRET_KEY") or "").strip() or "your-secret-key-change-in-production"
+app.add_middleware(SessionMiddleware, secret_key=_session_secret)
 
 # -------------------------
 # Paths for static and templates
@@ -61,8 +71,8 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
 # -------------------------
-# OAuth (Google) – real OAuth 2.0 (no demo mode)
-# Supports credentials from environment variables or credentials.json
+# OAuth (Google) – real OAuth 2.0 login
+# Reads client id/secret from env, .env, or credentials.json
 # -------------------------
 
 
@@ -72,13 +82,38 @@ def _load_google_oauth_client() -> tuple[Optional[str], Optional[str]]:
 
     Priority:
     1. Environment variables: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
-    2. JSON file (GOOGLE_OAUTH_CREDENTIALS_FILE or credentials.json in project root)
+    2. Direct read of .env file in project root (in case load_dotenv didn't run from the right cwd)
+    3. JSON file (GOOGLE_OAUTH_CREDENTIALS_FILE or credentials.json in project root)
        using the standard Google format with a "web" or "installed" section.
     """
-    client_id = os.getenv("GOOGLE_CLIENT_ID")
-    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    client_id = (os.getenv("GOOGLE_CLIENT_ID") or "").strip()
+    client_secret = (os.getenv("GOOGLE_CLIENT_SECRET") or "").strip()
     if client_id and client_secret:
-        return client_id.strip(), client_secret.strip()
+        return client_id, client_secret
+
+    # Fallback: read .env file directly from project root (handles wrong cwd / dotenv not finding file)
+    for _env_dir in (BASE_DIR, os.getcwd()):
+        _env_file = os.path.join(_env_dir, ".env")
+        try:
+            with open(_env_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "=" in line:
+                        key, _, val = line.partition("=")
+                        key = key.strip()
+                        val = val.strip().strip('"').strip("'")
+                        if key == "GOOGLE_CLIENT_ID" and val:
+                            client_id = client_id or val
+                        elif key == "GOOGLE_CLIENT_SECRET" and val:
+                            client_secret = client_secret or val
+                    if client_id and client_secret:
+                        return client_id, client_secret
+        except (OSError, IOError):
+            continue
+    if client_id and client_secret:
+        return client_id, client_secret
 
     # Fallback to credentials.json file
     default_path = os.path.join(BASE_DIR, "credentials.json")
@@ -302,7 +337,7 @@ def get_activity_dates(user_id: int, db: Session):
 
 
 def compute_streak(activity_dates: set, reference_date: date) -> int:
-    """Consecutive days with activity ending on reference_date. Returns 0 if reference_date not in set."""
+    """Count how many consecutive days (ending at reference_date) the user has at least one quiz."""
     if not activity_dates or reference_date not in activity_dates:
         return 0
     count = 0
@@ -470,9 +505,18 @@ async def auth_google_callback(request: Request, db: Session = Depends(get_db)):
         # Exchange authorization code for access token
         token = await oauth.google.authorize_access_token(request)
 
-        # Fetch user info from Google (OpenID Connect userinfo)
-        resp = await oauth.google.get("userinfo", token=token)
-        profile = resp.json()
+        # User info: OpenID Connect often puts it in token['userinfo']; otherwise fetch from userinfo endpoint
+        profile = token.get("userinfo")
+        if not profile:
+            try:
+                resp = await oauth.google.get("userinfo", token=token)
+                profile = resp.json() if hasattr(resp, "json") else resp
+            except Exception:
+                profile = None
+        if isinstance(profile, dict):
+            pass
+        else:
+            profile = {}
 
         # Basic profile fields we care about
         email = profile.get("email")
@@ -1371,10 +1415,12 @@ def save_quiz_result(
     if quiz_id is None and not quiz_level:
         return {"status": "error", "detail": "quiz_id or quiz_level is required"}
 
+    # Points & badges before this attempt
     results_before = db.query(QuizResult).filter(QuizResult.user_id == user_id).all()
     total_points_before = sum(r.score for r in results_before)
     badges_before = total_points_before // 20
 
+    # Streak state before saving this quiz
     activity_dates_before = get_activity_dates(user_id, db)
     reference_old = max(activity_dates_before) if activity_dates_before else None
     old_streak = compute_streak(activity_dates_before, reference_old) if reference_old else 0
@@ -1395,6 +1441,7 @@ def save_quiz_result(
     badge_just_unlocked = badges_after > badges_before
     level_name = quiz_level or "Quiz"
 
+    # Recompute activity dates after inserting this quiz result
     activity_dates_after = get_activity_dates(user_id, db)
     today_utc = datetime.now(timezone.utc).date()
     if activity_dates_after:
@@ -1404,6 +1451,7 @@ def save_quiz_result(
         new_date = today_utc
         new_streak = 1
 
+    # Flags control which streak notifications we send
     streak_continued = False
     streak_broken = False
     streak_milestone = False
@@ -1515,7 +1563,12 @@ def get_user_stats(request: Request, db: Session = Depends(get_db)):
         badge_tier = "gold"
     activity_dates = get_activity_dates(user_id, db)
     reference = max(activity_dates) if activity_dates else None
-    current_streak = compute_streak(activity_dates, reference) if reference else 0
+    today_utc = datetime.now(timezone.utc).date()
+    # If user hasn't done a quiz for 3 days, streak is ended and reset to 0
+    if reference is None or (today_utc - reference) >= timedelta(days=3):
+        current_streak = 0
+    else:
+        current_streak = compute_streak(activity_dates, reference)
     certificates_earned = get_certificates_earned(db, user_id)
     return {
         "status": "success",
@@ -1566,10 +1619,11 @@ async def predict_sign(frame: UploadFile = File(..., alias="frame"), target: Opt
     target_label = None
     if target:
         raw_target = target.strip()
-        # Extract a single A-Z letter from whatever lesson.name contains (e.g. "B", "Letter B", "B - Basics")
+        # Extract the LAST A-Z letter from whatever lesson.name contains
+        # e.g. "B", "Letter B", "B - Basics" -> "B"
         import re
-        m = re.search(r"[A-Za-z]", raw_target)
-        target_label = m.group(0).upper() if m else raw_target.upper()
+        letters = re.findall(r"[A-Za-z]", raw_target)
+        target_label = letters[-1].upper() if letters else raw_target.upper()
 
         lookup = {str(l).strip().upper(): i for i, l in enumerate(labels)}
         ti = lookup.get(target_label)
