@@ -31,9 +31,9 @@ from .certificate import generate_certificate_pdf
 from . import sign_model
 
 # -------------------------
-# Paths for static and templates (project root = BASE_DIR)
+# Paths (from config; project root = BASE_DIR)
 # -------------------------
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from .config import BASE_DIR, STATIC_DIR, IMAGES_DIR, TEMPLATES_DIR
 
 # Load .env from multiple locations so credentials are found however the app is run
 _env_paths = [
@@ -55,13 +55,6 @@ load_dotenv()
 app = FastAPI()
 _session_secret = (os.getenv("SESSION_SECRET_KEY") or "").strip() or "your-secret-key-change-in-production"
 app.add_middleware(SessionMiddleware, secret_key=_session_secret)
-
-# -------------------------
-# Paths for static and templates
-# -------------------------
-STATIC_DIR = os.path.join(BASE_DIR, "static")
-IMAGES_DIR = os.path.join(STATIC_DIR, "images")
-TEMPLATES_DIR = os.path.join(BASE_DIR, "Frontend")
 
 # Create images directory if it doesn't exist
 os.makedirs(IMAGES_DIR, exist_ok=True)

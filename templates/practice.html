@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Practice Mode - Gesture Lab</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/practice.css">
+    <link rel="stylesheet" href="/static/css/footer.css">
+    <link rel="stylesheet" href="/static/css/logout_modal.css">
+</head>
+<body>
+
+    <!-- Small login success toast shown once after redirect -->
+    <div id="successNotification" class="success-notification">
+        <div class="notification-content">
+            <svg class="notification-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <div>
+                <h3>Welcome!</h3>
+                <p>You have successfully logged in. Start your sign language journey here!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Show success notification on page load after login
+        document.addEventListener('DOMContentLoaded', () => {
+            const notification = document.getElementById('successNotification');
+            const urlParams = new URLSearchParams(window.location.search);
+            const isNewLogin = urlParams.get('login_success') === '1' || sessionStorage.getItem('justLoggedIn');
+            
+            if (isNewLogin && notification) {
+                notification.style.display = 'flex';
+                // Auto-hide after 3.5 seconds
+                setTimeout(() => {
+                    notification.classList.add('hide');
+                    setTimeout(() => {
+                        notification.style.display = 'none';
+                    }, 400);
+                }, 3500);
+                sessionStorage.removeItem('justLoggedIn');
+            }
+        });
+    </script>
+
+    <nav class="navbar">
+        <div class="logo">
+            <img src="/static/images/logo.png" alt="ASL Logo">
+        </div>
+
+        <div class="nav-links">
+            <a href="/home" class="nav-item">
+                <div class="icon-container">
+                    <img src="/static/images/homepage.png" alt="Home" class="nav-icon">
+                </div>
+                <span>Home</span>
+            </a>
+            <a href="/lessons" class="nav-item">
+                <div class="icon-container">
+                    <img src="/static/images/lesson.png" alt="Lessons" class="nav-icon">
+                </div>
+                <span>Lessons</span>
+            </a>
+            <a href="/practice" class="nav-item active">
+                <div class="icon-container">
+                    <img src="/static/images/practice.png" alt="Practice" class="nav-icon">
+                </div>
+                <span>Practice</span>
+            </a>
+            <a href="/quizzes" class="nav-item">
+                <div class="icon-container">
+                    <img src="/static/images/quizzes.png" alt="Quizzes" class="nav-icon">
+                </div>
+                <span>Quizzes</span>
+            </a>
+            <a href="/profile" class="nav-item">
+                <div class="icon-container">
+                    <img src="/static/images/profilepage.png" alt="Profile" class="nav-icon">
+                </div>
+                <span>Profile</span>
+            </a>
+        </div>
+
+        <div class="nav-search">
+            <form method="get" action="/lessons" class="nav-search-form">
+                <input
+                    type="text"
+                    name="q"
+                    class="nav-search-input"
+                    placeholder="Search lessons..."
+                    aria-label="Search lessons by name"
+                >
+                <button type="submit" class="nav-search-btn">Search</button>
+            </form>
+        </div>
+
+    <!-- Global notifications bell (shared header component) -->
+    <div class="notification-container">
+        <button class="notification-bell" id="notificationBell" aria-label="Notifications">
+            <svg class="bell-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+        </button>
+        
+        <!-- Notification Dropdown Panel -->
+        <div class="notification-dropdown" id="notificationDropdown">
+            <div class="notification-dropdown-header">
+                <h3>Notifications</h3>
+                <button class="mark-all-read" id="markAllReadBtn" onclick="markAllNotificationsAsRead()">Mark all as read</button>
+            </div>
+            <div class="notification-dropdown-content" id="notificationList">
+                <div class="notification-empty">No notifications yet</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Detail Modal -->
+    <div class="notification-modal" id="notificationModal">
+        <div class="notification-modal-content">
+            <button class="modal-close-btn" onclick="closeNotificationModal()">&times;</button>
+            <div class="modal-header">
+                <div class="modal-badge" id="modalBadge"></div>
+                <h2 id="modalTitle"></h2>
+            </div>
+            <div class="modal-body">
+                <p id="modalMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <p class="modal-timestamp" id="modalTimestamp"></p>
+                <button class="modal-btn-primary" onclick="closeNotificationModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+        <a href="/logout" class="action-btn" aria-label="Logout">
+            <div class="arrow-box">
+                <img src="/static/images/log-out.png" alt="Logout" class="arrow-icon">
+            </div>
+        </a>
+    </nav>
+
+    <!-- Main practice layout: camera on the left, live prediction + lesson info on the right -->
+    <main class="practice-main-content">
+        <div class="practice-page-header">
+            <h1>Practice Mode</h1>
+            <p>Practice signs with AI-powered real-time feedback</p>
+        </div>
+
+        <div class="practice-layout-grid">
+            <section class="practice-card camera-view-section">
+                <div class="card-titles">
+                    <h2>Camera View</h2>
+                    <p>Position your hand in front of the camera</p>
+                </div>
+                
+                <div class="video-feed-container">
+                    <video id="practice-camera-stream" autoplay playsinline muted style="display: none;"></video>
+                    <canvas id="practice-capture-canvas" style="display: none; position: absolute; left: -9999px;" width="224" height="224"></canvas>
+                    <div class="camera-overlay-hint" id="camera-overlay-hint" style="display: none;"></div>
+                    <div class="camera-placeholder-ui" id="camera-placeholder">
+                        <img src="/static/images/camera icon.png" alt="Camera Icon">
+                        <p>Camera feed will appear here</p>
+                    </div>
+                </div>
+
+                <div class="action-footer">
+                    <button class="dark-pill-btn" id="start-camera-btn">
+                        <img src="/static/images/camera icon.png" alt="" class="btn-img">
+                        Start Practice
+                    </button>
+                    <button class="dark-pill-btn stop-pill-btn" id="stop-camera-btn" type="button" style="display: none;">
+                        Stop
+                    </button>
+                </div>
+            </section>
+
+            <aside class="practice-sidebar">
+                <section class="practice-card prediction-section">
+                    <div class="card-titles">
+                        <h2>Live prediction</h2>
+                        <p>Letter and confidence update as you sign</p>
+                    </div>
+                    <div class="prediction-display">
+                        <div class="prediction-loading" id="prediction-loading" style="display:none;">
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                            <span class="loading-text">Analyzing your sign…</span>
+                        </div>
+                        <div class="prediction-target-wrap" id="prediction-target-wrap" style="display: none;">
+                            <span class="prediction-label">Target</span>
+                            <span class="prediction-target" id="prediction-target">—</span>
+                        </div>
+                        <div class="prediction-letter-wrap">
+                            <span class="prediction-label">Predicted</span>
+                            <span class="prediction-letter" id="prediction-letter">—</span>
+                        </div>
+                        <div class="prediction-confidence-wrap">
+                            <span class="prediction-label" id="prediction-confidence-label">Confidence</span>
+                            <span class="prediction-confidence" id="prediction-confidence">—%</span>
+                        </div>
+                        <div class="prediction-target-confidence-wrap" id="prediction-target-confidence-wrap" style="display: none;">
+                            <span class="prediction-label">Final prediction</span>
+                            <span class="prediction-confidence" id="prediction-target-confidence">—%</span>
+                        </div>
+                        <p class="prediction-error" id="prediction-error" style="display: none;"></p>
+                    </div>
+                </section>
+                <section class="practice-card demo-section">
+                    <div class="card-titles">
+                        <h2>{% if lesson %}{{ lesson.name }}{% else %}Demonstrations{% endif %}</h2>
+                    </div>
+                    <div class="asl-image-box">
+                        {% if lesson %}
+                        <img src="{{ lesson.image }}" alt="Sign for {{ lesson.name }}">
+                        {% else %}
+                        <img src="/static/images/asl-hand-demo.png" alt="Hand Gesture Demonstration">
+                        {% endif %}
+                    </div>
+                </section>
+
+                <section class="practice-card instructions-section">
+                    <div class="card-titles">
+                        <h2>Instructions</h2>
+                    </div>
+                    {% if lesson %}
+                    <ol class="instruction-steps">
+                        {% for step in lesson.description.split('\n') %}
+                        {% if step.strip() %}
+                        <li>{{ step.strip() }}</li>
+                        {% endif %}
+                        {% endfor %}
+                    </ol>
+                    {% else %}
+                    <ol class="instruction-steps">
+                        <li>Start your camera and put your hand within the frame.</li>
+                        <li>Click "Start Practice" to begin recording.</li>
+                        <li>Perform your sign language gestures.</li>
+                        <li>Then AI will detect the sign and give you the instant feedback.</li>
+                    </ol>
+                    <p class="practice-pick-lesson">Choose a lesson from <a href="/lessons">Lessons</a> and click "Start Practice Now" to practice a specific sign.</p>
+                    {% endif %}
+                </section>
+            </aside>
+        </div>
+    </main>
+
+    <!-- Simple popup shown when Mediapipe stops seeing any hand for a short time -->
+    <div class="no-hand-modal-overlay" id="no-hand-modal" style="display: none;">
+        <div class="no-hand-modal">
+            <h2>No hand detected</h2>
+            <p>Please show your hand clearly inside the camera view to continue practicing.</p>
+            <button type="button" class="no-hand-close-btn" id="no-hand-close-btn">OK</button>
+        </div>
+    </div>
+
+    <footer class="main-footer">
+        <div class="footer-container">
+            <div class="footer-brand">
+                <h2 class="footer-logo">Gesture Lab</h2>
+            </div>
+
+            <nav class="footer-links">
+                <div class="link-column">
+                    <h3>Learn</h3>
+                    <ul>
+                        <li><a href="/lessons">Basics</a></li>
+                        <li><a href="#">Finger-Spelling</a></li>
+                        <li><a href="#">Everyday Signs</a></li>
+                        <li><a href="#">Conversation Packs</a></li>
+                        <li><a href="/advancee">Advanced Lessons</a></li>
+                    </ul>
+                </div>
+
+                <div class="link-column">
+                    <h3>Practice</h3>
+                    <ul>
+                        <li><a href="/practice">AI Gesture Practice</a></li>
+                        <li><a href="#">Mini Games</a></li>
+                        <li><a href="#">Speed Drills</a></li>
+                        <li><a href="#">Scenario Practice</a></li>
+                        <li><a href="/profile">Progress Dashboard</a></li>
+                    </ul>
+                </div>
+
+                <div class="link-column">
+                    <h3>Support</h3>
+                    <ul>
+                        <li><a href="/about">About Us</a></li>
+                        <li><a href="/contact">Contact</a></li>
+                        <li><a href="#">FAQs</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Use</a></li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+
+        <div class="footer-bottom">
+            <p>&copy; 2025 Gesture Lab. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Notifications controller (shared JS) -->
+    <script src="/static/js/notifications.js"></script>
+
+    <!-- Practice page camera access + real-time sign prediction using /api/predict-sign -->
+    <!-- MediaPipe Hands: used only to find the hand region (no ML here) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script>
+        // Expose the raw lesson name so practice.js can compute the target letter
+        window.PRACTICE_TARGET_LETTER = `{% if lesson %}{{ lesson.name }}{% else %}{% endif %}`;
+    </script>
+    <script src="/static/js/practice.js"></script>
+
+    {% include "logout_modal.html" %}
+</body>
+</html>

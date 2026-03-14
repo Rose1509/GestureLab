@@ -170,6 +170,7 @@
     </div>
 
     <script>
+        // Simple inline controller for the "Edit user" form in the admin dashboard
         document.addEventListener('DOMContentLoaded', function () {
             const editButtons = document.querySelectorAll('.edit-user-btn');
             const form = document.getElementById('userUpdateForm');
@@ -193,6 +194,7 @@
             });
         });
 
+        // Hide and reset the inline edit form when admin clicks "Cancel"
         function clearUserForm() {
             const form = document.getElementById('userUpdateForm');
             form.reset();
