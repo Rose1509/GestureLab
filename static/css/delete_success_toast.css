@@ -91,3 +91,11 @@
     color: #64748b;
     background: #f1f5f9;
 }
+
+/* No-changes toast (profile / admin_profile) – info style */
+.profile-no-changes-toast .profile-no-changes-icon {
+    background: #e0f2fe;
+}
+.profile-no-changes-toast .profile-no-changes-icon svg {
+    color: #0284c7;
+}

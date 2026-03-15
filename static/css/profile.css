@@ -82,6 +82,23 @@ body {
     margin-bottom: 45px;
 }
 
+.profile-inline-alert {
+    padding: 10px 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 0.95rem;
+}
+.profile-inline-error {
+    background-color: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+.profile-inline-success {
+    background-color: #f0fdf4;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
 /* FORM STYLING */
 .form-row {
     display: flex;

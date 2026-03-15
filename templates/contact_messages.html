@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Messages - Gesture Lab Admin</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/add_lessons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/logout_modal.css">
+</head>
+<body>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="logo">
+                <img src="/static/images/logo_white.png" alt="Logo">
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="/dashboard">Dashboard</a></li>
+                    <li><a href="/add_lessons">Lessons</a></li>
+                    <li><a href="/add_quizzes">Quizzes</a></li>
+                    <li><a href="/send_notifications">Notifications</a></li>
+                    <li class="active"><a href="/contact_messages">Contact Messages</a></li>
+                </ul>
+            </nav>
+            <div class="logout">
+                <a href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="dashboard-header">
+                <div class="header-text">
+                    <h1>Contact Messages</h1>
+                    <p>Messages submitted from the Contact Us page</p>
+                </div>
+                <div class="header-actions">
+                    <a href="/admin_profile" class="user-profile-link">
+                        <div class="user-profile-icon">
+                            <i class="far fa-user-circle"></i>
+                        </div>
+                    </a>
+                </div>
+            </header>
+
+            <section class="table-container">
+                <table class="lessons-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Subject</th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if submissions %}
+                            {% for s in submissions %}
+                            <tr>
+                                <td>{{ s.created_at.strftime('%Y-%m-%d %H:%M') if s.created_at else '—' }}</td>
+                                <td>{{ s.name }}</td>
+                                <td><a href="mailto:{{ s.email }}">{{ s.email }}</a></td>
+                                <td>{{ s.subject[:80] }}{% if s.subject|length > 80 %}...{% endif %}</td>
+                                <td class="description-cell" title="{{ s.message }}">{{ s.message[:200] }}{% if s.message|length > 200 %}...{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" style="text-align: center;">No contact messages yet.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </section>
+
+            <footer class="main-footer">
+                <p>&copy; 2025 GestureLab. All rights reserved.</p>
+            </footer>
+        </main>
+    </div>
+
+    <style>
+        .description-cell { max-width: 280px; }
+    </style>
+
+    {% include "logout_modal.html" %}
+</body>
+</html>

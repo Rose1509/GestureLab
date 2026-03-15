@@ -1,4 +1,4 @@
-<!-- Success toast after delete - include on dashboard, add_lessons, add_quizzes -->
+<!-- Success toast - delete and add/update (dashboard, add_lessons, add_quizzes) -->
 <div id="deleteSuccessToast" class="delete-success-toast" role="alert" aria-live="polite">
     <div class="delete-success-toast-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -18,7 +18,11 @@
     var messages = {
         user: 'User deleted successfully.',
         lesson: 'Lesson deleted successfully.',
-        quiz: 'Quiz deleted successfully.'
+        quiz: 'Quiz deleted successfully.',
+        lesson_added: 'Lesson added successfully!',
+        lesson_updated: 'Lesson updated successfully!',
+        quiz_added: 'Quiz added successfully!',
+        quiz_updated: 'Quiz updated successfully!'
     };
 
     function showToast(key) {
@@ -44,6 +48,7 @@
         }, 300);
         var u = new URL(window.location.href);
         u.searchParams.delete('delete_success');
+        u.searchParams.delete('success');
         var newUrl = u.pathname + (u.search || '') + u.hash;
         window.history.replaceState({}, '', newUrl);
     }
@@ -52,7 +57,7 @@
 
     function init() {
         var params = new URLSearchParams(window.location.search);
-        var key = params.get('delete_success');
+        var key = params.get('delete_success') || params.get('success');
         if (key && messages[key]) showToast(key);
     }
 

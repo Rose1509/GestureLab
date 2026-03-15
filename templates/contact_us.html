@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Contact Us - Gesture Lab</title>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="stylesheet" href="/static/css/contact_us.css">
     <link rel="stylesheet" href="/static/css/header.css">
     <link rel="stylesheet" href="/static/css/footer.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/logout_modal.css">
 </head>
 <body>
@@ -144,73 +145,92 @@
         </a>
     </nav>
 
-    <main class="contact-container">
-        <h1 class="page-title">Contact Us</h1>
-
-        <div class="contact-grid">
-            <div class="form-card">
-                {% if contact_success %}
-                <div class="contact-alert contact-alert-success">Your message was sent successfully. We'll get back to you soon!</div>
-                {% endif %}
-                {% if contact_error %}
-                <div class="contact-alert contact-alert-error">{{ contact_error }}</div>
-                {% endif %}
-                <form id="contact-form" action="/contact" method="post">
-                    <div class="form-group">
-                        <label for="name">Name:</label>
-                        <input type="text" id="name" name="name" value="{{ contact_name or '' }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="email">Email:</label>
-                        <input type="email" id="email" name="email" value="{{ contact_email or '' }}" placeholder="e.g. you@gmail.com">
-                    </div>
-                    <div class="form-group">
-                        <label for="subject">Subject:</label>
-                        <input type="text" id="subject" name="subject" value="{{ contact_subject or '' }}">
-                    </div>
-                    <div class="form-group">
-                        <textarea id="message" name="message" placeholder="Your message.......">{{ contact_message or '' }}</textarea>
-                    </div>
-                    <div class="form-submit">
-                        <button type="submit" class="btn-submit">Submit</button>
-                    </div>
-                </form>
+    <main class="contact-main">
+        <header class="contact-hero-banner" role="banner">
+            <div class="contact-hero-overlay" aria-hidden="true"></div>
+            <div class="contact-hero-bg" style="background-image: url('/static/images/contact.jpg');"></div>
+            <div class="contact-hero-inner">
+                <h1 class="contact-hero-title">Contact us</h1>
+                <p class="contact-hero-subtitle">Gesture Lab is ready to help. Send your questions or feedback and we’ll get back to you soon.</p>
             </div>
+        </header>
 
-            <div class="info-card">
-                <h2>Get in touch</h2>
-                
-                <div class="contact-methods">
-                    <div class="method-item">
-                        <i class="fas fa-phone-alt"></i>
-                        <div>
-                            <p class="method-label">Call us</p>
-                            <p class="method-value">+9770000000000</p>
+        <div class="contact-container">
+            <div class="contact-panel">
+                <div class="contact-panel-left">
+                    <h2 class="contact-panel-heading">Get in touch</h2>
+                    <p class="contact-panel-intro">Have a question or want to say hello? Reach out using the details below or send us a message.</p>
+
+                    <div class="contact-methods">
+                        <div class="method-item method-item-static">
+                            <span class="method-icon method-icon-light"><i class="fas fa-map-marker-alt"></i></span>
+                            <div class="method-text">
+                                <span class="method-label">Head office</span>
+                                <span class="method-value">Kathmandu, Nepal</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="method-item">
-                        <i class="fas fa-envelope"></i>
-                        <div>
-                            <p class="method-label">Mail</p>
-                            <p class="method-value">rkc3307@gmail.com</p>
-                        </div>
-                    </div>
-                    <div class="method-item">
-                        <i class="fas fa-map-marker-alt"></i>
-                        <div>
-                            <p class="method-label">Location</p>
-                            <p class="method-value">Anywhere, Kathmandu</p>
-                        </div>
+                        <a href="mailto:rkc3307@gmail.com" class="method-item">
+                            <span class="method-icon method-icon-light"><i class="fas fa-envelope"></i></span>
+                            <div class="method-text">
+                                <span class="method-label">Email us</span>
+                                <span class="method-value">rkc3307@gmail.com</span>
+                            </div>
+                        </a>
+                        <a href="tel:+9770000000000" class="method-item">
+                            <span class="method-icon method-icon-light"><i class="fas fa-phone-alt"></i></span>
+                            <div class="method-text">
+                                <span class="method-label">Call us</span>
+                                <span class="method-value">+977 000 000 0000</span>
+                            </div>
+                        </a>
                     </div>
                 </div>
 
-                <div class="socials-section">
-                    <h3>Our Socials</h3>
-                    <div class="social-icons">
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                    </div>
+                <div class="contact-panel-right">
+                    <h2 class="contact-panel-heading">Send us a message</h2>
+                    <form id="contact-form" action="/contact" method="post" class="contact-form">
+                        <div class="form-row form-row-two">
+                            <div class="form-group">
+                                <label for="name">Name <span class="required-star">*</span></label>
+                                <input type="text" id="name" name="name" value="{{ contact_name or '' }}" placeholder="Your name" maxlength="100" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="email">Email <span class="required-star">*</span></label>
+                                <input type="email" id="email" name="email" value="{{ contact_email or '' }}" placeholder="your@email.com" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="subject">Subject <span class="required-star">*</span></label>
+                            <input type="text" id="subject" name="subject" value="{{ contact_subject or '' }}" placeholder="What is this about?" required>
+                        </div>
+                        <div class="form-group form-group-message">
+                            <label for="message">Message <span class="required-star">*</span></label>
+                            <div class="message-field-wrap">
+                                <textarea id="message" name="message" placeholder="Write your message here..." maxlength="5000" required>{{ contact_message or '' }}</textarea>
+                                <span class="form-hint" id="message-count">0 / 5000 characters</span>
+                            </div>
+                        </div>
+                        <div class="form-submit">
+                            <button type="submit" class="btn-submit">
+                                <i class="fas fa-paper-plane"></i>
+                                <span>Send</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="contact-map-wrap">
+                <h2 class="contact-map-title">Find us</h2>
+                <div class="contact-map-inner">
+                    <iframe
+                        class="contact-map-iframe"
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3532.464806683251!2d85.3240!3d27.7172!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39eb198a3075ab87%3A0x69eb3e1542f62fed!2sKathmandu%2C%20Nepal!5e0!3m2!1sen!2s!4v1640000000000!5m2!1sen!2s"
+                        allowfullscreen=""
+                        loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade"
+                        title="Gesture Lab location - Kathmandu, Nepal">
+                    </iframe>
                 </div>
             </div>
         </div>
@@ -480,74 +500,129 @@
         });
     </script>
 
-    <!-- Contact form validation: email must contain @gmail.com, subject max 200 words -->
+    <!-- Contact toast: success or error popup -->
+    <div id="contactToast" class="contact-toast" role="alert" aria-live="polite">
+        <div class="contact-toast-icon" id="contactToastIcon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+        </div>
+        <p id="contactToastMessage" class="contact-toast-message"></p>
+        <button type="button" class="contact-toast-close" id="contactToastClose" aria-label="Close">&times;</button>
+    </div>
+
+    <script>
+    (function() {
+        var toast = document.getElementById('contactToast');
+        var messageEl = document.getElementById('contactToastMessage');
+        var iconEl = document.getElementById('contactToastIcon');
+        var closeBtn = document.getElementById('contactToastClose');
+        if (!toast || !messageEl) return;
+
+        function showContactToast(msg, isError) {
+            messageEl.textContent = msg;
+            toast.classList.remove('contact-toast-success', 'contact-toast-error');
+            toast.classList.add(isError ? 'contact-toast-error' : 'contact-toast-success');
+            toast.classList.remove('contact-toast-hide');
+            toast.classList.add('contact-toast-visible');
+            if (iconEl) {
+                iconEl.innerHTML = isError
+                    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+                    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>';
+            }
+            var t = setTimeout(hideContactToast, 5000);
+            toast._hideTimer = t;
+        }
+
+        function hideContactToast() {
+            if (toast._hideTimer) {
+                clearTimeout(toast._hideTimer);
+                toast._hideTimer = null;
+            }
+            toast.classList.add('contact-toast-hide');
+            setTimeout(function() {
+                toast.classList.remove('contact-toast-visible', 'contact-toast-hide');
+            }, 300);
+            var u = new URL(window.location.href);
+            u.searchParams.delete('contact_success');
+            window.history.replaceState({}, '', u.pathname + (u.search || '') + u.hash);
+        }
+
+        if (closeBtn) closeBtn.addEventListener('click', hideContactToast);
+
+        document.addEventListener('DOMContentLoaded', function() {
+            {% if contact_error %}
+            showContactToast({{ contact_error|tojson }}, true);
+            {% endif %}
+            {% if contact_success %}
+            showContactToast('Thank you! Your message has been sent to the admin team and will be reviewed shortly.', false);
+            {% endif %}
+        });
+        window.showContactToast = showContactToast;
+    })();
+    </script>
+
+    <!-- Contact form validation and message counter -->
     <script>
         (function() {
             var form = document.getElementById('contact-form');
             if (!form) return;
+            var nameInput = document.getElementById('name');
             var emailInput = document.getElementById('email');
             var subjectInput = document.getElementById('subject');
+            var messageInput = document.getElementById('message');
+            var messageCountEl = document.getElementById('message-count');
             var SUBJECT_MAX_WORDS = 200;
+            var NAME_MAX = 100;
+            var MESSAGE_MAX = 5000;
 
             function countWords(str) {
                 if (!str || !str.trim()) return 0;
                 return str.trim().split(/\s+/).length;
             }
 
-            function hideError() {
-                var card = form.closest('.form-card');
-                var alertBox = (card && card.querySelector('.contact-alert-error')) || form.querySelector('.contact-alert-error');
-                if (alertBox) {
-                    alertBox.style.display = 'none';
+            if (messageInput && messageCountEl) {
+                function updateCount() {
+                    var len = (messageInput.value || '').length;
+                    messageCountEl.textContent = len + ' / ' + MESSAGE_MAX + ' characters';
                 }
-            }
-
-            if (emailInput) {
-                emailInput.addEventListener('input', hideError);
-            }
-            if (subjectInput) {
-                subjectInput.addEventListener('input', hideError);
+                messageInput.addEventListener('input', updateCount);
+                messageInput.addEventListener('change', updateCount);
+                updateCount();
             }
 
             form.addEventListener('submit', function(e) {
+                var name = (nameInput && nameInput.value) ? nameInput.value.trim() : '';
                 var email = (emailInput && emailInput.value) ? emailInput.value.trim() : '';
                 var subject = (subjectInput && subjectInput.value) ? subjectInput.value.trim() : '';
+                var message = (messageInput && messageInput.value) ? messageInput.value.trim() : '';
 
                 var err = null;
-                if (!email) {
+                if (!name) {
+                    err = 'Name is required.';
+                } else if (name.length > NAME_MAX) {
+                    err = 'Name must be at most ' + NAME_MAX + ' characters.';
+                } else if (!email) {
                     err = 'Email is required.';
                 } else if (email.toLowerCase().indexOf('@gmail.com') === -1) {
                     err = 'Email must contain @gmail.com.';
+                } else if (!subject) {
+                    err = 'Subject is required.';
                 } else if (countWords(subject) > SUBJECT_MAX_WORDS) {
                     err = 'Subject must not contain more than ' + SUBJECT_MAX_WORDS + ' words.';
+                } else if (!message) {
+                    err = 'Message is required.';
+                } else if (message.length > MESSAGE_MAX) {
+                    err = 'Message must be at most ' + MESSAGE_MAX + ' characters.';
                 }
 
                 if (err) {
                     e.preventDefault();
-                    var card = form.closest('.form-card');
-                    var alertBox = (card && card.querySelector('.contact-alert-error')) || form.querySelector('.contact-alert-error');
-                    if (!alertBox) {
-                        alertBox = document.createElement('div');
-                        alertBox.className = 'contact-alert contact-alert-error';
-                        form.insertBefore(alertBox, form.firstChild);
-                    }
-                    alertBox.textContent = err;
-                    alertBox.style.display = 'block';
+                    if (window.showContactToast) window.showContactToast(err, true);
+                    return false;
                 }
             });
         })();
-    </script>
-
-    <!-- Auto-hide contact success message after ~5.5 seconds -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            var successBox = document.querySelector('.contact-alert-success');
-            if (successBox) {
-                setTimeout(function () {
-                    successBox.style.display = 'none';
-                }, 5500);
-            }
-        });
     </script>
 
     {% include "logout_modal.html" %}

@@ -3,32 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Learn ASL | Full Page</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Learn ASL | Gesture Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/landing_page.css">
 </head>
 <body>
 
-    <div class="header-logo">
-        <img src="/static/images/logo.png" height="100px" width="80px" alt="Logo">
-    </div>
+    <header class="landing-header">
+        <a href="/" class="logo-link">
+            <img src="/static/images/logo.png" alt="Gesture Lab" class="logo-img">
+            <span class="logo-text">Gesture Lab</span>
+        </a>
+    </header>
 
-    <main class="main-wrapper">
+    <main class="landing-main">
+        <div class="landing-hero">
+            <p class="hero-lead">Learn at your own pace · Hands-on practice</p>
+            <h1 class="hero-title">Learn American<br><span class="hero-title-accent">Sign Language</span></h1>
+            <p class="hero-tagline">A language that feels like connection.</p>
+            <div class="hero-actions">
+                <a href="/register" class="btn-primary">Get Started</a>
+                <p class="login-prompt">Already have an account? <a href="/login">Log in</a></p>
+            </div>
+        </div>
+
         <section class="illustration-section">
-            <div class="image-card">
+            <div class="illustration-card">
                 <img src="/static/images/people_sign.png" alt="People communicating in ASL">
             </div>
-        </section>
-
-        <section class="content-section">
-            <h1>Learn American<br>Sign Language</h1>
-            <p class="tagline">a language that feels like connection!</p>
-            
-            <a href="/register" class="btn-get-started">Get Started</a>
-            
-            <p class="login-prompt">
-                already have an account? <a href="/login">Log in</a>
-            </p>
         </section>
     </main>
 

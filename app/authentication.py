@@ -46,8 +46,26 @@ def validate_email(email: str) -> Tuple[bool, Optional[str]]:
     return True, None
 
 
-# Contact form: email must be @gmail.com, subject max 200 words
+# Contact form: email @gmail.com, subject max 200 words, name max 100, message max 5000
 CONTACT_SUBJECT_MAX_WORDS = 200
+CONTACT_NAME_MAX_LENGTH = 100
+CONTACT_MESSAGE_MAX_LENGTH = 5000
+
+def validate_contact_name(name: str) -> Tuple[bool, Optional[str]]:
+    """Returns (valid, error_message). Name is required, max 100 characters."""
+    if not name or not name.strip():
+        return False, "Name is required."
+    if len(name.strip()) > CONTACT_NAME_MAX_LENGTH:
+        return False, f"Name must be at most {CONTACT_NAME_MAX_LENGTH} characters."
+    return True, None
+
+def validate_contact_message(message: str) -> Tuple[bool, Optional[str]]:
+    """Returns (valid, error_message). Message is required, max 5000 characters."""
+    if not message or not message.strip():
+        return False, "Message is required."
+    if len(message.strip()) > CONTACT_MESSAGE_MAX_LENGTH:
+        return False, f"Message must be at most {CONTACT_MESSAGE_MAX_LENGTH} characters."
+    return True, None
 
 def validate_contact_email(email: str) -> Tuple[bool, Optional[str]]:
     """Returns (valid, error_message). Contact email must contain @gmail.com."""

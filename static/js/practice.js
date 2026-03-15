@@ -20,8 +20,14 @@
     const targetConfEl = document.getElementById('prediction-target-confidence');
     const confidenceLabelEl = document.getElementById('prediction-confidence-label');
     const stopBtn = document.getElementById('stop-camera-btn');
+    const retryBtn = document.getElementById('retry-camera-btn');
     const noHandModal = document.getElementById('no-hand-modal');
     const noHandCloseBtn = document.getElementById('no-hand-close-btn');
+    const feedbackPanel = document.getElementById('practice-feedback-panel');
+    const feedbackTipsList = document.getElementById('practice-feedback-tips');
+    const feedbackIntroEl = document.getElementById('practice-feedback-intro');
+    const demoSection = document.getElementById('practice-demo-section');
+    const instructionsSection = document.getElementById('practice-instructions-section');
 
     let currentStream = null;
     let predictionIntervalId = null;
@@ -48,6 +54,51 @@
             return '';
         }
     })();
+
+    const FEEDBACK_THRESHOLD = 0.8;
+
+    function getLessonTips() {
+        try {
+            const raw = window.PRACTICE_LESSON_TIPS;
+            if (Array.isArray(raw)) return raw.filter(function (s) { return String(s).trim(); });
+            if (typeof raw === 'string' && raw.trim()) {
+                return raw.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+            }
+            return [];
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function setFeedbackPanelVisible(visible, scorePercent) {
+        if (!feedbackPanel || !feedbackTipsList) return;
+        if (!visible) {
+            feedbackPanel.style.display = 'none';
+            if (demoSection) demoSection.style.display = '';
+            if (instructionsSection) instructionsSection.style.display = '';
+            return;
+        }
+        if (demoSection) demoSection.style.display = 'none';
+        if (instructionsSection) instructionsSection.style.display = 'none';
+        if (feedbackIntroEl) {
+            var pctText = scorePercent != null ? (Number(scorePercent).toFixed(1) + '%') : 'below 80%';
+            feedbackIntroEl.textContent = 'Your score was ' + pctText + '. Follow these steps for a clearer sign:';
+        }
+        const tips = getLessonTips();
+        feedbackTipsList.innerHTML = '';
+        if (tips.length) {
+            tips.forEach(function (tip) {
+                const li = document.createElement('li');
+                li.textContent = tip;
+                feedbackTipsList.appendChild(li);
+            });
+        } else {
+            const li = document.createElement('li');
+            li.textContent = 'Review the demonstration image and match hand shape, orientation, and finger position.';
+            feedbackTipsList.appendChild(li);
+        }
+        feedbackPanel.style.display = 'block';
+    }
 
     function setPredictionPlaceholder() {
         if (letterEl) letterEl.textContent = '—';
@@ -456,11 +507,15 @@
         bestOverallLetter = null;
         bestOverallConfidence = 0;
         lastHandSeenAt = null;
+        if (feedbackPanel) feedbackPanel.style.display = 'none';
+        if (demoSection) demoSection.style.display = '';
+        if (instructionsSection) instructionsSection.style.display = '';
         setPredictionPlaceholder();
         setPredictionVisible(true);
         setAnalyzing(false);
         if (startBtn) startBtn.style.display = 'none';
         if (stopBtn) stopBtn.style.display = 'inline-flex';
+        if (retryBtn) retryBtn.style.display = 'inline-flex';
         setOverlayHint('Please show your hand clearly inside the camera view');
         startHandTrackingLoop();
         startPredictionLoop();
@@ -503,6 +558,10 @@
         }
         if (placeholder) placeholder.style.display = 'block';
 
+        if (startBtn) startBtn.style.display = 'inline-flex';
+        if (stopBtn) stopBtn.style.display = 'none';
+        if (retryBtn) retryBtn.style.display = 'inline-flex';
+
         if (showFinalScore && TARGET_LETTER && targetWrap && targetEl && targetConfWrap && targetConfEl) {
             targetWrap.style.display = 'block';
             targetEl.textContent = TARGET_LETTER;
@@ -513,6 +572,15 @@
                 const finalPct = (bestTargetConfidence * 100).toFixed(1);
                 targetConfEl.textContent = finalPct + '%';
             }
+            if (feedbackPanel) {
+                if (bestTargetConfidence != null && bestTargetConfidence < FEEDBACK_THRESHOLD) {
+                    setFeedbackPanelVisible(true, bestTargetConfidence * 100);
+                } else {
+                    setFeedbackPanelVisible(false);
+                }
+            }
+        } else if (feedbackPanel) {
+            setFeedbackPanelVisible(false);
         }
     }
 
@@ -522,6 +590,9 @@
         }
         if (stopBtn) {
             stopBtn.addEventListener('click', function () { stopPractice(true); });
+        }
+        if (retryBtn) {
+            retryBtn.addEventListener('click', startCamera);
         }
         if (noHandCloseBtn && noHandModal) {
             noHandCloseBtn.addEventListener('click', function () {

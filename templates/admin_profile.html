@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/static/css/admin_profile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/logout_modal.css">
+    <link rel="stylesheet" href="/static/css/delete_success_toast.css">
 </head>
 <body>
     <div class="container">
@@ -22,6 +23,7 @@
                     <li><a href="/add_lessons">Lessons</a></li>
                     <li><a href="/add_quizzes">Quizzes</a></li>
                     <li><a href="/send_notifications">Notifications</a></li>
+                    <li><a href="/contact_messages">Contact Messages</a></li>
                 </ul>
             </nav>
 
@@ -52,13 +54,13 @@
                 <p class="form-subtitle">Update your personal details</p>
 
                 {% if error %}
-                <div class="admin-alert admin-alert-error" style="background-color: #fee; color: #c33; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+                <div class="admin-alert admin-alert-error">
                     {{ error }}
                 </div>
                 {% endif %}
 
-                {% if success %}
-                <div class="admin-alert admin-alert-success" style="background-color: #efe; color: #3c3; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+                {% if success and success != 'No changes made. Your profile is already up to date.' %}
+                <div class="admin-alert admin-alert-success">
                     {{ success }}
                 </div>
                 {% endif %}
@@ -112,6 +114,36 @@
 
         </main>
     </div>
+
+    <!-- No changes toast (shown when Save clicked without any changes) -->
+    <div id="adminNoChangesToast" class="delete-success-toast profile-no-changes-toast" role="alert" aria-live="polite">
+        <div class="delete-success-toast-icon profile-no-changes-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+        </div>
+        <p id="adminNoChangesMessage" class="delete-success-toast-message">No changes have been made.</p>
+        <button type="button" class="delete-success-toast-close" id="adminNoChangesToastClose" aria-label="Close">&times;</button>
+    </div>
+    <script>
+    (function() {
+        var noChangesMsg = {{ 'No changes made. Your profile is already up to date.'|tojson }};
+        var successMsg = {{ success|tojson if success else 'null' }};
+        if (successMsg !== noChangesMsg) return;
+        var toast = document.getElementById('adminNoChangesToast');
+        var closeBtn = document.getElementById('adminNoChangesToastClose');
+        if (!toast || !closeBtn) return;
+        function hide() {
+            toast.classList.add('is-hiding');
+            setTimeout(function() { toast.classList.remove('is-visible', 'is-hiding'); }, 300);
+        }
+        toast.classList.add('is-visible');
+        closeBtn.addEventListener('click', hide);
+        setTimeout(hide, 4000);
+    })();
+    </script>
 
     <script>
         // Auto-hide admin profile alerts after ~4.5 seconds

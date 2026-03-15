@@ -7,8 +7,7 @@
     <link rel="stylesheet" href="/static/css/about_us.css">
     <link rel="stylesheet" href="/static/css/header.css">
     <link rel="stylesheet" href="/static/css/footer.css">
-    <link rel="stylesheet" href="/static/css/home.css">
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/logout_modal.css">
 </head>
 
@@ -147,44 +146,79 @@
         </a>
     </nav>
 
-    <main class="about-container">
-        <h1 class="about-title">About Us</h1>
-
-        <div class="about-grid">
-            <div class="about-text-column">
-                <section class="about-card">
-                    <h2>About Gesture Lab</h2>
-                    <p>Gesture Lab is a revolutionary platform dedicated to making sign language accessible and fun for everyone. We utilize cutting-edge AI technology to provide real-time feedback and personalized learning experiences, ensuring rapid and confident skill development.</p>
-                </section>
-
-                <section class="about-card">
-                    <h2>Our Mission</h2>
-                    <p>Our mission is to bridge communication gaps by empowering millions to learn sign language. We strive to create an inclusive, supportive, and highly effective learning environment that connects people across communities.</p>
-                </section>
-
-                <section class="about-card start-today">
-                    <h2>Get Started Today!</h2>
-                    <p>Ready to start communicating? Join thousands of happy learners and begin your journey into sign language today.</p>
-                    <a href="/lessons">
-                        <button class="btn-primary-dark">Start Learning Now</button>
-                    </a>                
-                </section>
+    <main class="about-main">
+        <header class="about-hero-banner" role="banner">
+            <div class="about-hero-overlay" aria-hidden="true"></div>
+            <div class="about-hero-bg" style="background-image: url('/static/images/sign.jpg');"></div>
+            <div class="about-hero-inner">
+                <span class="about-hero-badge">About Gesture Lab</span>
+                <h1 class="about-hero-title">Learn sign language.<br>Connect with everyone.</h1>
+                <p class="about-hero-subtitle">We’re on a mission to make sign language accessible, engaging, and effective for learners everywhere—powered by AI and designed for real life.</p>
             </div>
+        </header>
 
-            <div class="about-visual-column">
-                <div class="about-image-box">
-                    <img src="/static/images/logo.png" alt="Sign Language Demonstration">
-                </div>
+        <div class="about-container">
 
-                <div class="features-sidebar-card">
-                    <h2>Key Features</h2>
-                    <ul class="features-list">
-                        <li><span class="icon">🚀</span> AI powered Feedbacks</li>
-                        <li><span class="icon">🏃</span> Comprehensive learning paths</li>
-                        <li><span class="icon">⏱️</span> Practice tools</li>
-                        <li><span class="icon">📈</span> Progress Tracking</li>
-                    </ul>
+            <section class="about-intro">
+                <div class="about-intro-content">
+                    <h2 class="about-section-title">About Gesture Lab</h2>
+                    <p class="about-lead">Gesture Lab is a platform dedicated to making sign language accessible and fun for everyone. We use cutting-edge AI to give you real-time feedback and personalized practice, so you can build skills quickly and confidently—whether you’re learning for yourself, your job, or to connect with the deaf and hard-of-hearing community.</p>
+                    <p class="about-lead-secondary">Our lessons, practice tools, and progress tracking are designed to fit your pace. Learn the basics, master finger-spelling, and move on to everyday signs and conversations—all in one place.</p>
                 </div>
+                <div class="about-intro-visual">
+                    <img src="/static/images/logo.png" alt="Gesture Lab" class="about-intro-img">
+                </div>
+            </section>
+
+            <section class="about-mission">
+                <div class="about-mission-inner">
+                    <span class="about-mission-icon"><i class="fas fa-bullseye"></i></span>
+                    <h2 class="about-section-title about-section-title-light">Our Mission</h2>
+                    <p class="about-mission-text">We’re here to bridge communication gaps by empowering people to learn sign language. We believe in an inclusive, supportive, and effective learning experience that connects learners and communities—so everyone can communicate with confidence.</p>
+                </div>
+            </section>
+
+            <section class="about-features">
+                <h2 class="about-section-title about-section-title-center">What We Offer</h2>
+                <div class="about-features-grid">
+                    <div class="about-feature">
+                        <span class="about-feature-icon"><i class="fas fa-robot"></i></span>
+                        <h3>AI-Powered Feedback</h3>
+                        <p>Practice with your camera and get instant, accurate feedback on your signs.</p>
+                    </div>
+                    <div class="about-feature">
+                        <span class="about-feature-icon"><i class="fas fa-book-open"></i></span>
+                        <h3>Structured Lessons</h3>
+                        <p>Step-by-step lessons from basics to advanced, with clear demonstrations.</p>
+                    </div>
+                    <div class="about-feature">
+                        <span class="about-feature-icon"><i class="fas fa-dumbbell"></i></span>
+                        <h3>Practice Tools</h3>
+                        <p>Dedicated practice mode and quizzes to reinforce what you learn.</p>
+                    </div>
+                    <div class="about-feature">
+                        <span class="about-feature-icon"><i class="fas fa-chart-line"></i></span>
+                        <h3>Progress Tracking</h3>
+                        <p>Track your progress and see how you improve over time.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="about-cta-card">
+                <h2 class="about-cta-card-title">Ready to start learning?</h2>
+                <p class="about-cta-card-text">Join learners who are already building their sign language skills. Start with lessons, practice with AI, and track your progress.</p>
+                <a href="/lessons" class="btn-about-primary btn-about-primary-large">
+                    <i class="fas fa-arrow-right"></i>
+                    <span>Start learning now</span>
+                </a>
+            </section>
+
+            <div class="about-cta-strip">
+                <p class="about-cta-strip-text">Have questions or feedback? We’d love to hear from you.</p>
+                <a href="/contact" class="btn-about-secondary">
+                    <i class="fas fa-envelope"></i>
+                    <span>Contact us</span>
+                </a>
             </div>
         </div>
     </main>

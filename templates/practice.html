@@ -177,6 +177,9 @@
                     <button class="dark-pill-btn stop-pill-btn" id="stop-camera-btn" type="button" style="display: none;">
                         Stop
                     </button>
+                    <button class="dark-pill-btn retry-pill-btn" id="retry-camera-btn" type="button" style="display: none;">
+                        Retry
+                    </button>
                 </div>
             </section>
 
@@ -210,9 +213,18 @@
                             <span class="prediction-confidence" id="prediction-target-confidence">—%</span>
                         </div>
                         <p class="prediction-error" id="prediction-error" style="display: none;"></p>
+                        <div class="practice-feedback-panel" id="practice-feedback-panel" style="display: none;">
+                            <div class="practice-feedback-header">
+                                <span class="practice-feedback-icon" aria-hidden="true">💡</span>
+                                <h3>Tips to improve this sign</h3>
+                                <p class="practice-feedback-intro" id="practice-feedback-intro">Your score was below 80%. Follow these steps for a clearer sign:</p>
+                            </div>
+                            <ol class="practice-feedback-tips" id="practice-feedback-tips"></ol>
+                            <p class="practice-feedback-extra">Keep your hand well lit and in the center of the frame, then try again.</p>
+                        </div>
                     </div>
                 </section>
-                <section class="practice-card demo-section">
+                <section class="practice-card demo-section" id="practice-demo-section">
                     <div class="card-titles">
                         <h2>{% if lesson %}{{ lesson.name }}{% else %}Demonstrations{% endif %}</h2>
                     </div>
@@ -225,7 +237,7 @@
                     </div>
                 </section>
 
-                <section class="practice-card instructions-section">
+                <section class="practice-card instructions-section" id="practice-instructions-section">
                     <div class="card-titles">
                         <h2>Instructions</h2>
                     </div>
@@ -316,6 +328,8 @@
     <script>
         // Expose the raw lesson name so practice.js can compute the target letter
         window.PRACTICE_TARGET_LETTER = `{% if lesson %}{{ lesson.name }}{% else %}{% endif %}`;
+        // Tips for this sign (from lesson description) — shown when score < 80%
+        window.PRACTICE_LESSON_TIPS = {{ (lesson.description if lesson and lesson.description else '') | tojson }};
     </script>
     <script src="/static/js/practice.js"></script>
 

@@ -25,8 +25,8 @@ except ImportError:
 from dotenv import load_dotenv
 
 from .database import SessionLocal, ensure_schema
-from .models import User, Lesson, Quiz, Admin, Notification, QuizResult
-from .authentication import hash_password, verify_password, validate_username, validate_password, validate_email, validate_contact_email, validate_subject_word_count
+from .models import User, Lesson, Quiz, Admin, Notification, QuizResult, ContactSubmission
+from .authentication import hash_password, verify_password, validate_username, validate_password, validate_email, validate_contact_email, validate_subject_word_count, validate_contact_name, validate_contact_message
 from .certificate import generate_certificate_pdf
 from . import sign_model
 
@@ -215,24 +215,43 @@ def on_startup() -> None:
 
 
 # -------------------------
+# Admin upload validation (lessons / quizzes)
+# -------------------------
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+ALLOWED_IMAGE_CONTENT_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
+UPLOAD_VALIDATION_MESSAGE = "Image must be JPG, PNG, GIF or WebP and under 5 MB."
+
+
+def validate_uploaded_image(file: UploadFile, content: bytes) -> None:
+    """Raise ValueError with UPLOAD_VALIDATION_MESSAGE if file is invalid."""
+    if len(content) > MAX_IMAGE_SIZE_BYTES:
+        raise ValueError(UPLOAD_VALIDATION_MESSAGE)
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    content_type = (file.content_type or "").strip().lower().split(";")[0]
+    if ext not in ALLOWED_IMAGE_EXTENSIONS or content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
+        raise ValueError(UPLOAD_VALIDATION_MESSAGE)
+
+
+# -------------------------
 # Helper function to save uploaded file
 # -------------------------
 async def save_uploaded_file(file: UploadFile) -> str:
-    """Save uploaded file and return the relative path"""
+    """Save uploaded file and return the relative path. Validates type and size (max 5 MB)."""
+    content = await file.read()
+    validate_uploaded_image(file, content)
+
     # Generate unique filename
     file_ext = os.path.splitext(file.filename)[1] if file.filename else ".jpg"
+    if file_ext.lower() not in ALLOWED_IMAGE_EXTENSIONS:
+        file_ext = ".jpg"
     unique_filename = f"{uuid.uuid4()}{file_ext}"
     file_path = os.path.join(IMAGES_DIR, unique_filename)
 
-    # Save file
-    content = await file.read()
     with open(file_path, "wb") as buffer:
         buffer.write(content)
 
-    # Reset file pointer for potential reuse
     await file.seek(0)
-
-    # Return relative path for database storage
     return f"/static/images/{unique_filename}"
 
 # -------------------------
@@ -654,21 +673,41 @@ def contact_us_submit(
     email: str = Form(""),
     subject: str = Form(""),
     message: str = Form(""),
+    db: Session = Depends(get_db),
 ):
-    """Validate contact form: email must contain @gmail.com, subject max 200 words."""
+    """Validate contact form and save to DB so admin can see it."""
+    ok_name, err_name = validate_contact_name(name)
+    if not ok_name:
+        return templates.TemplateResponse(
+            "contact_us.html",
+            {"request": request, "contact_error": err_name, "contact_name": name, "contact_email": email, "contact_subject": subject, "contact_message": message},
+        )
     ok_email, err_email = validate_contact_email(email)
-    ok_subject, err_subject = validate_subject_word_count(subject)
     if not ok_email:
         return templates.TemplateResponse(
             "contact_us.html",
             {"request": request, "contact_error": err_email, "contact_name": name, "contact_email": email, "contact_subject": subject, "contact_message": message},
         )
+    ok_subject, err_subject = validate_subject_word_count(subject)
     if not ok_subject:
         return templates.TemplateResponse(
             "contact_us.html",
             {"request": request, "contact_error": err_subject, "contact_name": name, "contact_email": email, "contact_subject": subject, "contact_message": message},
         )
-    # Success: redirect so refresh doesn't resubmit
+    ok_message, err_message = validate_contact_message(message)
+    if not ok_message:
+        return templates.TemplateResponse(
+            "contact_us.html",
+            {"request": request, "contact_error": err_message, "contact_name": name, "contact_email": email, "contact_subject": subject, "contact_message": message},
+        )
+    submission = ContactSubmission(
+        name=name.strip(),
+        email=email.strip(),
+        subject=subject.strip(),
+        message=message.strip(),
+    )
+    db.add(submission)
+    db.commit()
     return RedirectResponse(url="/contact?contact_success=1", status_code=303)
 
 @app.get("/practice", response_class=HTMLResponse)
@@ -741,9 +780,10 @@ def profile_page(request: Request, db: Session = Depends(get_db)):
 def quizzes_page(request: Request, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     """Admin view to add/edit quizzes."""
     quizzes = db.query(Quiz).all()
+    error = request.query_params.get("error")
     return templates.TemplateResponse(
         "add_quizzes.html",
-        {"request": request, "quizzes": quizzes},
+        {"request": request, "quizzes": quizzes, "error": error},
     )
 
 
@@ -897,6 +937,26 @@ def send_notifications_page(request: Request, db: Session = Depends(get_db), _: 
     return templates.TemplateResponse("send_notifications.html", {"request": request})
 
 
+@app.get("/contact_messages", response_class=HTMLResponse)
+def contact_messages_page(request: Request, db: Session = Depends(get_db), _: None = Depends(require_admin)):
+    """Admin page to view contact form submissions from the Contact Us page."""
+    submissions = (
+        db.query(ContactSubmission)
+        .order_by(ContactSubmission.created_at.desc())
+        .all()
+    )
+    admin_name = "Admin"
+    admin_id = request.session.get("admin_id")
+    if admin_id:
+        admin = db.query(Admin).filter(Admin.id == admin_id).first()
+        if admin and admin.full_name:
+            admin_name = admin.full_name
+    return templates.TemplateResponse(
+        "contact_messages.html",
+        {"request": request, "submissions": submissions, "admin_name": admin_name},
+    )
+
+
 @app.post("/send_custom_notification")
 def send_custom_notification(
     request: Request,
@@ -988,9 +1048,11 @@ def admin_profile_page(request: Request, db: Session = Depends(get_db), _: None 
 
 @app.get("/add_lessons", response_class=HTMLResponse)
 def add_lessons_page(request: Request, db: Session = Depends(get_db), _: None = Depends(require_admin)):
-    # Fetch all lessons for display in table
     lessons = db.query(Lesson).all()
-    return templates.TemplateResponse("add_lessons.html", {"request": request, "lessons": lessons})
+    error = request.query_params.get("error")
+    return templates.TemplateResponse(
+        "add_lessons.html", {"request": request, "lessons": lessons, "error": error}
+    )
 
 
 @app.get("/logout")
@@ -1362,10 +1424,13 @@ async def add_lesson_submit(
     db: Session = Depends(get_db),
     _: None = Depends(require_admin),
 ):
-    # Save uploaded image file
-    image_path = await save_uploaded_file(image)
-    
-    # Create new lesson
+    try:
+        image_path = await save_uploaded_file(image)
+    except ValueError as e:
+        return RedirectResponse(
+            url=f"/add_lessons?error={quote(str(e))}", status_code=303
+        )
+
     lesson = Lesson(
         sign_level=sign_level,
         name=name,
@@ -1376,8 +1441,7 @@ async def add_lesson_submit(
     db.add(lesson)
     db.commit()
     db.refresh(lesson)
-    
-    # Notify all users about new lesson
+
     create_notification_for_all_users(
         db=db,
         title="New Lesson Added",
@@ -1385,8 +1449,8 @@ async def add_lesson_submit(
         notification_type="lesson",
         related_id=lesson.id
     )
-    
-    return RedirectResponse(url="/add_lessons", status_code=303)
+
+    return RedirectResponse(url="/add_lessons?success=lesson_added", status_code=303)
 
 # -------------------------
 # POST Save Quiz Result
@@ -1407,6 +1471,11 @@ def save_quiz_result(
 
     if quiz_id is None and not quiz_level:
         return {"status": "error", "detail": "quiz_id or quiz_level is required"}
+
+    if total_questions < 1 or total_questions > 100:
+        return {"status": "error", "detail": "total_questions must be between 1 and 100"}
+    if score < 0 or score > total_questions:
+        return {"status": "error", "detail": "score must be between 0 and total_questions"}
 
     # Points & badges before this attempt
     results_before = db.query(QuizResult).filter(QuizResult.user_id == user_id).all()
@@ -1591,6 +1660,8 @@ async def predict_sign(frame: UploadFile = File(..., alias="frame"), target: Opt
         data = await frame.read()
     except Exception as e:
         return {"letter": None, "confidence": 0.0, "error": str(e)}
+    if len(data) > MAX_IMAGE_SIZE_BYTES:
+        return {"letter": None, "confidence": 0.0, "error": "Image too large (max 5 MB)"}
     if not data:
         return {"letter": None, "confidence": 0.0, "error": "Empty image"}
     try:
@@ -1719,17 +1790,19 @@ async def update_lesson_submit(
     lesson.heading = heading
     lesson.description = description
     
-    # Update image only if a new file is uploaded
     if image and image.filename:
-        image_path = await save_uploaded_file(image)
-        lesson.image = image_path
+        try:
+            image_path = await save_uploaded_file(image)
+            lesson.image = image_path
+        except ValueError as e:
+            return RedirectResponse(
+                url=f"/add_lessons?error={quote(str(e))}", status_code=303
+            )
     elif existing_image:
-        # Keep existing image if no new file uploaded
         lesson.image = existing_image
-    
+
     db.commit()
-    
-    # Notify all users about lesson update
+
     create_notification_for_all_users(
         db=db,
         title="Lesson Updated",
@@ -1737,8 +1810,8 @@ async def update_lesson_submit(
         notification_type="update",
         related_id=lesson.id
     )
-    
-    return RedirectResponse(url="/add_lessons", status_code=303)
+
+    return RedirectResponse(url="/add_lessons?success=lesson_updated", status_code=303)
 
 # -------------------------
 # POST Delete Lesson
@@ -1781,12 +1854,20 @@ async def add_quiz_submit(
     db: Session = Depends(get_db),
     _: None = Depends(require_admin),
 ):
-    # Save images if provided
-    question_image_path = await save_uploaded_file(question_image) if question_image and question_image.filename else None
-    opt1_img_path = await save_uploaded_file(option1_image) if option1_image and option1_image.filename else None
-    opt2_img_path = await save_uploaded_file(option2_image) if option2_image and option2_image.filename else None
-    opt3_img_path = await save_uploaded_file(option3_image) if option3_image and option3_image.filename else None
-    opt4_img_path = await save_uploaded_file(option4_image) if option4_image and option4_image.filename else None
+    if correct_option not in (1, 2, 3, 4):
+        return RedirectResponse(
+            url=f"/add_quizzes?error={quote('Correct option must be 1, 2, 3, or 4.')}", status_code=303
+        )
+    try:
+        question_image_path = await save_uploaded_file(question_image) if question_image and question_image.filename else None
+        opt1_img_path = await save_uploaded_file(option1_image) if option1_image and option1_image.filename else None
+        opt2_img_path = await save_uploaded_file(option2_image) if option2_image and option2_image.filename else None
+        opt3_img_path = await save_uploaded_file(option3_image) if option3_image and option3_image.filename else None
+        opt4_img_path = await save_uploaded_file(option4_image) if option4_image and option4_image.filename else None
+    except ValueError as e:
+        return RedirectResponse(
+            url=f"/add_quizzes?error={quote(str(e))}", status_code=303
+        )
 
     quiz = Quiz(
         level=level,
@@ -1807,7 +1888,6 @@ async def add_quiz_submit(
     db.commit()
     db.refresh(quiz)
     
-    # Notify all users about new quiz
     create_notification_for_all_users(
         db=db,
         title="New Quiz Added",
@@ -1816,7 +1896,7 @@ async def add_quiz_submit(
         related_id=quiz.id
     )
 
-    return RedirectResponse(url="/add_quizzes", status_code=303)
+    return RedirectResponse(url="/add_quizzes?success=quiz_added", status_code=303)
 
 
 # -------------------------
@@ -1847,51 +1927,56 @@ async def update_quiz_submit(
     db: Session = Depends(get_db),
     _: None = Depends(require_admin),
 ):
+    if correct_option not in (1, 2, 3, 4):
+        return RedirectResponse(
+            url=f"/add_quizzes?error={quote('Correct option must be 1, 2, 3, or 4.')}", status_code=303
+        )
     quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
     if not quiz:
         return RedirectResponse(url="/add_quizzes", status_code=303)
 
     quiz.level = level
-    # Allow empty question text
     quiz.question_text = question_text if question_text else None
 
-    # Question image
-    if question_image and question_image.filename:
-        quiz.question_image = await save_uploaded_file(question_image)
-    else:
-        quiz.question_image = existing_question_image
+    try:
+        if question_image and question_image.filename:
+            quiz.question_image = await save_uploaded_file(question_image)
+        else:
+            quiz.question_image = existing_question_image
 
-    quiz.option1_text = option1_text
-    quiz.option2_text = option2_text
-    quiz.option3_text = option3_text
-    quiz.option4_text = option4_text
+        quiz.option1_text = option1_text
+        quiz.option2_text = option2_text
+        quiz.option3_text = option3_text
+        quiz.option4_text = option4_text
 
-    # Option images
-    if option1_image and option1_image.filename:
-        quiz.option1_image = await save_uploaded_file(option1_image)
-    else:
-        quiz.option1_image = existing_option1_image
+        if option1_image and option1_image.filename:
+            quiz.option1_image = await save_uploaded_file(option1_image)
+        else:
+            quiz.option1_image = existing_option1_image
 
-    if option2_image and option2_image.filename:
-        quiz.option2_image = await save_uploaded_file(option2_image)
-    else:
-        quiz.option2_image = existing_option2_image
+        if option2_image and option2_image.filename:
+            quiz.option2_image = await save_uploaded_file(option2_image)
+        else:
+            quiz.option2_image = existing_option2_image
 
-    if option3_image and option3_image.filename:
-        quiz.option3_image = await save_uploaded_file(option3_image)
-    else:
-        quiz.option3_image = existing_option3_image
+        if option3_image and option3_image.filename:
+            quiz.option3_image = await save_uploaded_file(option3_image)
+        else:
+            quiz.option3_image = existing_option3_image
 
-    if option4_image and option4_image.filename:
-        quiz.option4_image = await save_uploaded_file(option4_image)
-    else:
-        quiz.option4_image = existing_option4_image
+        if option4_image and option4_image.filename:
+            quiz.option4_image = await save_uploaded_file(option4_image)
+        else:
+            quiz.option4_image = existing_option4_image
+    except ValueError as e:
+        return RedirectResponse(
+            url=f"/add_quizzes?error={quote(str(e))}", status_code=303
+        )
 
     quiz.correct_option = correct_option
 
     db.commit()
-    
-    # Notify all users about quiz update
+
     create_notification_for_all_users(
         db=db,
         title="Quiz Updated",
@@ -1900,7 +1985,7 @@ async def update_quiz_submit(
         related_id=quiz.id
     )
 
-    return RedirectResponse(url="/add_quizzes", status_code=303)
+    return RedirectResponse(url="/add_quizzes?success=quiz_updated", status_code=303)
 
 
 # -------------------------
@@ -1958,21 +2043,22 @@ def update_admin_profile_submit(
             "admin_profile.html",
             {"request": request, "admin": admin, "error": err, "success": None},
         )
-    # Check if new username or email conflicts with existing users
-    existing_user = db.query(User).filter(
-        or_(User.username == username, User.email == email)
-    ).first()
-    if existing_user:
-        return templates.TemplateResponse(
-            "admin_profile.html",
-            {
-                "request": request,
-                "admin": admin,
-                "error": "Username or email is already in use by another account.",
-                "success": None,
-            },
-        )
-    
+    # Only check for conflict when admin is changing username or email; allow keeping current
+    if username != admin.username or email != admin.email:
+        existing_user = db.query(User).filter(
+            or_(User.username == username, User.email == email)
+        ).first()
+        if existing_user:
+            return templates.TemplateResponse(
+                "admin_profile.html",
+                {
+                    "request": request,
+                    "admin": admin,
+                    "error": "Username or email is already in use by another account.",
+                    "success": None,
+                },
+            )
+
     # Validate password if provided (must contain at least one of #, @, $)
     if new_password:
         if new_password != confirm_password:
@@ -2125,7 +2211,23 @@ def update_user_profile_submit(
                     "success": None,
                 },
             )
-    
+
+    # If nothing changed and no new password, show no-changes message
+    if (
+        user.username == username
+        and user.email == email
+        and not new_password
+    ):
+        return templates.TemplateResponse(
+            "profile.html",
+            {
+                "request": request,
+                "user": user,
+                "error": None,
+                "success": "No changes made. Your profile is already up to date.",
+            },
+        )
+
     # Update user fields
     user.username = username
     user.email = email

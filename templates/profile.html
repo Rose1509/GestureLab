@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/static/css/footer.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/logout_modal.css">
+    <link rel="stylesheet" href="/static/css/delete_success_toast.css">
 </head>
 <body>
 
@@ -155,13 +156,13 @@
             <p class="subtitle">Update your login details</p>
 
             {% if error %}
-            <div style="background-color: #fee; color: #c33; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+            <div class="profile-inline-alert profile-inline-error">
                 {{ error }}
             </div>
             {% endif %}
 
-            {% if success %}
-            <div style="background-color: #efe; color: #3c3; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+            {% if success and success != 'No changes made. Your profile is already up to date.' %}
+            <div class="profile-inline-alert profile-inline-success">
                 {{ success }}
             </div>
             {% endif %}
@@ -612,6 +613,36 @@
             // Poll for new notifications every 10 seconds
             setInterval(fetchNotifications, 10000);
         });
+    </script>
+
+    <!-- No changes toast (shown when Save clicked without any changes) -->
+    <div id="profileNoChangesToast" class="delete-success-toast profile-no-changes-toast" role="alert" aria-live="polite">
+        <div class="delete-success-toast-icon profile-no-changes-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+        </div>
+        <p id="profileNoChangesMessage" class="delete-success-toast-message">No changes have been made.</p>
+        <button type="button" class="delete-success-toast-close" id="profileNoChangesToastClose" aria-label="Close">&times;</button>
+    </div>
+    <script>
+    (function() {
+        var noChangesMsg = {{ 'No changes made. Your profile is already up to date.'|tojson }};
+        var successMsg = {{ success|tojson if success else 'null' }};
+        if (successMsg !== noChangesMsg) return;
+        var toast = document.getElementById('profileNoChangesToast');
+        var closeBtn = document.getElementById('profileNoChangesToastClose');
+        if (!toast || !closeBtn) return;
+        function hide() {
+            toast.classList.add('is-hiding');
+            setTimeout(function() { toast.classList.remove('is-visible', 'is-hiding'); }, 300);
+        }
+        toast.classList.add('is-visible');
+        closeBtn.addEventListener('click', hide);
+        setTimeout(hide, 4000);
+    })();
     </script>
 
     {% include "logout_modal.html" %}
