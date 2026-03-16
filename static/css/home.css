@@ -36,7 +36,7 @@ body {
 /* HERO SECTION - Clip Path Fix */
 .hero-wrapper {
     position: relative;
-    background-color: #1a2e4c;
+    background-color: #30305B;
     color: white;
     text-align: center;
     width: 100%;
@@ -214,6 +214,216 @@ body {
     overflow-x: hidden; /* Important for the curve overflow */
 }
 
+/* ================= HOME DARK THEME (palette from image) ================= */
+
+body.dark-theme {
+    background-color: #000000;
+    color: #CCD0CF;
+}
+
+body.dark-theme .navbar {
+    background-color: #000000;
+    box-shadow: 0 2px 18px rgba(0, 0, 0, 0.9);
+}
+
+/* Dark theme nav links (Home / Lessons / Practice / Quizzes / Profile) */
+body.dark-theme .nav-item {
+    color: #CCD0CF;
+}
+
+body.dark-theme .nav-item span {
+    color: #CCD0CF;
+}
+
+body.dark-theme .nav-item.active {
+    background-color: #1a2e4c;
+    box-shadow: 9px 20px 20px -3px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-theme .nav-item:hover {
+    background-color: #1a2e4c;
+    box-shadow: 0 10px 18px rgba(0, 0, 0, 0.45);
+    transform: translateY(-3px);
+}
+
+/* Dark theme navbar search */
+body.dark-theme .nav-search-input {
+    background-color: #000000;
+    border-color: #444444;
+    color: #CCD0CF;
+}
+
+body.dark-theme .nav-search-input::placeholder {
+    color: #888888;
+}
+
+body.dark-theme .nav-search-input:focus {
+    border-color: #1a2e4c;
+    box-shadow: 0 0 0 2px rgba(26, 46, 76, 0.65);
+}
+
+body.dark-theme .nav-search-btn {
+    background: #1a2e4c;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+}
+
+body.dark-theme .nav-search-btn:hover {
+    background: #161629;
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.55);
+}
+
+/* Dark theme notification button: swap before/after hover effects */
+body.dark-theme .notification-bell {
+    background-color: rgba(47, 158, 255, 0.15);
+    border-color: rgba(47, 158, 255, 0.4);
+    color: #CCD0CF;
+    box-shadow: 0 4px 16px rgba(47, 158, 255, 0.2);
+    transform: none;
+}
+
+body.dark-theme .notification-bell:hover {
+    background: rgba(0, 0, 0, 0.35);
+    border-color: rgba(255, 255, 255, 0.12);
+    transform: scale(1.0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-theme .notification-bell .bell-icon {
+    color: #CCD0CF;
+}
+
+/* Dark theme logout button: match notification behavior */
+body.dark-theme .arrow-box {
+    background-color: rgba(47, 158, 255, 0.15);
+    border: 1px solid rgba(47, 158, 255, 0.4);
+    box-shadow: 0 4px 16px rgba(47, 158, 255, 0.2);
+    transform: none;
+}
+
+body.dark-theme .arrow-box:hover {
+    transform: none;
+    background: rgba(0, 0, 0, 0.35);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-theme .hero-wrapper {
+    background-color: #1a2e4c;
+}
+
+body.dark-theme .hero-content h1 {
+    color: #CCD0CF;
+}
+
+body.dark-theme .hero-description {
+    color: #9BA8AB;
+}
+
+body.dark-theme .section-title {
+    color: #CCD0CF;
+}
+
+body.dark-theme .dark-section-bg {
+    background-color: #1a2e4c;
+}
+
+body.dark-theme .feature-card {
+    background-color: #000000;
+    color: #CCD0CF;
+    box-shadow: 12px 12px 0px #161629;
+}
+
+body.dark-theme .feature-card h3,
+body.dark-theme .feature-card h4 {
+    color: #CCD0CF;
+}
+
+body.dark-theme .feature-card p {
+    color: #CCD0CF;
+}
+
+body.dark-theme .card-img-box {
+    background-color: #161629;
+}
+
+body.dark-theme .circle {
+    background-color: #161629;
+}
+
+body.dark-theme .info-content {
+    background-color: #1a2e4c;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85);
+}
+
+body.dark-theme .info-content h3 {
+    color: #CCD0CF;
+}
+
+body.dark-theme .info-content p {
+    color: #CCD0CF;
+}
+
+/* Floating circular theme toggle (home only) */
+.home-theme-toggle {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    width: 52px;
+    height: 52px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 30% 20%, #CCD0CF 0%, #9BA8AB 45%, #4A5C6A 100%);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+    z-index: 999;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+}
+
+.home-theme-toggle:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 35px rgba(0, 0, 0, 0.45);
+}
+
+.home-theme-toggle:active {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
+}
+
+.home-theme-icon {
+    position: absolute;
+    font-size: 1.4rem;
+    line-height: 1;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.home-theme-icon-sun {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.home-theme-icon-moon {
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+body.dark-theme .home-theme-toggle {
+    background: radial-gradient(circle at 30% 20%, #CCD0CF 0%, #4A5C6A 35%, #06141B 100%);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8);
+}
+
+body.dark-theme .home-theme-icon-sun {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
+body.dark-theme .home-theme-icon-moon {
+    opacity: 1;
+    transform: translateY(0);
+}
+
 /* HERO SECTION - Clip Path Fix */
 .hero-wrapper {
     position: relative;
@@ -306,7 +516,7 @@ body {
 
 /* THE EXACT FLASHCARD STYLE */
 .feature-card {
-    background: #e1e9f5; /* Light blue-grey background from assets */
+    background: #e1e9f5; /* Light theme card color (original) */
     border-radius: 35px;
     padding: 35px 25px;
     text-align: center;
@@ -344,6 +554,7 @@ body {
 
 .card-img-box img { 
     max-width: 100%; 
+    color: #161629;
     max-height: 100%; 
     object-fit: contain;
 }

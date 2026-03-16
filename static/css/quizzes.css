@@ -13,7 +13,7 @@ body {
     line-height: 1.6;
 }
 
-/* NAVBAR (Kept as requested) */
+/* NAVBAR */
 :root {
     --navy: #1a2b4b;
     --light-blue: #bae6fd;
@@ -136,6 +136,24 @@ a.btn-start {
 .btn-start:active {
     box-shadow: none;
     transform: translateY(4px);
+}
+
+/* Dark mode styling for quiz cards and buttons */
+body.dark-theme .quiz-card {
+    background: #1a2e4c; /* deep navy in dark mode only */
+    color: #e5edff;
+}
+
+body.dark-theme .quiz-card h3 {
+    color: #e5edff;
+}
+
+body.dark-theme .level {
+    color: #cbd5f5;
+}
+
+body.dark-theme .btn-start {
+    background-color: #161629F2; /* near-black button */
 }
 
 /* FOOTER (Kept as requested) */

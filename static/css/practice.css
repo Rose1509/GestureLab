@@ -130,6 +130,68 @@ body {
     box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.1);
 }
 
+/* ================= PRACTICE DARK THEME ================= */
+
+/* Force full black background on practice page in dark mode */
+body.dark-theme {
+    background-color: #000000 !important;
+    background-image: none !important;
+}
+
+body.dark-theme .practice-main-content {
+    background-color: transparent;
+}
+
+body.dark-theme .practice-page-header h1 {
+    color: #CCD0CF;
+}
+
+body.dark-theme .practice-page-header p {
+    color: #9BA8AB;
+}
+
+body.dark-theme .practice-card {
+    background: rgba(0, 0, 0, 0.9);
+    border-color: rgba(148, 163, 184, 0.45); /* subtle light outline so card stands off black */
+    box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.4), 0 18px 40px rgba(0, 0, 0, 0.9);
+}
+
+body.dark-theme .practice-card:hover {
+    background: rgba(0, 0, 0, 0.95);
+}
+
+body.dark-theme .video-feed-container {
+    background: rgba(22, 22, 41, 0.95);
+    border-color: rgba(148, 163, 184, 0.5); /* glowing-ish border against black */
+}
+
+body.dark-theme .video-feed-container:hover {
+    background: rgba(22, 22, 41, 1);
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.35);
+}
+
+body.dark-theme .camera-placeholder-ui p {
+    color: #CCD0CF;
+}
+
+body.dark-theme .practice-sidebar .card-titles h2,
+body.dark-theme .camera-view-section .card-titles h2 {
+    color: #CCD0CF;
+}
+
+body.dark-theme .card-titles p,
+body.dark-theme .instruction-steps li {
+    color: #CCD0CF;
+}
+
+body.dark-theme .dark-pill-btn {
+    background-color: #161629;
+}
+
+body.dark-theme .dark-pill-btn:hover {
+    background-color: #1a2e4c;
+}
+
 .video-feed-container video {
     width: 100%;
     height: 100%;
@@ -298,6 +360,21 @@ body {
     border-radius: 14px;
     padding: 14px 18px;
     border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+/* Match live prediction & demo inner boxes to camera feed color in dark mode */
+body.dark-theme .prediction-target-wrap,
+body.dark-theme .prediction-letter-wrap,
+body.dark-theme .prediction-confidence-wrap,
+body.dark-theme .prediction-target-confidence-wrap {
+    background: rgba(22, 22, 41, 0.95);
+    border-color: rgba(148, 163, 184, 0.5);
+}
+
+body.dark-theme .asl-image-box {
+    background: rgba(22, 22, 41, 0.95);
+    border-radius: 24px;
+    border: 1px solid rgba(148, 163, 184, 0.5);
 }
 .prediction-label {
     display: block;

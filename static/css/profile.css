@@ -1217,3 +1217,86 @@ body {
         }
     }
 
+/* ================= PROFILE DARK THEME ================= */
+
+body.dark-theme .profile-header h1 {
+    color: #CCD0CF;
+}
+
+body.dark-theme .profile-header p {
+    color: #9BA8AB;
+}
+
+body.dark-theme .profile-card {
+    background: #1a2e4c;
+    color: #CCD0CF;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.75);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+body.dark-theme .profile-card h2 {
+    color: #CCD0CF;
+}
+
+body.dark-theme .profile-card .subtitle {
+    color: #9BA8AB;
+}
+
+body.dark-theme .form-group label {
+    color: #CCD0CF;
+}
+
+body.dark-theme .form-group input {
+    background-color: #161629;
+    color: #CCD0CF;
+    border-color: rgba(148, 163, 184, 0.25);
+}
+
+body.dark-theme .form-group input:focus {
+    background-color: #161629;
+    border-color: rgba(47, 158, 255, 0.55);
+    box-shadow: 0 0 0 2px rgba(47, 158, 255, 0.22);
+}
+
+body.dark-theme .streak-display {
+    background: rgba(22, 22, 41, 0.9);
+    color: #CCD0CF;
+    border-color: rgba(148, 163, 184, 0.22);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.55);
+}
+
+/* Stats cards: keep layout, make dark */
+body.dark-theme .stat-item,
+body.dark-theme .stat-item.blue,
+body.dark-theme .stat-item.orange,
+body.dark-theme .stat-item.green,
+body.dark-theme .stat-item.progress-badge-card {
+    background: #161629;
+    color: #CCD0CF;
+    border-color: rgba(148, 163, 184, 0.22);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+}
+
+body.dark-theme .stat-label,
+body.dark-theme .progress-badge-card .progress-to-badge-label {
+    color: #CCD0CF;
+}
+
+body.dark-theme .progress-badge-card .progress-bar-track {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-theme .certificates-empty {
+    background: rgba(0, 0, 0, 0.35);
+    border-color: rgba(148, 163, 184, 0.22);
+    color: #9BA8AB;
+}
+
+body.dark-theme .view-results-btn {
+    background: #161629;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-theme .view-results-btn:hover {
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.7);
+}

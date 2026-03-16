@@ -39,6 +39,170 @@ tbody tr,
     min-height: 100vh;
 }
 
+/* ================= DARK THEME (ADMIN DASHBOARD) ================= */
+
+body.dark-theme {
+    background-color: #000000 !important;
+    background-image: none !important;
+    color: #CCD0CF;
+}
+
+body.dark-theme .container {
+    background: transparent;
+}
+
+body.dark-theme .sidebar {
+    background-color: #020617;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.85);
+}
+
+body.dark-theme .sidebar nav ul li {
+    border-radius: 10px;
+}
+
+body.dark-theme .sidebar nav ul li.active {
+    background-color: #1a2e4c;
+}
+
+body.dark-theme .sidebar nav ul li a {
+    color: #E5EDFF;
+}
+
+body.dark-theme .logout a {
+    color: #CCD0CF;
+}
+
+body.dark-theme .main-content {
+    color: #CCD0CF;
+}
+
+body.dark-theme .header-text h1 {
+    color: #F9FAFB;
+}
+
+body.dark-theme .user-management h3 {
+    color: #ECEFF4;
+}
+
+body.dark-theme .stats-container {
+    /* keep layout; colors handled per card */
+}
+
+body.dark-theme .stat-card {
+    background: rgba(15, 23, 42, 0.9);
+    border-color: rgba(148, 163, 184, 0.35);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.9);
+}
+
+body.dark-theme .stat-value {
+    color: #F9FAFB;
+}
+
+body.dark-theme .stat-label {
+    color: #CBD5F5;
+}
+
+body.dark-theme .table-container {
+    background: rgba(15, 23, 42, 0.95);
+    border-color: rgba(148, 163, 184, 0.65);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.9);
+}
+
+body.dark-theme thead {
+    background-color: #020617;
+}
+
+body.dark-theme td {
+    color: #E5EDFF;
+}
+
+body.dark-theme tbody tr:hover {
+    background: rgba(37, 99, 235, 0.25);
+}
+
+body.dark-theme .btn-add,
+body.dark-theme .btn-update {
+    background-color: #1a2e4c;
+}
+
+body.dark-theme .btn-delete-inline {
+    background-color: #e53e3e !important;
+}
+
+body.dark-theme footer {
+    color: #9BA8AB;
+}
+
+/* Subtle outline/glow for stat cards and table in dark mode */
+body.dark-theme .stat-card {
+    border: 1px solid rgba(148, 163, 184, 0.7);
+}
+
+body.dark-theme .table-container {
+    border: 1px solid rgba(148, 163, 184, 0.7);
+}
+
+/* Floating circular theme toggle (copied from global, so dashboard has same control) */
+.home-theme-toggle {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    width: 52px;
+    height: 52px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 30% 20%, #CCD0CF 0%, #9BA8AB 45%, #4A5C6A 100%);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+    z-index: 999;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+}
+
+.home-theme-toggle:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 35px rgba(0, 0, 0, 0.45);
+}
+
+.home-theme-toggle:active {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
+}
+
+.home-theme-icon {
+    position: absolute;
+    font-size: 1.4rem;
+    line-height: 1;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.home-theme-icon-sun {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.home-theme-icon-moon {
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+body.dark-theme .home-theme-toggle {
+    background: radial-gradient(circle at 30% 20%, #CCD0CF 0%, #4A5C6A 35%, #06141B 100%);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8);
+}
+
+body.dark-theme .home-theme-icon-sun {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
+body.dark-theme .home-theme-icon-moon {
+    opacity: 1;
+    transform: translateY(0);
+}
+
 /* ================= SIDEBAR ================= */
 
 .sidebar {

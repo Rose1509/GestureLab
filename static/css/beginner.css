@@ -255,6 +255,43 @@ input[type="radio"]:checked + .prefix {
     margin: 0 auto;
 }
 
+/* Dark theme overrides for beginner quiz */
+body.dark-theme .question-card {
+    background: #003153;
+    color: #CCD0CF;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.18), 0 10px 30px rgba(0, 0, 0, 0.9);
+}
+
+body.dark-theme .question-text,
+body.dark-theme .quiz-info h1,
+body.dark-theme .quiz-meta {
+    color: #CCD0CF;
+}
+
+body.dark-theme .option:hover {
+    background: #161629;
+}
+
+body.dark-theme .submit-btn,
+body.dark-theme .retry-btn,
+body.dark-theme .next-btn {
+    background-color: #1a2e4c;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7);
+}
+
+body.dark-theme .submit-btn:hover,
+body.dark-theme .retry-btn:hover,
+body.dark-theme .next-btn:hover {
+    background-color: #161629;
+}
+
+body.dark-theme .results-container {
+    background: #000000;
+    color: #CCD0CF;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
+}
+
 .results-heading {
     font-size: 2rem;
     font-weight: 700;

@@ -40,6 +40,92 @@ body {
     padding-bottom: 0;
 }
 
+/* ================= ABOUT DARK THEME ================= */
+
+/* Force solid black background in dark mode on About page */
+body.dark-theme {
+    background-color: #000000 !important;
+    background-image: none !important;
+}
+
+body.dark-theme .about-hero-title,
+body.dark-theme .about-hero-subtitle {
+    color: #CCD0CF;
+}
+
+body.dark-theme .about-main {
+    color: #CCD0CF;
+}
+
+body.dark-theme .about-intro-content h2,
+body.dark-theme .about-section-title,
+body.dark-theme .about-section-title-center {
+    color: #CCD0CF;
+}
+
+body.dark-theme .about-lead,
+body.dark-theme .about-lead-secondary {
+    color: #CCD0CF;
+}
+
+body.dark-theme .about-intro-visual {
+    background: rgba(22, 22, 41, 0.95);
+    border-color: rgba(148, 163, 184, 0.35);
+}
+
+body.dark-theme .about-intro-img {
+    filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.8));
+}
+
+body.dark-theme .about-feature {
+    background: #1a2e4c;
+    color: #CCD0CF;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85);
+}
+
+body.dark-theme .about-feature h3 {
+    color: #CCD0CF;
+}
+
+body.dark-theme .about-feature p {
+    color: #CCD0CF;
+}
+
+body.dark-theme .about-cta-card {
+    background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+    border-color: rgba(148, 163, 184, 0.35);
+}
+
+body.dark-theme .about-cta-card-title {
+    color: #ECEFF4;
+}
+
+body.dark-theme .about-cta-card-text {
+    color: #CCD0CF;
+}
+
+body.dark-theme .about-cta-strip {
+    background: linear-gradient(135deg, #020617 0%, #0f172a 50%, #020617 100%);
+    border-color: rgba(148, 163, 184, 0.35);
+}
+
+body.dark-theme .about-cta-strip-text {
+    color: #ECEFF4;
+}
+
+/* About page links: same text color, no underline */
+body.dark-theme .about-main a,
+body.dark-theme .about-main a:visited,
+body.dark-theme .about-main a:hover,
+body.dark-theme .about-main a:active,
+body.dark-theme .about-hero-banner a,
+body.dark-theme .about-hero-banner a:visited,
+body.dark-theme .about-hero-banner a:hover,
+body.dark-theme .about-hero-banner a:active {
+    color: #CCD0CF;
+    text-decoration: none;
+}
+
 /* Hero banner - sign.jpg with transparent overlay */
 .about-hero-banner {
     position: relative;

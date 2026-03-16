@@ -242,6 +242,52 @@ input[type="radio"]:checked + .prefix {
     font-size: 0.8rem;
 }
 
+/* ================= ADVANCEE DARK THEME (match lessons/home colors) ================= */
+
+body.dark-theme {
+    background-color: #000000;
+    color: #CCD0CF;
+}
+
+body.dark-theme .quiz-detail-header .quiz-info h1,
+body.dark-theme .quiz-meta {
+    color: #CCD0CF;
+}
+
+body.dark-theme .question-card {
+    /* keep same layout as light theme, only change colors */
+    background: #000000;
+    color: #CCD0CF;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-theme .question-text {
+    color: #CCD0CF;
+}
+
+body.dark-theme .option:hover {
+    background: #161629;
+}
+
+body.dark-theme .prefix {
+    border-color: #4A5C6A;
+    color: #CCD0CF;
+}
+
+body.dark-theme input[type="radio"]:checked + .prefix {
+    background-color: #161629;
+    border-color: #161629;
+}
+
+body.dark-theme .submit-btn {
+    background-color: #161629;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+}
+
+body.dark-theme .submit-btn:hover {
+    background-color: #161629;
+}
+
 /* Loading Overlay */
 .loading-overlay {
     position: fixed;

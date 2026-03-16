@@ -7,7 +7,7 @@
 
 body {
     font-family: 'Inter', sans-serif;
-    background-color: #DFE5ED; /* Soft blue-grey background */
+    background-color: #DFE5ED; /* Soft blue-grey background (original) */
     color: #1e293b;
     line-height: 1.6;
 }
@@ -145,7 +145,7 @@ a.btn-level.active {
 }
 
 .btn-practice:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
 }
 
 a.btn-practice {
@@ -194,6 +194,56 @@ a.btn-practice {
     margin-top: 40px;
     padding-top: 20px;
     font-size: 0.8rem;
+}
+
+/* ================= LESSONS DARK THEME (match home) ================= */
+
+body.dark-theme {
+    background-color: #000000;
+    color: #CCD0CF;
+}
+
+body.dark-theme .page-header h1 {
+    color: #CCD0CF;
+}
+
+body.dark-theme .level-selector {
+    background: #1a2e4c;
+}
+
+body.dark-theme a.btn-level.active {
+    background: #000000;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.6);
+    color: #CCD0CF;
+}
+
+body.dark-theme .lesson-grid .card {
+    /* keep same layout as light theme, only change colors */
+    background-color: #000000;
+    color: #CCD0CF;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-theme .card-body {
+    background-color: #1a2e4c;
+}
+
+body.dark-theme .card-header h2,
+body.dark-theme .card-body h3 {
+    color: #CCD0CF;
+}
+
+body.dark-theme .card-body ol {
+    color: #CCD0CF;
+}
+
+body.dark-theme .btn-practice {
+    background-color: #161629;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+}
+
+body.dark-theme .btn-practice:hover {
+    background-color: #1a2e4c;
 }
 
 /* Success Notification Styles */

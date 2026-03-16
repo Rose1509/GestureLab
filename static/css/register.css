@@ -1,11 +1,41 @@
 body {
     margin: 0;
-    background-color: #aeb9c7; 
+    /* Light sky-blue transparent Mac-style tint over loginbg image */
+    background:
+        linear-gradient(135deg, rgba(186, 230, 253, 0.35), rgba(191, 219, 254, 0.25)),
+        url('/static/images/loginbg.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    position: relative;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
     font-family: 'Poppins', sans-serif;
+    animation: auth-page-fade-in 0.45s ease-out;
+}
+
+/* Soft translucent overlay, similar to container::before example */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.25);
+    pointer-events: none;
+    z-index: 0;
+}
+
+@keyframes auth-page-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .main-card {
@@ -18,6 +48,8 @@ body {
     overflow: hidden;
     box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.45);
     border: 1px solid rgba(0, 0, 0, 0.1);
+    position: relative;
+    z-index: 1;
 }
 
 /* ================= LEFT PANEL ================= */
