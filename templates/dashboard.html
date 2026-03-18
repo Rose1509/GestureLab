@@ -103,6 +103,8 @@
                             <tr>
                                 <th>Email</th>
                                 <th>Username</th>
+                                <th>Role</th>
+                                <th>Last login</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -113,25 +115,39 @@
                                         <td>{{ user.email }}</td>
                                         <td>{{ user.username }}</td>
                                         <td>
-                                            <button type="button" class="btn-update edit-user-btn"
-                                                    data-id="{{ user.id }}"
-                                                    data-email="{{ user.email }}"
-                                                    data-username="{{ user.username }}">
-                                                <i class="fas fa-edit"></i> Edit
-                                            </button>
-                                            <form method="post" action="/delete_user" class="js-delete-form" data-delete-message="Are you sure you want to delete this user?" style="display: inline; margin-left: 8px;">
-                                                <input type="hidden" name="user_id" value="{{ user.id }}">
-                                                {% if search_query %}<input type="hidden" name="search_query" value="{{ search_query }}">{% endif %}
-                                                <button type="submit" class="btn-update btn-delete-inline">
-                                                    <i class="fas fa-trash-alt"></i>
+                                            {{ user.role }}
+                                        </td>
+                                        <td>
+                                            {% if user.last_login_at %}
+                                                {{ user.last_login_at.strftime('%Y-%m-%d %H:%M') }}
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if user.is_admin %}
+                                                —
+                                            {% else %}
+                                                <button type="button" class="btn-update edit-user-btn"
+                                                        data-id="{{ user.id }}"
+                                                        data-email="{{ user.email }}"
+                                                        data-username="{{ user.username }}">
+                                                    <i class="fas fa-edit"></i> Edit
                                                 </button>
-                                            </form>
+                                                <form method="post" action="/delete_user" class="js-delete-form" data-delete-message="Are you sure you want to delete this user?" style="display: inline; margin-left: 8px;">
+                                                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                                                    {% if search_query %}<input type="hidden" name="search_query" value="{{ search_query }}">{% endif %}
+                                                    <button type="submit" class="btn-update btn-delete-inline">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                    </button>
+                                                </form>
+                                            {% endif %}
                                         </td>
                                     </tr>
                                 {% endfor %}
                             {% else %}
                                 <tr>
-                                    <td colspan="3" style="text-align: center;">No users found.</td>
+                                    <td colspan="5" style="text-align: center;">No users found.</td>
                                 </tr>
                             {% endif %}
                         </tbody>

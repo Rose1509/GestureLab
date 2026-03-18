@@ -43,6 +43,41 @@ def ensure_schema() -> None:
                     )
                 )
 
+            if "last_login_at" not in columns:
+                conn.execute(
+                    text('ALTER TABLE "register" ADD COLUMN last_login_at TIMESTAMP WITH TIME ZONE')
+                )
+
+            # Admin table: track last login timestamp
+            if "admin" in inspector.get_table_names():
+                admin_cols = {c["name"] for c in inspector.get_columns("admin")}
+                if "last_login_at" not in admin_cols:
+                    conn.execute(
+                        text('ALTER TABLE admin ADD COLUMN last_login_at TIMESTAMP WITH TIME ZONE')
+                    )
+
+            # Password reset codes (email OTP) for forgot-password flow
+            if "password_reset_codes" not in inspector.get_table_names():
+                conn.execute(
+                    text(
+                        """
+                        CREATE TABLE IF NOT EXISTS password_reset_codes (
+                            id SERIAL PRIMARY KEY,
+                            email VARCHAR(255) NOT NULL,
+                            code_hash VARCHAR(64) NOT NULL,
+                            expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                            used_at TIMESTAMP WITH TIME ZONE NULL
+                        )
+                        """
+                    )
+                )
+                conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS ix_password_reset_codes_email ON password_reset_codes (email)"
+                    )
+                )
+
             # Keep quiz_results compatible with evolving SQLAlchemy model.
             if "quiz_results" in inspector.get_table_names():
                 qr_cols = {c["name"] for c in inspector.get_columns("quiz_results")}

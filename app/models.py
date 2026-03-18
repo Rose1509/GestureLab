@@ -12,6 +12,7 @@ class User(Base):
     username = Column(String(50), unique=True, index=True, nullable=False)
     password = Column(String(255), nullable=False)
     google_id = Column(String(255), nullable=True, unique=True, index=True)
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
 
 class Lesson(Base):
     __tablename__ = "lessons"
@@ -54,6 +55,18 @@ class Admin(Base):
     username = Column(String(50), unique=True, nullable=False)
     email = Column(String(255), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class PasswordResetCode(Base):
+    __tablename__ = "password_reset_codes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), index=True, nullable=False)
+    code_hash = Column(String(64), nullable=False)  # sha256 hex
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
 
 
 class Notification(Base):

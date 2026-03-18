@@ -345,7 +345,9 @@ body.dark-theme .dark-pill-btn:hover {
 }
 .prediction-target-wrap,
 .prediction-letter-wrap,
-.prediction-confidence-wrap {
+.prediction-confidence-wrap,
+.prediction-word-wrap,
+.prediction-final-word-wrap {
     flex: 1;
     min-width: 100px;
     background: rgba(248, 250, 252, 0.9);
@@ -366,9 +368,35 @@ body.dark-theme .dark-pill-btn:hover {
 body.dark-theme .prediction-target-wrap,
 body.dark-theme .prediction-letter-wrap,
 body.dark-theme .prediction-confidence-wrap,
+body.dark-theme .prediction-word-wrap,
+body.dark-theme .prediction-final-word-wrap,
 body.dark-theme .prediction-target-confidence-wrap {
     background: rgba(22, 22, 41, 0.95);
     border-color: rgba(148, 163, 184, 0.5);
+}
+
+.prediction-word-wrap,
+.prediction-final-word-wrap {
+    min-width: 220px;
+}
+
+.prediction-word,
+.prediction-final-word {
+    font-size: 1.1rem;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    max-width: 100%;
+}
+
+.prediction-final-word {
+    color: #0f172a;
+}
+
+body.dark-theme .prediction-final-word {
+    color: #E5EDFF;
 }
 
 body.dark-theme .asl-image-box {

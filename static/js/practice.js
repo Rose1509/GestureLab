@@ -19,6 +19,10 @@
     const targetConfWrap = document.getElementById('prediction-target-confidence-wrap');
     const targetConfEl = document.getElementById('prediction-target-confidence');
     const confidenceLabelEl = document.getElementById('prediction-confidence-label');
+    const wordWrapEl = document.getElementById('prediction-word-wrap');
+    const wordEl = document.getElementById('prediction-word');
+    const finalWordWrapEl = document.getElementById('prediction-final-word-wrap');
+    const finalWordEl = document.getElementById('prediction-final-word');
     const stopBtn = document.getElementById('stop-camera-btn');
     const retryBtn = document.getElementById('retry-camera-btn');
     const noHandModal = document.getElementById('no-hand-modal');
@@ -40,6 +44,7 @@
     let handLoopRafId = null;
     let hands = null;
     let lastHandSeenAt = null;
+    let lastLandmarks = null;
     const NO_HAND_TIMEOUT_MS = 1000;
 
     const TARGET_LETTER = (function () {
@@ -54,6 +59,61 @@
             return '';
         }
     })();
+
+    // Word builder mode is ONLY for generic practice (no lesson target selected).
+    const WORD_BUILDER_ENABLED = !TARGET_LETTER;
+    const STABLE_FRAMES = 5;
+    const MIN_LETTER_CONF = 0.80; // accept/display only above 80%
+
+    let currentWord = '';
+    let finalizedWord = '';
+    let candidateLetter = null;
+    let candidateCount = 0;
+    let lastAcceptedLetter = null;
+    let seenDifferentSinceAccept = true;
+
+    function dist(a, b) {
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function resetWordBuilderUI() {
+        if (!WORD_BUILDER_ENABLED) return;
+        if (wordEl) wordEl.textContent = currentWord ? currentWord : '—';
+        if (finalWordEl) finalWordEl.textContent = finalizedWord ? finalizedWord : '—';
+    }
+
+    function clearWordBuilder() {
+        currentWord = '';
+        finalizedWord = '';
+        candidateLetter = null;
+        candidateCount = 0;
+        lastAcceptedLetter = null;
+        seenDifferentSinceAccept = true;
+        resetWordBuilderUI();
+    }
+
+    function finalizeCurrentWord() {
+        const w = (currentWord || '').trim();
+        if (!w) return;
+        finalizedWord = w;
+        currentWord = '';
+        candidateLetter = null;
+        candidateCount = 0;
+        seenDifferentSinceAccept = true;
+        resetWordBuilderUI();
+    }
+
+    function acceptLetter(letter) {
+        if (!letter) return;
+        // prevent endless repeats of same letter unless the gesture changes
+        if (!seenDifferentSinceAccept && letter === lastAcceptedLetter) return;
+        currentWord += letter;
+        lastAcceptedLetter = letter;
+        seenDifferentSinceAccept = false;
+        resetWordBuilderUI();
+    }
 
     const FEEDBACK_THRESHOLD = 0.8;
 
@@ -104,6 +164,7 @@
         if (letterEl) letterEl.textContent = '—';
         if (confidenceEl) confidenceEl.textContent = '';
         if (targetConfEl) targetConfEl.textContent = '';
+        if (WORD_BUILDER_ENABLED) resetWordBuilderUI();
         if (errorEl) {
             errorEl.style.display = 'none';
             errorEl.textContent = '';
@@ -220,8 +281,10 @@
             const lm = results && results.multiHandLandmarks && results.multiHandLandmarks[0];
             if (!lm || !videoEl || !videoEl.videoWidth || !videoEl.videoHeight) {
                 handBox = null;
+                lastLandmarks = null;
                 return;
             }
+            lastLandmarks = lm;
             let minX = 1, minY = 1, maxX = 0, maxY = 0;
             for (var i = 0; i < lm.length; i++) {
                 const p = lm[i];
@@ -348,6 +411,39 @@
                     letterEl.textContent = data.letter != null ? String(data.letter) : '—';
                     const pct = data.confidence != null ? (data.confidence * 100).toFixed(1) : '0';
                     confidenceEl.textContent = pct + '%';
+
+                    // Word builder logic (ONLY when no lesson selected)
+                    if (WORD_BUILDER_ENABLED) {
+                        const topLetter = data.letter != null ? String(data.letter) : null;
+                        const topConf = (typeof data.confidence === 'number') ? data.confidence : 0;
+
+                        // Only show letter when confidence passes threshold
+                        if (!topLetter || topConf < MIN_LETTER_CONF) {
+                            if (letterEl) letterEl.textContent = '—';
+                        }
+
+                        // Mark "gesture changed" whenever top letter differs or confidence drops
+                        if (!topLetter || topConf < MIN_LETTER_CONF || (lastAcceptedLetter && topLetter !== lastAcceptedLetter)) {
+                            seenDifferentSinceAccept = true;
+                        }
+
+                        if (topLetter && topConf >= MIN_LETTER_CONF) {
+                            // stability gate
+                            if (candidateLetter === topLetter) {
+                                candidateCount += 1;
+                            } else {
+                                candidateLetter = topLetter;
+                                candidateCount = 1;
+                            }
+                            if (candidateCount >= STABLE_FRAMES) {
+                                acceptLetter(topLetter);
+                                candidateCount = 0;
+                            }
+                        } else {
+                            candidateLetter = null;
+                            candidateCount = 0;
+                        }
+                    }
                     if (data.letter != null && typeof data.confidence === 'number') {
                         if (data.confidence > bestOverallConfidence) {
                             bestOverallConfidence = data.confidence;
@@ -507,6 +603,7 @@
         bestOverallLetter = null;
         bestOverallConfidence = 0;
         lastHandSeenAt = null;
+        if (WORD_BUILDER_ENABLED) clearWordBuilder();
         if (feedbackPanel) feedbackPanel.style.display = 'none';
         if (demoSection) demoSection.style.display = '';
         if (instructionsSection) instructionsSection.style.display = '';
@@ -585,14 +682,37 @@
     }
 
     function initPracticePage() {
+        // Only show word UI on generic practice page (no lesson selected)
+        if (WORD_BUILDER_ENABLED) {
+            if (wordWrapEl) wordWrapEl.style.display = 'block';
+            if (finalWordWrapEl) finalWordWrapEl.style.display = 'block';
+            if (retryBtn) retryBtn.textContent = 'Retake';
+        } else {
+            if (wordWrapEl) wordWrapEl.style.display = 'none';
+            if (finalWordWrapEl) finalWordWrapEl.style.display = 'none';
+            if (retryBtn) retryBtn.textContent = 'Retry';
+        }
         if (startBtn) {
             startBtn.addEventListener('click', startCamera);
         }
         if (stopBtn) {
-            stopBtn.addEventListener('click', function () { stopPractice(true); });
+            stopBtn.addEventListener('click', function () {
+                if (WORD_BUILDER_ENABLED && isPracticing) {
+                    finalizeCurrentWord();
+                    stopPractice(false);
+                    return;
+                }
+                stopPractice(true);
+            });
         }
         if (retryBtn) {
-            retryBtn.addEventListener('click', startCamera);
+            retryBtn.addEventListener('click', function () {
+                if (WORD_BUILDER_ENABLED && isPracticing) {
+                    clearWordBuilder();
+                    return;
+                }
+                startCamera();
+            });
         }
         if (noHandCloseBtn && noHandModal) {
             noHandCloseBtn.addEventListener('click', function () {

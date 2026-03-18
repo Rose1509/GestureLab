@@ -1,8 +1,11 @@
 """Main FastAPI application for Gesture Lab (routing, auth, quizzes, practice API)."""
-
 import os
 import json
 import uuid
+import secrets
+import hashlib
+import smtplib
+from email.message import EmailMessage
 from datetime import date, timedelta, timezone, datetime
 from typing import Optional
 from urllib.parse import quote
@@ -15,17 +18,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
-try:
-    from authlib.integrations.starlette_client import OAuth
-    _OAUTH_AVAILABLE = True
-except ImportError:
-    OAuth = None
-    _OAUTH_AVAILABLE = False
-
 from dotenv import load_dotenv
 
 from .database import SessionLocal, ensure_schema
-from .models import User, Lesson, Quiz, Admin, Notification, QuizResult, ContactSubmission
+from .models import User, Lesson, Quiz, Admin, Notification, QuizResult, ContactSubmission, PasswordResetCode
 from .authentication import hash_password, verify_password, validate_username, validate_password, validate_email, validate_contact_email, validate_subject_word_count, validate_contact_name, validate_contact_message
 from .certificate import generate_certificate_pdf
 from . import sign_model
@@ -34,6 +30,11 @@ from . import sign_model
 # Paths (from config; project root = BASE_DIR)
 # -------------------------
 from .config import BASE_DIR, STATIC_DIR, IMAGES_DIR, TEMPLATES_DIR
+
+# -------------------------
+# Google OAuth (Authlib)
+# -------------------------
+from authlib.integrations.starlette_client import OAuth, OAuthError
 
 # Load .env from multiple locations so credentials are found however the app is run
 _env_paths = [
@@ -62,94 +63,52 @@ os.makedirs(IMAGES_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
-
-# -------------------------
-# OAuth (Google) – real OAuth 2.0 login
-# Reads client id/secret from env, .env, or credentials.json
-# -------------------------
-
-
-def _load_google_oauth_client() -> tuple[Optional[str], Optional[str]]:
+def _load_google_oauth_settings() -> dict:
     """
-    Load Google OAuth client id/secret.
+    Load Google OAuth settings from env vars or `credentials.json`.
 
-    Priority:
-    1. Environment variables: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
-    2. Direct read of .env file in project root (in case load_dotenv didn't run from the right cwd)
-    3. JSON file (GOOGLE_OAUTH_CREDENTIALS_FILE or credentials.json in project root)
-       using the standard Google format with a "web" or "installed" section.
+    Supported env vars:
+      - GOOGLE_CLIENT_ID
+      - GOOGLE_CLIENT_SECRET
+      - GOOGLE_OAUTH_REDIRECT_URI (optional)
     """
     client_id = (os.getenv("GOOGLE_CLIENT_ID") or "").strip()
     client_secret = (os.getenv("GOOGLE_CLIENT_SECRET") or "").strip()
-    if client_id and client_secret:
-        return client_id, client_secret
+    redirect_uri = (os.getenv("GOOGLE_OAUTH_REDIRECT_URI") or "").strip()
 
-    # Fallback: read .env file directly from project root (handles wrong cwd / dotenv not finding file)
-    for _env_dir in (BASE_DIR, os.getcwd()):
-        _env_file = os.path.join(_env_dir, ".env")
+    # Fallback to credentials.json (common for local/dev), but ONLY if env vars are not in use.
+    # If the user set only one of GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET, do NOT mix with
+    # credentials.json (it would create mismatched credentials and fail with invalid_client).
+    env_has_any = bool(client_id or client_secret or redirect_uri)
+    if (not env_has_any) and os.path.exists(os.path.join(BASE_DIR, "credentials.json")):
         try:
-            with open(_env_file, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    if "=" in line:
-                        key, _, val = line.partition("=")
-                        key = key.strip()
-                        val = val.strip().strip('"').strip("'")
-                        if key == "GOOGLE_CLIENT_ID" and val:
-                            client_id = client_id or val
-                        elif key == "GOOGLE_CLIENT_SECRET" and val:
-                            client_secret = client_secret or val
-                    if client_id and client_secret:
-                        return client_id, client_secret
-        except (OSError, IOError):
-            continue
-    if client_id and client_secret:
-        return client_id, client_secret
+            with open(os.path.join(BASE_DIR, "credentials.json"), "r", encoding="utf-8") as f:
+                raw = json.load(f)
+            web = raw.get("web") or {}
+            client_id = client_id or (web.get("client_id") or "").strip()
+            client_secret = client_secret or (web.get("client_secret") or "").strip()
+            if not redirect_uri:
+                uris = web.get("redirect_uris") or []
+                if uris:
+                    redirect_uri = str(uris[0]).strip()
+        except Exception:
+            pass
 
-    # Fallback to credentials.json file
-    default_path = os.path.join(BASE_DIR, "credentials.json")
-    cred_path = (os.getenv("GOOGLE_OAUTH_CREDENTIALS_FILE") or "").strip() or default_path
-    # Resolve relative paths against project root
-    if not os.path.isabs(cred_path):
-        cred_path = os.path.join(BASE_DIR, cred_path)
-
-    paths_to_try = [cred_path]
-    if cred_path != default_path:
-        paths_to_try.append(default_path)
-    # Also try cwd in case server is run from project root
-    cwd_path = os.path.join(os.getcwd(), "credentials.json")
-    if cwd_path not in paths_to_try:
-        paths_to_try.append(cwd_path)
-
-    for path in paths_to_try:
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError, OSError):
-            continue
-        section = data.get("web") or data.get("installed") or {}
-        file_client_id = section.get("client_id")
-        file_client_secret = section.get("client_secret")
-        if file_client_id and file_client_secret:
-            return file_client_id, file_client_secret
-    return None, None
+    return {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": redirect_uri,
+    }
 
 
-GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET = _load_google_oauth_client()
-GOOGLE_OAUTH_REDIRECT_URI = (os.getenv("GOOGLE_OAUTH_REDIRECT_URI") or "").strip() or "http://127.0.0.1:8000/auth/google/callback"
-GOOGLE_OAUTH_ENABLED = (
-    _OAUTH_AVAILABLE and bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
-)
-
-oauth = None
+_google_settings = _load_google_oauth_settings()
+oauth = OAuth()
+GOOGLE_OAUTH_ENABLED = bool(_google_settings.get("client_id") and _google_settings.get("client_secret"))
 if GOOGLE_OAUTH_ENABLED:
-    oauth = OAuth()
     oauth.register(
         name="google",
-        client_id=GOOGLE_CLIENT_ID,
-        client_secret=GOOGLE_CLIENT_SECRET,
+        client_id=_google_settings["client_id"],
+        client_secret=_google_settings["client_secret"],
         server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
         client_kwargs={"scope": "openid email profile"},
     )
@@ -188,29 +147,19 @@ def init_admin():
 
 @app.on_event("startup")
 def on_startup() -> None:
-    # Log Google OAuth status so we can see why it might be disabled
-    if GOOGLE_OAUTH_ENABLED:
-        print("✓ Google Sign-In configured (credentials loaded)")
-    else:
-        if not _OAUTH_AVAILABLE:
-            print("⚠ Google Sign-In disabled: install authlib (pip install authlib)")
-        elif not (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET):
-            print("⚠ Google Sign-In disabled: no credentials (check .env or credentials.json in project root)")
-        else:
-            print("⚠ Google Sign-In disabled")
     try:
         # Create all tables defined in models
         from .database import Base, engine
         Base.metadata.create_all(bind=engine)
-        print("✓ Database tables created")
+        print("[OK] Database tables created")
         
         # Ensure DB schema matches models for local/dev databases (no migrations in repo)
         ensure_schema()
         # Create default admin account if missing
         init_admin()
-        print("✓ Database schema and admin initialization completed successfully")
+        print("[OK] Database schema and admin initialization completed successfully")
     except Exception as e:
-        print(f"⚠ Warning during startup: {e}")
+        print(f"[WARN] Warning during startup: {e}")
         print("App will continue, but database operations may fail until the database is available")
 
 
@@ -458,188 +407,216 @@ def login_form(request: Request):
         {"request": request, "error": None, "logout_success": logout_success, "register_success": register_success},
     )
 
-# -------------------------
-# Google OAuth Routes (Real OAuth + Demo Mode)
-# -------------------------
-@app.get("/auth/google")
-async def auth_google_start(request: Request):
-    """
-    Redirect the user to the official Google account chooser page using
-    OAuth 2.0 Authorization Code Flow.
-
-    The redirect URI used is configured as GOOGLE_OAUTH_REDIRECT_URI
-    (default: http://127.0.0.1:8000/auth/google/callback) and must be
-    registered in your Google Cloud Console.
-    """
-    if not GOOGLE_OAUTH_ENABLED:
-        return _render_login(
-            request,
-            error=(
-                "Google sign-in is not configured. "
-                "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment "
-                "or provide a credentials.json file, and install: pip install authlib."
-            ),
-        )
-
-    # Always use real Google OAuth (no demo mode)
-    return await oauth.google.authorize_redirect(request, GOOGLE_OAUTH_REDIRECT_URI)
-
-
 @app.get("/auth/google/login")
 async def auth_google_login(request: Request):
-    """
-    Convenience route so the frontend can call /auth/google/login.
-    This simply delegates to the main Google OAuth start endpoint,
-    which redirects the user to Google's official account chooser page.
-    """
-    return await auth_google_start(request)
-
-
-@app.get("/auth/google/callback")
-async def auth_google_callback(request: Request, db: Session = Depends(get_db)):
-    """
-    Google redirects here after the user signs in and grants permission.
-    We exchange the authorization code for tokens, fetch basic profile
-    (email, name, picture, etc.), authenticate the user in our system,
-    and redirect to the home page.
-    """
     if not GOOGLE_OAUTH_ENABLED:
         return _render_login(
             request,
-            error=(
-                "Google sign-in is not configured. "
-                "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment "
-                "or provide a credentials.json file."
-            ),
+            error="Google sign-in is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.",
         )
 
+    # Prefer explicit env redirect (helps when running behind tunnels/proxies).
+    redirect_uri = (_google_settings.get("redirect_uri") or "").strip()
+    if not redirect_uri:
+        # Default to our callback endpoint.
+        redirect_uri = str(request.url_for("auth_google_callback"))
+    return await oauth.google.authorize_redirect(request, redirect_uri)
+
+
+async def _auth_google_callback_impl(request: Request):
+    if not GOOGLE_OAUTH_ENABLED:
+        return _render_login(
+            request,
+            error="Google sign-in is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.",
+        )
+
+    # If Google sent an error directly to our callback, surface it.
+    qp = request.query_params
+    if qp.get("error"):
+        err = qp.get("error") or "oauth_error"
+        desc = qp.get("error_description") or qp.get("error_reason") or ""
+        msg = f"Google sign-in error: {err}"
+        if desc:
+            msg = f"{msg}. {desc}"
+        return _render_login(request, error=msg)
+
+    db = SessionLocal()
     try:
-        # Exchange authorization code for access token
         token = await oauth.google.authorize_access_token(request)
-
-        # User info: OpenID Connect often puts it in token['userinfo']; otherwise fetch from userinfo endpoint
-        profile = token.get("userinfo")
-        if not profile:
-            try:
-                resp = await oauth.google.get("userinfo", token=token)
-                profile = resp.json() if hasattr(resp, "json") else resp
-            except Exception:
-                profile = None
-        if isinstance(profile, dict):
+        # Prefer OIDC ID token parsing; fallback to userinfo.
+        userinfo = None
+        try:
+            userinfo = await oauth.google.parse_id_token(request, token)
+        except Exception:
             pass
-        else:
-            profile = {}
+        if not userinfo:
+            # Some environments end up resolving "userinfo" to a relative "/userinfo" URL.
+            # Use the well-known absolute OIDC userinfo endpoint to avoid UnsupportedProtocol.
+            resp = await oauth.google.get("https://openidconnect.googleapis.com/v1/userinfo", token=token)
+            userinfo = resp.json() if resp else None
+    except OAuthError as e:
+        db.close()
+        # Authlib's OAuthError may include useful details.
+        detail = ""
+        try:
+            if getattr(e, "description", None):
+                detail = str(e.description)
+            elif getattr(e, "error", None):
+                detail = str(e.error)
+            elif getattr(e, "message", None):
+                detail = str(e.message)
+        except Exception:
+            detail = ""
+        try:
+            print(f"[WARN] Google OAuthError: {repr(e)}")
+        except Exception:
+            pass
+        if detail:
+            return _render_login(request, error=f"Google sign-in failed: {detail}")
+        return _render_login(request, error="Google sign-in failed. Please try again.")
+    except Exception as e:
+        db.close()
+        try:
+            print(f"[WARN] Google sign-in exception: {type(e).__name__}: {e}")
+            # httpx exceptions often include the failing request URL
+            req = getattr(e, "request", None)
+            if req is not None:
+                try:
+                    print(f"[WARN] Google sign-in failing URL: {getattr(req, 'url', None)}")
+                except Exception:
+                    pass
+            # Also log what redirect_uri we attempted (should always include scheme)
+            try:
+                print(f"[WARN] Google OAuth redirect_uri: {_google_settings.get('redirect_uri') or 'auto'}")
+            except Exception:
+                pass
+        except Exception:
+            pass
+        # Don't leak secrets; show type + generic text. (Exception message is usually safe but keep conservative.)
+        return _render_login(request, error=f"Google sign-in failed ({type(e).__name__}). Please try again.")
 
-        # Basic profile fields we care about
-        email = profile.get("email")
-        google_sub = profile.get("sub")  # stable Google user id
+    if not userinfo:
+        db.close()
+        return _render_login(request, error="Google sign-in failed (no profile).")
 
-        if not email or not google_sub:
-            return _render_login(request, error="Google did not return a valid email or user ID.")
+    google_sub = (userinfo.get("sub") or userinfo.get("id") or "").strip()
+    email = (userinfo.get("email") or "").strip()
+    name = (userinfo.get("name") or "").strip()
 
-        google_id = google_sub
+    if not email:
+        db.close()
+        return _render_login(request, error="Google sign-in failed (no email).")
 
-        # 1) Check if user already exists with this Google ID
-        user = db.query(User).filter(User.google_id == google_id).first()
+    # If the email matches the single admin, treat as admin login.
+    admin = db.query(Admin).first()
+    if admin and admin.email and email.lower() == admin.email.strip().lower():
+        try:
+            now = datetime.now(timezone.utc)
+            admin.last_login_at = now
+            shadow_user = db.query(User).filter(User.email == admin.email).first()
+            if shadow_user:
+                shadow_user.last_login_at = now
+            db.commit()
+        except Exception:
+            db.rollback()
+        finally:
+            db.close()
+        request.session["admin_id"] = admin.id
+        request.session["is_admin"] = True
+        return RedirectResponse(url="/dashboard", status_code=303)
 
-        # 2) If not, check if user exists with this email and link it
-        if not user:
-            user = db.query(User).filter(User.email == email).first()
-            if user and not user.google_id:
-                user.google_id = google_id
-                db.commit()
+    # Normal user flow: find by google_id first, then email.
+    user = None
+    if google_sub:
+        user = db.query(User).filter(User.google_id == google_sub).first()
+    if not user:
+        user = db.query(User).filter(User.email == email).first()
 
-        # 3) Otherwise create a new account
-        if not user:
-            username_seed = email.split("@")[0]
-            base_username = username_seed.lower().replace(".", "_")
-            username = base_username
-            counter = 1
-            while db.query(User).filter(User.username == username).first():
-                username = f"{base_username}_{counter}"
-                counter += 1
+    if not user:
+        # Create a unique username from name/email localpart.
+        base = (name or email.split("@", 1)[0]).strip() or "user"
+        # Keep it compatible with existing validation (max 25 in authentication.py).
+        base = base[:25]
+        candidate = base
+        suffix = 0
+        while db.query(User).filter(User.username == candidate).first() is not None:
+            suffix += 1
+            tail = str(suffix)
+            candidate = (base[: max(1, 25 - (len(tail) + 1))] + "_" + tail)[:25]
 
-            user = User(
-                email=email,
-                username=username,
-                password=hash_password(uuid.uuid4().hex),  # random password (not used)
-                google_id=google_id,
-            )
-            db.add(user)
+        # Password is required by DB schema even for Google users.
+        random_pw = secrets.token_urlsafe(24)
+        user = User(
+            email=email,
+            username=candidate,
+            password=hash_password(random_pw),
+            google_id=google_sub or None,
+        )
+        db.add(user)
+        try:
             db.commit()
             db.refresh(user)
+        except Exception:
+            db.rollback()
+            db.close()
+            return _render_login(request, error="Could not create account. Please try again.")
+    else:
+        # Link google_id if missing and provided.
+        if google_sub and not getattr(user, "google_id", None):
+            user.google_id = google_sub
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
 
-        # Log in user and redirect home
-        request.session["user_id"] = user.id
-        request.session["is_admin"] = False
-        return RedirectResponse(url="/home?login_success=1", status_code=303)
-
-    except Exception as e:
-        return _render_login(request, error=f"Google login failed: {str(e)}")
-
-
-@app.post("/auth/google/demo-login")
-def auth_google_demo_login(request: Request, email: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
-    """
-    Demo mode: Handle fake Google login form submission.
-    Simulates Google authorization and logs user in.
-    """
+    # Capture user_id before closing the session. SQLAlchemy expires attributes on commit
+    # by default, which can make `user.id` trigger a refresh after the session is closed.
     try:
-        # Validate inputs: email must contain @
-        if not email or not password:
-            return templates.TemplateResponse("google_demo_login.html", {"request": request, "error": "Email and password are required"})
-        ok, err = validate_email(email)
-        if not ok:
-            return templates.TemplateResponse("google_demo_login.html", {"request": request, "error": err})
-        
-        # Generate demo Google ID (unique for this email)
-        google_id = f"demo_{email.split('@')[0]}_{uuid.uuid4().hex[:6]}"
-        
-        # 1) Check if user already exists with this Google ID
-        user = db.query(User).filter(User.google_id == google_id).first()
+        user_id = int(user.id)
+    except Exception:
+        user_id = None
 
-        # 2) If not, check if user exists with this email
-        if not user:
-            user = db.query(User).filter(User.email == email).first()
-            if user and not user.google_id:
-                # Link existing account to Google
-                user.google_id = google_id
-                db.commit()
-
-        # 3) Otherwise create a new account
-        if not user:
-            username_seed = email.split("@")[0]
-            # Generate unique username
-            base_username = username_seed.lower().replace(".", "_")
-            username = base_username
-            counter = 1
-            while db.query(User).filter(User.username == username).first():
-                username = f"{base_username}_{counter}"
-                counter += 1
-            
-            user = User(
-                email=email,
-                username=username,
-                password=hash_password(uuid.uuid4().hex),
-                google_id=google_id,
-            )
-            db.add(user)
-            db.commit()
+    try:
+        user.last_login_at = datetime.now(timezone.utc)
+        db.commit()
+        # Ensure we have a stable id even after commit/expire.
+        if user_id is None:
             db.refresh(user)
+            user_id = int(user.id)
+    except Exception:
+        db.rollback()
+        if user_id is None:
+            try:
+                db.refresh(user)
+                user_id = int(user.id)
+            except Exception:
+                user_id = None
+    finally:
+        db.close()
 
-        # Log in user
-        request.session["user_id"] = user.id
-        request.session["is_admin"] = False
-        # Redirect with success flag to show notification
-        return RedirectResponse(url="/home?login_success=1", status_code=303)
+    if user_id is None:
+        return _render_login(request, error="Google sign-in failed (could not load account). Please try again.")
 
-    except Exception as e:
-        return _render_login(request, error=f"Google login failed: {str(e)}")
+    request.session["user_id"] = user_id
+    request.session["is_admin"] = False
+    return RedirectResponse(url="/home?login_success=1", status_code=303)
+
+
+@app.get("/auth/google/callback", name="auth_google_callback")
+async def auth_google_callback(request: Request):
+    return await _auth_google_callback_impl(request)
+
+
+# Backwards-compatible alias (some existing setups use this path)
+@app.get("/auth/google")
+async def auth_google_callback_alias(request: Request):
+    return await _auth_google_callback_impl(request)
 
 @app.get("/forgot-password", response_class=HTMLResponse)
 def forgot_password_form(request: Request):
     return templates.TemplateResponse(
-        "forgot_password.html", {"request": request, "error": None, "success": None}
+        "forgot_password.html",
+        {"request": request, "error": None, "success": None, "stage": "request", "email": ""},
     )
 
 @app.get("/register", response_class=HTMLResponse)
@@ -891,6 +868,19 @@ def dashboard_page(
     Admin dashboard showing basic stats and user list.
     Optional query param 'q' filters users by username or email (case-insensitive).
     """
+    admin_name = "Admin"
+    admin_email = None
+    admin_last_login_at = None
+    admin_id = request.session.get("admin_id")
+    if admin_id:
+        admin = db.query(Admin).filter(Admin.id == admin_id).first()
+        if admin and admin.full_name:
+            admin_name = admin.full_name
+        if admin and admin.email:
+            admin_email = admin.email
+        if admin and getattr(admin, "last_login_at", None):
+            admin_last_login_at = admin.last_login_at
+
     users_query = db.query(User)
     if q and q.strip():
         term = f"%{q.strip()}%"
@@ -901,29 +891,55 @@ def dashboard_page(
             )
         )
     users = users_query.all()
+
+    # Build rows for the "User Management" table (include admin too).
+    user_rows = []
+    if admin_email:
+        if not q or not q.strip() or (admin_email and q.strip().lower() in admin_email.lower()) or (admin_name and q.strip().lower() in admin_name.lower()):
+            user_rows.append(
+                {
+                    "id": None,
+                    "email": admin_email,
+                    "username": admin_name,
+                    "role": "Admin",
+                    "last_login_at": admin_last_login_at,
+                    "is_admin": True,
+                }
+            )
+
+    for u in users:
+        if admin_email and u.email and u.email.strip().lower() == admin_email.strip().lower():
+            # avoid duplicate row if admin email also exists in register table
+            continue
+        user_rows.append(
+            {
+                "id": u.id,
+                "email": u.email,
+                "username": u.username,
+                "role": "User",
+                "last_login_at": getattr(u, "last_login_at", None),
+                "is_admin": False,
+            }
+        )
+
+    # User count stays as "registered users" (register table)
     user_count = len(users)
     lesson_count = db.query(Lesson).count()
     quiz_count = db.query(Quiz).count()
     quiz_attempts_count = db.query(QuizResult).count()
 
-    admin_name = "Admin"
-    admin_id = request.session.get("admin_id")
-    if admin_id:
-        admin = db.query(Admin).filter(Admin.id == admin_id).first()
-        if admin and admin.full_name:
-            admin_name = admin.full_name
-
     return templates.TemplateResponse(
         "dashboard.html",
         {
             "request": request,
-            "users": users,
+            "users": user_rows,
             "user_count": user_count,
             "lesson_count": lesson_count,
             "quiz_count": quiz_count,
             "quiz_attempts_count": quiz_attempts_count,
             "user_error": None,
             "admin_name": admin_name,
+            "admin_email": admin_email,
             "search_query": q.strip() if q and q.strip() else None,
         },
     )
@@ -1187,47 +1203,144 @@ def register_submit(
 def forgot_password_submit(
     request: Request,
     email: str = Form(...),
-    new_password: str = Form(...),
-    confirm_password: str = Form(...),
+    action: str = Form("request"),
+    code: Optional[str] = Form(None),
+    new_password: Optional[str] = Form(None),
+    confirm_password: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
-    # Validation: email must contain @, new password must have #/@/$
+    def _render(stage: str, *, error: Optional[str], success: Optional[str], email_value: str):
+        return templates.TemplateResponse(
+            "forgot_password.html",
+            {
+                "request": request,
+                "error": error,
+                "success": success,
+                "stage": stage,
+                "email": email_value,
+            },
+        )
+
+    def _hash_code(raw_code: str) -> str:
+        secret = (os.getenv("RESET_CODE_SECRET") or "").strip() or _session_secret
+        h = hashlib.sha256()
+        h.update((secret + ":" + raw_code.strip()).encode("utf-8"))
+        return h.hexdigest()
+
+    def _send_code(to_email: str, reset_code: str) -> Optional[str]:
+        smtp_host = (os.getenv("SMTP_HOST") or "").strip()
+        smtp_port = int((os.getenv("SMTP_PORT") or "587").strip() or "587")
+        smtp_user = (os.getenv("SMTP_USER") or "").strip()
+        smtp_password = (os.getenv("SMTP_PASSWORD") or "").strip()
+        smtp_from = (os.getenv("SMTP_FROM") or smtp_user).strip()
+        # NOTE: We never display OTP on the page. Email must send successfully.
+        if not smtp_host or not smtp_user or not smtp_password or not smtp_from:
+            return "Email service not configured. Please set real SMTP_* values in .env."
+
+        msg = EmailMessage()
+        app_name = (os.getenv("APP_NAME") or "").strip() or "GestureLab"
+        msg["Subject"] = f"{app_name} Password Reset Code"
+        msg["From"] = smtp_from
+        msg["To"] = to_email
+        msg.set_content(
+            f"Your password reset code is: {reset_code}\n"
+            "It expires in 10 minutes.\n"
+        )
+
+        try:
+            # Match common Gmail setups:
+            # - Port 465: implicit TLS via SMTP_SSL
+            # - Port 587: STARTTLS
+            if smtp_port == 465:
+                with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=15) as server:
+                    server.login(smtp_user, smtp_password)
+                    server.send_message(msg)
+            else:
+                with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
+                    server.starttls()
+                    server.login(smtp_user, smtp_password)
+                    server.send_message(msg)
+            return None
+        except smtplib.SMTPAuthenticationError as e:
+            # Most common with Gmail: using normal password instead of App Password, or 2FA not enabled.
+            print(f"SMTPAuthenticationError: {e}")
+            return "Gmail authentication failed (535). Use a Gmail App Password for this exact SMTP_USER account (no spaces), or use a different email provider/account."
+        except smtplib.SMTPConnectError as e:
+            print(f"SMTPConnectError: {e}")
+            return "Could not connect to SMTP server. Check SMTP_HOST/SMTP_PORT and your internet connection (or set DEV_SHOW_RESET_CODE=1 to test locally)."
+        except smtplib.SMTPRecipientsRefused as e:
+            print(f"SMTPRecipientsRefused: {e}")
+            return "Email address was rejected by the mail server. Check the email you entered."
+        except Exception as e:
+            print(f"SMTP send failed: {type(e).__name__}: {e}")
+            return f"Failed to send email ({type(e).__name__}). Check your SMTP_* settings and try again (or set DEV_SHOW_RESET_CODE=1 to test locally)."
+
+    email = (email or "").strip()
     ok, err = validate_email(email)
     if not ok:
-        return templates.TemplateResponse(
-            "forgot_password.html",
-            {"request": request, "error": err, "success": None},
-        )
-    ok, err = validate_password(new_password)
-    if not ok:
-        return templates.TemplateResponse(
-            "forgot_password.html",
-            {"request": request, "error": err, "success": None},
-        )
-    if new_password != confirm_password:
-        return templates.TemplateResponse(
-            "forgot_password.html",
-            {"request": request, "error": "Passwords do not match!", "success": None},
-        )
+        return _render("request", error=err, success=None, email_value=email)
 
+    # allow both user and admin reset via same flow
     user = db.query(User).filter(User.email == email).first()
-    if not user:
-        return templates.TemplateResponse(
-            "forgot_password.html",
-            {"request": request, "error": "Email not found.", "success": None},
+    admin = db.query(Admin).filter(Admin.email == email).first()
+    if not user and not admin:
+        return _render("request", error="Email not found.", success=None, email_value=email)
+
+    action_norm = (action or "request").strip().lower()
+    if action_norm in ("request", "resend"):
+        reset_code = f"{secrets.randbelow(1_000_000):06d}"
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+        pr = PasswordResetCode(email=email, code_hash=_hash_code(reset_code), expires_at=expires_at)
+        db.add(pr)
+        db.commit()
+
+        send_err = _send_code(email, reset_code)
+        if send_err:
+            return _render("request", error=send_err, success=None, email_value=email)
+
+        return _render("verify", error=None, success="Code sent to your email.", email_value=email)
+
+    if action_norm == "verify":
+        code_value = (code or "").strip()
+        if not code_value:
+            return _render("verify", error="Please enter the code.", success=None, email_value=email)
+        if not new_password or not confirm_password:
+            return _render("verify", error="Please enter and confirm your new password.", success=None, email_value=email)
+        okp, errp = validate_password(new_password)
+        if not okp:
+            return _render("verify", error=errp, success=None, email_value=email)
+        if new_password != confirm_password:
+            return _render("verify", error="Passwords do not match!", success=None, email_value=email)
+
+        now = datetime.now(timezone.utc)
+        latest = (
+            db.query(PasswordResetCode)
+            .filter(PasswordResetCode.email == email)
+            .order_by(PasswordResetCode.created_at.desc())
+            .first()
         )
+        if not latest or latest.used_at is not None:
+            return _render("verify", error="Invalid code. Please request a new one.", success=None, email_value=email)
+        if latest.expires_at <= now:
+            return _render("verify", error="Code expired. Please request a new one.", success=None, email_value=email)
+        if latest.code_hash != _hash_code(code_value):
+            return _render("verify", error="Incorrect code.", success=None, email_value=email)
 
-    user.password = hash_password(new_password)
-    db.commit()
+        try:
+            if user:
+                user.password = hash_password(new_password)
+            if admin:
+                admin.password = hash_password(new_password)
+            latest.used_at = now
+            db.commit()
+        except Exception:
+            db.rollback()
+            return _render("verify", error="Could not update password. Please try again.", success=None, email_value=email)
 
-    return templates.TemplateResponse(
-        "forgot_password.html",
-        {
-            "request": request,
-            "error": None,
-            "success": "Password updated successfully. You can now log in.",
-        },
-    )
+        return _render("request", error=None, success="Password updated successfully. You can now log in.", email_value="")
+
+    return _render("request", error="Invalid request.", success=None, email_value=email)
+
 
 # -------------------------
 # POST Login
@@ -1248,6 +1361,16 @@ def login_submit(
     if admin and admin.email and email.strip().lower() == admin.email.strip().lower():
         if not verify_password(password, admin.password):
             return _render_login(request, error="Incorrect password")
+        try:
+            now = datetime.now(timezone.utc)
+            admin.last_login_at = now
+            # If the admin email also exists in the user table, mirror it so it shows in the dashboard list.
+            shadow_user = db.query(User).filter(User.email == admin.email).first()
+            if shadow_user:
+                shadow_user.last_login_at = now
+            db.commit()
+        except Exception:
+            db.rollback()
         request.session["admin_id"] = admin.id
         request.session["is_admin"] = True
         return RedirectResponse(url="/dashboard", status_code=303)
@@ -1259,6 +1382,12 @@ def login_submit(
 
     if not verify_password(password, user.password):
         return _render_login(request, error="Incorrect password")
+
+    try:
+        user.last_login_at = datetime.now(timezone.utc)
+        db.commit()
+    except Exception:
+        db.rollback()
 
     request.session["user_id"] = user.id
     request.session["is_admin"] = False

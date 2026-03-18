@@ -109,6 +109,10 @@
 
     <main class="results-page">
         <header class="results-header">
+            <a class="results-back-btn" href="/quizzes" aria-label="Back to quizzes">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span>Back</span>
+            </a>
             <h1>My Quiz Results</h1>
             <p>Review all your past quiz attempts and scores.</p>
         </header>
@@ -158,6 +162,12 @@
             {% endif %}
         </section>
     </main>
+
+    <!-- Global theme toggle -->
+    <button class="home-theme-toggle" id="homeThemeToggle" type="button" aria-label="Toggle light and dark theme">
+        <span class="home-theme-icon home-theme-icon-sun">☀</span>
+        <span class="home-theme-icon home-theme-icon-moon">🌙</span>
+    </button>
 
     <footer class="main-footer">
         <div class="footer-container">
@@ -402,6 +412,24 @@
         // Fetch notifications on page load
         document.addEventListener('DOMContentLoaded', function() {
             fetchNotifications();
+
+            // Poll for new notifications every 10 seconds (consistent with other pages)
+            setInterval(fetchNotifications, 10000);
+
+            // Theme toggle (shared with home page)
+            const THEME_KEY = 'gesturelab-home-theme';
+            const btn = document.getElementById('homeThemeToggle');
+            const saved = localStorage.getItem(THEME_KEY);
+            if (saved === 'dark') {
+                document.body.classList.add('dark-theme');
+            }
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    const nowDark = !document.body.classList.contains('dark-theme');
+                    document.body.classList.toggle('dark-theme', nowDark);
+                    localStorage.setItem(THEME_KEY, nowDark ? 'dark' : 'light');
+                });
+            }
         });
     </script>
     {% include "logout_modal.html" %}

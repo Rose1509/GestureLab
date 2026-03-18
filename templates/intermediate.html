@@ -222,14 +222,14 @@
         <div id="quiz-results" class="quiz-results" style="display: none;">
             <div id="streak-toast" class="streak-toast" style="display: none;"></div>
             <div class="results-container">
-                <h2 class="results-heading">Quiz Results</h2>
                 <div class="score-display">
-                    <p class="score-text" id="score-text">You answered 0 out of 0 questions correctly. <span class="check-icon">✓</span></p>
-                    <div class="total-score-wrapper">
-                        <span class="total-score-label">Total Score:</span>
+                    <div class="score-percentage-top">
                         <span class="score-percentage" id="score-percentage">0%</span>
+                        <span class="total-score-label">Total Score</span>
                     </div>
+                    <p class="score-text" id="score-text">You answered 0 out of 0 questions correctly. <span class="check-icon">✓</span></p>
                 </div>
+                <h2 class="results-heading">Quiz Results</h2>
                 <div class="chart-container">
                     <div class="bar-chart">
                         <div class="bar-label">Correct</div>
@@ -344,7 +344,10 @@
             
             // Show loading overlay
             document.getElementById('loading-overlay').style.display = 'flex';
-            document.getElementById('quiz-form').style.display = 'none';
+            // Keep the form visible for review; disable inputs and hide submit button
+            const submitContainer = document.querySelector('.submit-container');
+            if (submitContainer) submitContainer.style.display = 'none';
+            document.querySelectorAll('#quiz-form input[type="radio"]').forEach((inp) => { inp.disabled = true; });
             
             // Calculate score immediately
             let correctAnswers = 0;
@@ -361,6 +364,26 @@
                 } else {
                     incorrectAnswers++;
                 }
+
+                // Mark correct/incorrect choices on the UI
+                card.querySelectorAll('label.option, label.option-img').forEach((label) => {
+                    label.classList.remove('is-correct', 'is-wrong', 'is-selected');
+                    const input = label.querySelector('input[type="radio"]');
+                    if (!input) return;
+                    const val = parseInt(input.value);
+                    if (val === correctOption) label.classList.add('is-correct');
+                    if (val === userAnswer) label.classList.add('is-selected');
+                    if (val === userAnswer && userAnswer !== correctOption) label.classList.add('is-wrong');
+                });
+
+                const existing = card.querySelector('.answer-feedback');
+                if (existing) existing.remove();
+                const feedback = document.createElement('div');
+                feedback.className = 'answer-feedback';
+                feedback.textContent = userAnswer === correctOption
+                    ? `Correct ✅ (Option ${correctOption})`
+                    : `Correct: Option ${correctOption} • Your answer: Option ${userAnswer}`;
+                card.appendChild(feedback);
             });
             
             // Wait 4-5 seconds before showing results
@@ -385,7 +408,13 @@
                 
                 // Hide loading and show results
                 document.getElementById('loading-overlay').style.display = 'none';
-                document.getElementById('quiz-results').style.display = 'block';
+                // Move results ABOVE the questions, then show it
+                const resultsEl = document.getElementById('quiz-results');
+                const formEl = document.getElementById('quiz-form');
+                if (resultsEl && formEl && formEl.parentNode) {
+                    formEl.parentNode.insertBefore(resultsEl, formEl);
+                }
+                if (resultsEl) resultsEl.style.display = 'block';
                 
                 // Scroll to results
                 document.getElementById('quiz-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
