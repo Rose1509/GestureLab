@@ -1228,6 +1228,17 @@ def forgot_password_submit(
         return h.hexdigest()
 
     def _send_code(to_email: str, reset_code: str) -> Optional[str]:
+        dev_show = (os.getenv("DEV_SHOW_RESET_CODE") or "").strip().lower() in ("1", "true", "yes", "on")
+        if dev_show:
+            # Dev-only: skip SMTP entirely so local testing works without email credentials.
+            return None
+
+        # Reload .env so updated SMTP creds take effect without restart (dev convenience).
+        try:
+            load_dotenv(override=True)
+        except Exception:
+            pass
+
         smtp_host = (os.getenv("SMTP_HOST") or "").strip()
         smtp_port = int((os.getenv("SMTP_PORT") or "587").strip() or "587")
         smtp_user = (os.getenv("SMTP_USER") or "").strip()
@@ -1298,7 +1309,12 @@ def forgot_password_submit(
         if send_err:
             return _render("request", error=send_err, success=None, email_value=email)
 
-        return _render("verify", error=None, success="Code sent to your email.", email_value=email)
+        dev_show = (os.getenv("DEV_SHOW_RESET_CODE") or "").strip().lower() in ("1", "true", "yes", "on")
+        success_msg = "Code sent to your email."
+        if dev_show:
+            success_msg = f"Dev mode: your reset code is {reset_code} (expires in 10 minutes)."
+
+        return _render("verify", error=None, success=success_msg, email_value=email)
 
     if action_norm == "verify":
         code_value = (code or "").strip()
