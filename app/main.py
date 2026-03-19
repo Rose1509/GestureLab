@@ -1233,58 +1233,44 @@ def forgot_password_submit(
             # Dev-only: skip SMTP entirely so local testing works without email credentials.
             return None
 
-        # Reload .env so updated SMTP creds take effect without restart (dev convenience).
-        try:
-            load_dotenv(override=True)
-        except Exception:
-            pass
+        # Use simple Gmail-style credentials from .env
+        sender_email = (os.getenv("EMAIL_ADDRESS") or "").strip()
+        app_password = (os.getenv("EMAIL_PASSWORD") or "").strip()
 
-        smtp_host = (os.getenv("SMTP_HOST") or "").strip()
-        smtp_port = int((os.getenv("SMTP_PORT") or "587").strip() or "587")
-        smtp_user = (os.getenv("SMTP_USER") or "").strip()
-        smtp_password = (os.getenv("SMTP_PASSWORD") or "").strip()
-        smtp_from = (os.getenv("SMTP_FROM") or smtp_user).strip()
-        # NOTE: We never display OTP on the page. Email must send successfully.
-        if not smtp_host or not smtp_user or not smtp_password or not smtp_from:
-            return "Email service not configured. Please set real SMTP_* values in .env."
+        if not sender_email or not app_password:
+            return "Email service not configured. Please set EMAIL_ADDRESS and EMAIL_PASSWORD in .env."
 
-        msg = EmailMessage()
         app_name = (os.getenv("APP_NAME") or "").strip() or "GestureLab"
-        msg["Subject"] = f"{app_name} Password Reset Code"
-        msg["From"] = smtp_from
-        msg["To"] = to_email
-        msg.set_content(
+        subject = f"{app_name} Password Reset Code"
+        body = (
             f"Your password reset code is: {reset_code}\n"
             "It expires in 10 minutes.\n"
         )
 
+        from email.mime.text import MIMEText
+        msg = MIMEText(body)
+        msg["Subject"] = subject
+        msg["From"] = sender_email
+        msg["To"] = to_email
+
         try:
-            # Match common Gmail setups:
-            # - Port 465: implicit TLS via SMTP_SSL
-            # - Port 587: STARTTLS
-            if smtp_port == 465:
-                with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=15) as server:
-                    server.login(smtp_user, smtp_password)
-                    server.send_message(msg)
-            else:
-                with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
-                    server.starttls()
-                    server.login(smtp_user, smtp_password)
-                    server.send_message(msg)
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
+                server.starttls()
+                server.login(sender_email, app_password)
+                server.send_message(msg)
             return None
         except smtplib.SMTPAuthenticationError as e:
-            # Most common with Gmail: using normal password instead of App Password, or 2FA not enabled.
             print(f"SMTPAuthenticationError: {e}")
-            return "Gmail authentication failed (535). Use a Gmail App Password for this exact SMTP_USER account (no spaces), or use a different email provider/account."
+            return "Gmail authentication failed. Make sure EMAIL_PASSWORD is a valid Gmail App Password for this account."
         except smtplib.SMTPConnectError as e:
             print(f"SMTPConnectError: {e}")
-            return "Could not connect to SMTP server. Check SMTP_HOST/SMTP_PORT and your internet connection (or set DEV_SHOW_RESET_CODE=1 to test locally)."
+            return "Could not connect to Gmail SMTP server. Check your internet connection."
         except smtplib.SMTPRecipientsRefused as e:
             print(f"SMTPRecipientsRefused: {e}")
             return "Email address was rejected by the mail server. Check the email you entered."
         except Exception as e:
             print(f"SMTP send failed: {type(e).__name__}: {e}")
-            return f"Failed to send email ({type(e).__name__}). Check your SMTP_* settings and try again (or set DEV_SHOW_RESET_CODE=1 to test locally)."
+            return "Failed to send email. Please try again later."
 
     email = (email or "").strip()
     ok, err = validate_email(email)
