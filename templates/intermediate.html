@@ -27,6 +27,21 @@
         </div>
     </div>
 
+    <!-- Error Notification -->
+    <div id="errorNotification" class="error-notification" role="alert">
+        <div class="notification-content">
+            <svg class="notification-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <div>
+                <h3>Action needed</h3>
+                <p id="errorNotificationMessage">Please review the form.</p>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Show success notification on page load after login
         document.addEventListener('DOMContentLoaded', () => {
@@ -46,6 +61,22 @@
                 sessionStorage.removeItem('justLoggedIn');
             }
         });
+
+        function showErrorNotification(message) {
+            const notification = document.getElementById('errorNotification');
+            const msgEl = document.getElementById('errorNotificationMessage');
+            if (!notification || !msgEl) return;
+            msgEl.textContent = message || 'Please review the form.';
+            notification.classList.remove('hide');
+            notification.style.display = 'flex';
+            window.clearTimeout(notification._dismissTimer);
+            notification._dismissTimer = window.setTimeout(() => {
+                notification.classList.add('hide');
+                window.setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 400);
+            }, 5000);
+        }
     </script>
     
     <nav class="navbar">
@@ -338,7 +369,7 @@
             
             // If any questions are unanswered, show alert and return
             if (unansweredQuestions.length > 0) {
-                alert('Please fill up all the question answers before submitting.');
+                showErrorNotification('Please fill up all the question answers before submitting.');
                 return;
             }
             

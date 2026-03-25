@@ -1,11 +1,6 @@
-"""Central config: project paths and directory names."""
+"""Compatibility shim for prior imports.
 
-import os
+Structural refactor only: the canonical location is now `app/config/paths.py`.
+"""
 
-# Project root (parent of app/)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-# Static assets and templates
-STATIC_DIR = os.path.join(BASE_DIR, "static")
-IMAGES_DIR = os.path.join(STATIC_DIR, "images")
-TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+from .config.paths import BASE_DIR, STATIC_DIR, IMAGES_DIR, TEMPLATES_DIR  # noqa: F401

@@ -666,6 +666,23 @@ body.dark-theme .bar-wrapper {
         animation: slideIn 0.4s ease-in-out;
     }
 
+    .error-notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        z-index: 9999;
+        max-width: 420px;
+        display: none;
+        align-items: center;
+        gap: 12px;
+        animation: slideIn 0.4s ease-in-out;
+    }
+
     .notification-content {
         display: flex;
         align-items: center;
@@ -715,6 +732,10 @@ body.dark-theme .bar-wrapper {
     }
 
     .success-notification.hide {
+        animation: slideOut 0.4s ease-in-out forwards;
+    }
+
+    .error-notification.hide {
         animation: slideOut 0.4s ease-in-out forwards;
     }
 

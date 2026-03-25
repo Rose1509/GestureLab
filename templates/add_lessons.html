@@ -46,6 +46,14 @@
                 </div>
             </header>
 
+            {% if error %}
+            <div class="form-alert error" id="pageError" role="alert">
+                {{ error }}
+            </div>
+            {% else %}
+            <div class="form-alert error" id="pageError" role="alert" style="display: none;"></div>
+            {% endif %}
+
             <section class="table-container">
                 <table class="lessons-table">
                     <thead>
@@ -117,8 +125,8 @@
                         </div>
                         <div class="input-group">
                             <label>Image</label>
-                            <input type="file" name="image" id="image" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" required>
-                            <small style="display: block; margin-top: 5px; color: #666;">JPG, PNG, GIF or WebP only. Max size: 5 MB.</small>
+                            <input type="file" name="image" id="image" accept=".jpg,.jpeg,.png,image/jpeg,image/png" required>
+                            <small style="display: block; margin-top: 5px; color: #666;">JPG, JPEG, or PNG only. Max 5MB Optional.</small>
                             <div id="imagePreview" style="margin-top: 10px; display: none;">
                                 <img id="previewImg" src="" alt="Preview" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px;">
                             </div>
@@ -141,11 +149,25 @@
             </section>
 
             <script>
+                function showPageError(message) {
+                    var el = document.getElementById('pageError');
+                    if (!el) return;
+                    el.textContent = message || 'Upload failed.';
+                    el.style.display = 'block';
+                    try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
+                    window.clearTimeout(el._dismissTimer);
+                    el._dismissTimer = window.setTimeout(function () {
+                        el.style.display = 'none';
+                        el.textContent = '';
+                    }, 5000);
+                }
+
                 // Admin image upload validation
                 var MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
-                var ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-                var ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-                var EXPECTED_MESSAGE = 'Image must be JPG, PNG, GIF or WebP and under 5 MB.';
+                var ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png'];
+                var ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png'];
+                var INVALID_TYPE_MESSAGE = 'JPG, JPEG, or PNG only. Max 5MB Optional.';
+                var TOO_LARGE_MESSAGE = 'Image too large (max 5 MB).';
 
                 function getExtension(filename) {
                     var i = filename.lastIndexOf('.');
@@ -162,8 +184,8 @@
                 function validateLessonImageInput(input, forUpdate) {
                     if (!input.files || input.files.length === 0) return forUpdate ? null : 'Please select an image.';
                     var file = input.files[0];
-                    if (!isAllowedFile(file)) return EXPECTED_MESSAGE;
-                    if (!isAllowedSize(file)) return EXPECTED_MESSAGE;
+                    if (!isAllowedFile(file)) return INVALID_TYPE_MESSAGE;
+                    if (!isAllowedSize(file)) return TOO_LARGE_MESSAGE;
                     return null;
                 }
 
@@ -174,7 +196,7 @@
                     var err = validateLessonImageInput(imageInput, isUpdate);
                     if (err) {
                         e.preventDefault();
-                        alert(err);
+                        showPageError(err);
                         return false;
                     }
                 });
@@ -182,7 +204,7 @@
                 // Add event listeners to all edit buttons + hook dark/light toggle
                 document.addEventListener('DOMContentLoaded', function() {
                     {% if error %}
-                    alert({{ error|tojson }});
+                    showPageError({{ error|tojson }});
                     {% endif %}
 
                     const editButtons = document.querySelectorAll('.edit-btn');

@@ -49,6 +49,14 @@
                 </div>
             </header>
 
+            {% if error %}
+            <div class="form-alert error" id="pageError" role="alert">
+                {{ error }}
+            </div>
+            {% else %}
+            <div class="form-alert error" id="pageError" role="alert" style="display: none;"></div>
+            {% endif %}
+
             <section class="table-container">
                 <table class="lessons-table">
                     <thead>
@@ -146,12 +154,12 @@
                         <!-- Question Image (Hidden for Beginner, shown for Intermediate/Advance; optional) -->
                         <div class="input-group quiz-field" id="question-image-section" style="display: none;">
                             <label>Question Image</label>
-                            <input type="file" name="question_image" id="question_image" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp">
+                            <input type="file" name="question_image" id="question_image" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
                             <div id="question-image-preview" style="margin-top: 10px; display: none;">
                                 <p style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Current image:</p>
                                 <img id="question-image-preview-img" src="" alt="Current question image" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px;">
                             </div>
-                            <small style="display: block; margin-top: 5px; color: #666;">JPG, PNG, GIF or WebP only. Max 5 MB. Optional.</small>
+                            <small style="display: block; margin-top: 5px; color: #666;">JPG, JPEG, or PNG only. Max 5MB Optional.</small>
                         </div>
 
                         <!-- Advance-only: Option format selector -->
@@ -171,12 +179,12 @@
                         <!-- Option 1 Image (Shown for Beginner/Advance, hidden for Intermediate) -->
                         <div class="input-group quiz-field" id="option1-image-section" style="display: none;">
                             <label>Option 1 Image <span style="color: red;">*</span></label>
-                            <input type="file" name="option1_image" id="option1_image" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp">
+                            <input type="file" name="option1_image" id="option1_image" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
                             <div id="option1-image-preview" style="margin-top: 10px; display: none;">
                                 <p style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Current image:</p>
                                 <img id="option1-image-preview-img" src="" alt="Current option 1 image" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px;">
                             </div>
-                            <small style="display: block; margin-top: 5px; color: #666;">JPG, PNG, GIF or WebP. Max 5 MB. Leave empty to keep current.</small>
+                            <small style="display: block; margin-top: 5px; color: #666;">JPG, JPEG, or PNG only. Max 5MB Optional.</small>
                         </div>
 
                         <!-- Option 2 Text (Hidden for Beginner, shown for Intermediate/Advance) -->
@@ -187,12 +195,12 @@
                         <!-- Option 2 Image (Shown for Beginner/Advance, hidden for Intermediate) -->
                         <div class="input-group quiz-field" id="option2-image-section" style="display: none;">
                             <label>Option 2 Image <span style="color: red;">*</span></label>
-                            <input type="file" name="option2_image" id="option2_image" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp">
+                            <input type="file" name="option2_image" id="option2_image" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
                             <div id="option2-image-preview" style="margin-top: 10px; display: none;">
                                 <p style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Current image:</p>
                                 <img id="option2-image-preview-img" src="" alt="Current option 2 image" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px;">
                             </div>
-                            <small style="display: block; margin-top: 5px; color: #666;">JPG, PNG, GIF or WebP. Max 5 MB. Leave empty to keep current.</small>
+                            <small style="display: block; margin-top: 5px; color: #666;">JPG, JPEG, or PNG only. Max 5MB Optional.</small>
                         </div>
 
                         <!-- Option 3 Text (Hidden for Beginner, shown for Intermediate/Advance) -->
@@ -203,12 +211,12 @@
                         <!-- Option 3 Image (Shown for Beginner/Advance, hidden for Intermediate) -->
                         <div class="input-group quiz-field" id="option3-image-section" style="display: none;">
                             <label>Option 3 Image <span style="color: red;">*</span></label>
-                            <input type="file" name="option3_image" id="option3_image" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp">
+                            <input type="file" name="option3_image" id="option3_image" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
                             <div id="option3-image-preview" style="margin-top: 10px; display: none;">
                                 <p style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Current image:</p>
                                 <img id="option3-image-preview-img" src="" alt="Current option 3 image" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px;">
                             </div>
-                            <small style="display: block; margin-top: 5px; color: #666;">JPG, PNG, GIF or WebP. Max 5 MB. Leave empty to keep current.</small>
+                            <small style="display: block; margin-top: 5px; color: #666;">JPG, JPEG, or PNG only. Max 5MB Optional.</small>
                         </div>
 
                         <!-- Option 4 Text (Hidden for Beginner, shown for Intermediate/Advance) -->
@@ -219,12 +227,12 @@
                         <!-- Option 4 Image (Shown for Beginner/Advance, hidden for Intermediate) -->
                         <div class="input-group quiz-field" id="option4-image-section" style="display: none;">
                             <label>Option 4 Image <span style="color: red;">*</span></label>
-                            <input type="file" name="option4_image" id="option4_image" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp">
+                            <input type="file" name="option4_image" id="option4_image" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
                             <div id="option4-image-preview" style="margin-top: 10px; display: none;">
                                 <p style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">Current image:</p>
                                 <img id="option4-image-preview-img" src="" alt="Current option 4 image" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px;">
                             </div>
-                            <small style="display: block; margin-top: 5px; color: #666;">JPG, PNG, GIF or WebP. Max 5 MB. Leave empty to keep current.</small>
+                            <small style="display: block; margin-top: 5px; color: #666;">JPG, JPEG, or PNG only. Max 5MB Optional.</small>
                         </div>
 
                         <!-- Correct Option (Hidden until level selected) -->
@@ -250,11 +258,25 @@
             <script>
                 let isEditMode = false;
 
+                function showPageError(message) {
+                    var el = document.getElementById('pageError');
+                    if (!el) return;
+                    el.textContent = message || 'Upload failed.';
+                    el.style.display = 'block';
+                    try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
+                    window.clearTimeout(el._dismissTimer);
+                    el._dismissTimer = window.setTimeout(function () {
+                        el.style.display = 'none';
+                        el.textContent = '';
+                    }, 5000);
+                }
+
                 // Admin image upload validation
                 var MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
-                var ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-                var ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-                var EXPECTED_MESSAGE = 'Image must be JPG, PNG, GIF or WebP and under 5 MB.';
+                var ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png'];
+                var ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png'];
+                var INVALID_TYPE_MESSAGE = 'JPG, JPEG, or PNG only. Max 5MB Optional.';
+                var TOO_LARGE_MESSAGE = 'Image too large (max 5 MB).';
 
                 function getExtension(filename) {
                     var i = filename.lastIndexOf('.');
@@ -271,8 +293,8 @@
                 function validateOneImageInput(input) {
                     if (!input.files || input.files.length === 0) return null;
                     var file = input.files[0];
-                    if (!isAllowedFile(file)) return EXPECTED_MESSAGE;
-                    if (!isAllowedSize(file)) return EXPECTED_MESSAGE;
+                    if (!isAllowedFile(file)) return INVALID_TYPE_MESSAGE;
+                    if (!isAllowedSize(file)) return TOO_LARGE_MESSAGE;
                     return null;
                 }
                 function validateQuizImageInputs() {
@@ -423,14 +445,14 @@
 
                 document.addEventListener('DOMContentLoaded', function() {
                     {% if error %}
-                    alert({{ error|tojson }});
+                    showPageError({{ error|tojson }});
                     {% endif %}
 
                     document.getElementById('quizForm').addEventListener('submit', function(e) {
                         var err = validateQuizImageInputs();
                         if (err) {
                             e.preventDefault();
-                            alert(err);
+                            showPageError(err);
                             return false;
                         }
                     });

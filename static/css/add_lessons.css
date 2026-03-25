@@ -55,6 +55,21 @@ body::-webkit-scrollbar-thumb:active {
 
 .container { display: flex; }
 
+/* Inline form alerts (errors) */
+.form-alert {
+    margin: 12px 0 16px 0;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.35;
+}
+
+.form-alert.error {
+    background: rgba(220, 38, 38, 0.10);
+    border: 1px solid rgba(220, 38, 38, 0.35);
+    color: #991b1b;
+}
+
 /* Sidebar */
 .sidebar {
     width: 250px;

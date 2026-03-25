@@ -1,0 +1,802 @@
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy.orm import Session
+from sqlalchemy import or_
+from typing import Optional
+from urllib.parse import quote
+
+from ..authentication import validate_email, validate_password, validate_username, hash_password
+from ..config.runtime import templates
+from ..models import (
+    Admin,
+    ContactSubmission,
+    Lesson,
+    Notification,
+    Quiz,
+    QuizResult,
+    User,
+)
+from ..services.notifications import create_notification_for_all_users
+from ..services.startup import init_admin
+from ..utils.deps import get_db, require_admin
+from ..utils.uploads import save_uploaded_file
+
+router = APIRouter()
+
+
+@router.get("/add_quizzes", response_class=HTMLResponse)
+def quizzes_page(request: Request, db: Session = Depends(get_db), _: None = Depends(require_admin)):
+    """Admin view to add/edit quizzes."""
+    quizzes = db.query(Quiz).all()
+    error = request.query_params.get("error")
+    return templates.TemplateResponse(
+        "add_quizzes.html",
+        {"request": request, "quizzes": quizzes, "error": error},
+    )
+
+
+@router.get("/dashboard", response_class=HTMLResponse)
+def dashboard_page(
+    request: Request,
+    q: Optional[str] = None,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    """
+    Admin dashboard showing basic stats and user list.
+    Optional query param 'q' filters users by username or email (case-insensitive).
+    """
+    admin_name = "Admin"
+    admin_email = None
+    admin_last_login_at = None
+    admin_id = request.session.get("admin_id")
+    if admin_id:
+        admin = db.query(Admin).filter(Admin.id == admin_id).first()
+        if admin and admin.full_name:
+            admin_name = admin.full_name
+        if admin and admin.email:
+            admin_email = admin.email
+        if admin and getattr(admin, "last_login_at", None):
+            admin_last_login_at = admin.last_login_at
+
+    users_query = db.query(User)
+    if q and q.strip():
+        term = f"%{q.strip()}%"
+        users_query = users_query.filter(
+            or_(
+                User.username.ilike(term),
+                User.email.ilike(term),
+            )
+        )
+    users = users_query.all()
+
+    # Build rows for the "User Management" table (include admin too).
+    user_rows = []
+    if admin_email:
+        if (
+            not q
+            or not q.strip()
+            or (admin_email and q.strip().lower() in admin_email.lower())
+            or (admin_name and q.strip().lower() in admin_name.lower())
+        ):
+            user_rows.append(
+                {
+                    "id": None,
+                    "email": admin_email,
+                    "username": admin_name,
+                    "role": "Admin",
+                    "last_login_at": admin_last_login_at,
+                    "is_admin": True,
+                }
+            )
+
+    for u in users:
+        if admin_email and u.email and u.email.strip().lower() == admin_email.strip().lower():
+            # avoid duplicate row if admin email also exists in register table
+            continue
+        user_rows.append(
+            {
+                "id": u.id,
+                "email": u.email,
+                "username": u.username,
+                "role": "User",
+                "last_login_at": getattr(u, "last_login_at", None),
+                "is_admin": False,
+            }
+        )
+
+    # User count stays as "registered users" (register table)
+    user_count = len(users)
+    lesson_count = db.query(Lesson).count()
+    quiz_count = db.query(Quiz).count()
+    quiz_attempts_count = db.query(QuizResult).count()
+
+    return templates.TemplateResponse(
+        "dashboard.html",
+        {
+            "request": request,
+            "users": user_rows,
+            "user_count": user_count,
+            "lesson_count": lesson_count,
+            "quiz_count": quiz_count,
+            "quiz_attempts_count": quiz_attempts_count,
+            "user_error": None,
+            "admin_name": admin_name,
+            "admin_email": admin_email,
+            "search_query": q.strip() if q and q.strip() else None,
+        },
+    )
+
+
+@router.get("/send_notifications", response_class=HTMLResponse)
+def send_notifications_page(
+    request: Request, db: Session = Depends(get_db), _: None = Depends(require_admin)
+):
+    """Admin page to send custom notifications to all users."""
+    return templates.TemplateResponse("send_notifications.html", {"request": request})
+
+
+@router.get("/contact_messages", response_class=HTMLResponse)
+def contact_messages_page(
+    request: Request, db: Session = Depends(get_db), _: None = Depends(require_admin)
+):
+    """Admin page to view contact form submissions from the Contact Us page."""
+    submissions = db.query(ContactSubmission).order_by(ContactSubmission.created_at.desc()).all()
+    admin_name = "Admin"
+    admin_id = request.session.get("admin_id")
+    if admin_id:
+        admin = db.query(Admin).filter(Admin.id == admin_id).first()
+        if admin and admin.full_name:
+            admin_name = admin.full_name
+    return templates.TemplateResponse(
+        "contact_messages.html",
+        {"request": request, "submissions": submissions, "admin_name": admin_name},
+    )
+
+
+@router.post("/send_custom_notification")
+def send_custom_notification(
+    request: Request,
+    notification_type: str = Form(...),
+    title: str = Form(...),
+    message: str = Form(...),
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    """Handle custom notification submission from admin."""
+    import uuid
+
+    try:
+        if not title or not message or not notification_type:
+            return {"status": "error", "detail": "All fields are required"}
+        if len(title) > 200:
+            return {"status": "error", "detail": "Title must be 200 characters or less"}
+        if len(message) > 1000:
+            return {"status": "error", "detail": "Message must be 1000 characters or less"}
+        admin_batch_id = str(uuid.uuid4())
+        create_notification_for_all_users(
+            db=db,
+            title=title,
+            message=message,
+            notification_type=notification_type,
+            related_id=None,
+            is_admin_created=True,
+            admin_batch_id=admin_batch_id,
+        )
+        return {"status": "success", "detail": "Notification sent to all users"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+
+@router.get("/admin/recent_notifications")
+def get_admin_recent_notifications(
+    db: Session = Depends(get_db), _: None = Depends(require_admin)
+):
+    """Get recent notifications added by admin only (sent from Notifications page), within last 30 days."""
+    from datetime import datetime, timedelta
+
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    notifications = (
+        db.query(Notification)
+        .filter(
+            Notification.created_at >= thirty_days_ago,
+            Notification.is_admin_created == True,
+            Notification.admin_batch_id.isnot(None),
+        )
+        .order_by(Notification.created_at.desc())
+        .limit(500)
+    ).all()
+    # One row per user per batch; dedupe by admin_batch_id (show one per batch)
+    by_batch = {}
+    for notif in notifications:
+        if notif.admin_batch_id and notif.admin_batch_id not in by_batch:
+            by_batch[notif.admin_batch_id] = notif
+    # Return most recent 10 batches
+    unique_list = list(by_batch.values())[:10]
+    return {
+        "notifications": [
+            {
+                "id": n.id,
+                "admin_batch_id": n.admin_batch_id,
+                "title": n.title,
+                "message": n.message,
+                "notification_type": n.notification_type,
+                "created_at": n.created_at.isoformat() if n.created_at else None,
+            }
+            for n in unique_list
+        ]
+    }
+
+
+@router.get("/admin_profile", response_class=HTMLResponse)
+def admin_profile_page(
+    request: Request, db: Session = Depends(get_db), _: None = Depends(require_admin)
+):
+    """Admin profile page with current admin data."""
+    admin = db.query(Admin).first()
+    if not admin:
+        # If no admin exists, create default one
+        init_admin()
+        admin = db.query(Admin).first()
+
+    return templates.TemplateResponse(
+        "admin_profile.html",
+        {"request": request, "admin": admin, "error": None, "success": None},
+    )
+
+
+@router.get("/add_lessons", response_class=HTMLResponse)
+def add_lessons_page(
+    request: Request, db: Session = Depends(get_db), _: None = Depends(require_admin)
+):
+    lessons = db.query(Lesson).all()
+    error = request.query_params.get("error")
+    return templates.TemplateResponse(
+        "add_lessons.html", {"request": request, "lessons": lessons, "error": error}
+    )
+
+
+@router.post("/update_user")
+def update_user_submit(
+    request: Request,
+    user_id: int = Form(...),
+    email: str = Form(...),
+    username: str = Form(...),
+    search_query: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    """
+    Allow admin to update a user's email and username.
+    """
+
+    def get_users_for_dashboard(db_session, q=None):
+        users_query = db_session.query(User)
+        if q and str(q).strip():
+            term = f"%{q.strip()}%"
+            users_query = users_query.filter(
+                or_(User.username.ilike(term), User.email.ilike(term))
+            )
+        return users_query.all()
+
+    # Validation: username max 15, email must contain @
+    admin_name = "Admin"
+    aid = request.session.get("admin_id")
+    if aid:
+        adm = db.query(Admin).filter(Admin.id == aid).first()
+        if adm and adm.full_name:
+            admin_name = adm.full_name
+    ok, err = validate_username(username)
+    if not ok:
+        users = get_users_for_dashboard(db, search_query)
+        return templates.TemplateResponse(
+            "dashboard.html",
+            {
+                "request": request,
+                "users": users,
+                "user_count": len(users),
+                "lesson_count": db.query(Lesson).count(),
+                "quiz_count": db.query(Quiz).count(),
+                "quiz_attempts_count": db.query(QuizResult).count(),
+                "user_error": err,
+                "admin_name": admin_name,
+                "search_query": search_query.strip()
+                if search_query and search_query.strip()
+                else None,
+            },
+        )
+    ok, err = validate_email(email)
+    if not ok:
+        users = get_users_for_dashboard(db, search_query)
+        return templates.TemplateResponse(
+            "dashboard.html",
+            {
+                "request": request,
+                "users": users,
+                "user_count": len(users),
+                "lesson_count": db.query(Lesson).count(),
+                "quiz_count": db.query(Quiz).count(),
+                "quiz_attempts_count": db.query(QuizResult).count(),
+                "user_error": err,
+                "admin_name": admin_name,
+                "search_query": search_query.strip()
+                if search_query and search_query.strip()
+                else None,
+            },
+        )
+    # Check if the new email/username is already used by another user
+    existing = (
+        db.query(User)
+        .filter(
+            or_(User.email == email, User.username == username),
+            User.id != user_id,
+        )
+        .first()
+    )
+
+    if existing:
+        users = get_users_for_dashboard(db, search_query)
+        user_count = len(users)
+        lesson_count = db.query(Lesson).count()
+        quiz_count = db.query(Quiz).count()
+        return templates.TemplateResponse(
+            "dashboard.html",
+            {
+                "request": request,
+                "users": users,
+                "user_count": user_count,
+                "lesson_count": lesson_count,
+                "quiz_count": quiz_count,
+                "quiz_attempts_count": db.query(QuizResult).count(),
+                "user_error": "Email or username is already in use by another account.",
+                "admin_name": admin_name,
+                "search_query": search_query.strip()
+                if search_query and search_query.strip()
+                else None,
+            },
+        )
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        redirect_url = "/dashboard"
+        if search_query and str(search_query).strip():
+            redirect_url = f"/dashboard?q={quote(search_query.strip())}"
+        return RedirectResponse(url=redirect_url, status_code=303)
+
+    user.email = email
+    user.username = username
+    db.commit()
+
+    redirect_url = "/dashboard"
+    if search_query and str(search_query).strip():
+        redirect_url = f"/dashboard?q={quote(search_query.strip())}"
+    return RedirectResponse(url=redirect_url, status_code=303)
+
+
+# NOTE: Remaining admin POST routes (`/delete_user`, lesson/quiz CRUD, admin/user profile updates)
+# are moved as-is below (structural refactor only).
+
+
+@router.post("/delete_user")
+def delete_user_submit(
+    request: Request,
+    user_id: int = Form(...),
+    search_query: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    """
+    Allow admin to delete a user account.
+    Prevents deletion of the hard-coded admin (Rose).
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        # Don't allow deleting if username/email matches admin
+        admin = db.query(Admin).first()
+        if admin:
+            if not (user.username == admin.username or user.email == admin.email):
+                db.delete(user)
+                db.commit()
+        else:
+            db.delete(user)
+            db.commit()
+
+    redirect_url = "/dashboard?delete_success=user"
+    if search_query and str(search_query).strip():
+        redirect_url = f"/dashboard?q={quote(search_query.strip())}&delete_success=user"
+    return RedirectResponse(url=redirect_url, status_code=303)
+
+
+@router.post("/add_lessons")
+async def add_lesson_submit(
+    request: Request,
+    sign_level: str = Form(...),
+    name: str = Form(...),
+    image: UploadFile = File(...),
+    heading: str = Form(...),
+    description: str = Form(...),
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    try:
+        image_path = await save_uploaded_file(image)
+    except ValueError as e:
+        return RedirectResponse(url=f"/add_lessons?error={quote(str(e))}", status_code=303)
+
+    lesson = Lesson(
+        sign_level=sign_level,
+        name=name,
+        image=image_path,
+        heading=heading,
+        description=description,
+    )
+    db.add(lesson)
+    db.commit()
+    db.refresh(lesson)
+
+    create_notification_for_all_users(
+        db=db,
+        title="New Lesson Added",
+        message=f"A new {sign_level} lesson '{name}' has been added to Gesture Lab!",
+        notification_type="lesson",
+        related_id=lesson.id,
+    )
+
+    return RedirectResponse(url="/add_lessons?success=lesson_added", status_code=303)
+
+
+@router.post("/update_lesson")
+async def update_lesson_submit(
+    request: Request,
+    lesson_id: int = Form(...),
+    sign_level: str = Form(...),
+    name: str = Form(...),
+    image: Optional[UploadFile] = File(None),
+    existing_image: Optional[str] = Form(None),
+    heading: str = Form(...),
+    description: str = Form(...),
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    # Find lesson by ID
+    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+    if not lesson:
+        return RedirectResponse(url="/add_lessons", status_code=303)
+
+    # Update lesson fields
+    lesson.sign_level = sign_level
+    lesson.name = name
+    lesson.heading = heading
+    lesson.description = description
+
+    if image and image.filename:
+        try:
+            image_path = await save_uploaded_file(image)
+            lesson.image = image_path
+        except ValueError as e:
+            return RedirectResponse(url=f"/add_lessons?error={quote(str(e))}", status_code=303)
+    elif existing_image:
+        lesson.image = existing_image
+
+    db.commit()
+
+    create_notification_for_all_users(
+        db=db,
+        title="Lesson Updated",
+        message=f"The lesson '{name}' has been updated!",
+        notification_type="update",
+        related_id=lesson.id,
+    )
+
+    return RedirectResponse(url="/add_lessons?success=lesson_updated", status_code=303)
+
+
+@router.post("/delete_lesson")
+def delete_lesson_submit(
+    request: Request,
+    lesson_id: int = Form(...),
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    # Find and delete lesson
+    lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+    if lesson:
+        db.delete(lesson)
+        db.commit()
+
+    return RedirectResponse(url="/add_lessons?delete_success=lesson", status_code=303)
+
+
+@router.post("/add_quiz")
+async def add_quiz_submit(
+    request: Request,
+    level: str = Form(...),
+    # Question text/image are optional
+    question_text: Optional[str] = Form(None),
+    question_image: Optional[UploadFile] = File(None),
+    option1_text: Optional[str] = Form(None),
+    option2_text: Optional[str] = Form(None),
+    option3_text: Optional[str] = Form(None),
+    option4_text: Optional[str] = Form(None),
+    option1_image: Optional[UploadFile] = File(None),
+    option2_image: Optional[UploadFile] = File(None),
+    option3_image: Optional[UploadFile] = File(None),
+    option4_image: Optional[UploadFile] = File(None),
+    correct_option: int = Form(...),
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    if correct_option not in (1, 2, 3, 4):
+        return RedirectResponse(
+            url=f"/add_quizzes?error={quote('Correct option must be 1, 2, 3, or 4.')}",
+            status_code=303,
+        )
+    try:
+        question_image_path = (
+            await save_uploaded_file(question_image)
+            if question_image and question_image.filename
+            else None
+        )
+        opt1_img_path = (
+            await save_uploaded_file(option1_image)
+            if option1_image and option1_image.filename
+            else None
+        )
+        opt2_img_path = (
+            await save_uploaded_file(option2_image)
+            if option2_image and option2_image.filename
+            else None
+        )
+        opt3_img_path = (
+            await save_uploaded_file(option3_image)
+            if option3_image and option3_image.filename
+            else None
+        )
+        opt4_img_path = (
+            await save_uploaded_file(option4_image)
+            if option4_image and option4_image.filename
+            else None
+        )
+    except ValueError as e:
+        return RedirectResponse(url=f"/add_quizzes?error={quote(str(e))}", status_code=303)
+
+    quiz = Quiz(
+        level=level,
+        # Store empty string as None for question_text to align with nullable column
+        question_text=question_text if question_text else None,
+        question_image=question_image_path,
+        option1_text=option1_text,
+        option2_text=option2_text,
+        option3_text=option3_text,
+        option4_text=option4_text,
+        option1_image=opt1_img_path,
+        option2_image=opt2_img_path,
+        option3_image=opt3_img_path,
+        option4_image=opt4_img_path,
+        correct_option=correct_option,
+    )
+    db.add(quiz)
+    db.commit()
+    db.refresh(quiz)
+
+    create_notification_for_all_users(
+        db=db,
+        title="New Quiz Added",
+        message=f"A new {level} level quiz has been added to Gesture Lab!",
+        notification_type="quiz",
+        related_id=quiz.id,
+    )
+
+    return RedirectResponse(url="/add_quizzes?success=quiz_added", status_code=303)
+
+
+@router.post("/update_quiz")
+async def update_quiz_submit(
+    request: Request,
+    quiz_id: int = Form(...),
+    level: str = Form(...),
+    # Question text/image are optional
+    question_text: Optional[str] = Form(None),
+    question_image: Optional[UploadFile] = File(None),
+    existing_question_image: Optional[str] = Form(None),
+    option1_text: Optional[str] = Form(None),
+    option2_text: Optional[str] = Form(None),
+    option3_text: Optional[str] = Form(None),
+    option4_text: Optional[str] = Form(None),
+    option1_image: Optional[UploadFile] = File(None),
+    option2_image: Optional[UploadFile] = File(None),
+    option3_image: Optional[UploadFile] = File(None),
+    option4_image: Optional[UploadFile] = File(None),
+    existing_option1_image: Optional[str] = Form(None),
+    existing_option2_image: Optional[str] = Form(None),
+    existing_option3_image: Optional[str] = Form(None),
+    existing_option4_image: Optional[str] = Form(None),
+    correct_option: int = Form(...),
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    if correct_option not in (1, 2, 3, 4):
+        return RedirectResponse(
+            url=f"/add_quizzes?error={quote('Correct option must be 1, 2, 3, or 4.')}",
+            status_code=303,
+        )
+    quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
+    if not quiz:
+        return RedirectResponse(url="/add_quizzes", status_code=303)
+
+    quiz.level = level
+    quiz.question_text = question_text if question_text else None
+
+    try:
+        if question_image and question_image.filename:
+            quiz.question_image = await save_uploaded_file(question_image)
+        else:
+            quiz.question_image = existing_question_image
+
+        quiz.option1_text = option1_text
+        quiz.option2_text = option2_text
+        quiz.option3_text = option3_text
+        quiz.option4_text = option4_text
+
+        if option1_image and option1_image.filename:
+            quiz.option1_image = await save_uploaded_file(option1_image)
+        else:
+            quiz.option1_image = existing_option1_image
+
+        if option2_image and option2_image.filename:
+            quiz.option2_image = await save_uploaded_file(option2_image)
+        else:
+            quiz.option2_image = existing_option2_image
+
+        if option3_image and option3_image.filename:
+            quiz.option3_image = await save_uploaded_file(option3_image)
+        else:
+            quiz.option3_image = existing_option3_image
+
+        if option4_image and option4_image.filename:
+            quiz.option4_image = await save_uploaded_file(option4_image)
+        else:
+            quiz.option4_image = existing_option4_image
+    except ValueError as e:
+        return RedirectResponse(url=f"/add_quizzes?error={quote(str(e))}", status_code=303)
+
+    quiz.correct_option = correct_option
+
+    db.commit()
+
+    create_notification_for_all_users(
+        db=db,
+        title="Quiz Updated",
+        message=f"A {level} level quiz has been updated!",
+        notification_type="update",
+        related_id=quiz.id,
+    )
+
+    return RedirectResponse(url="/add_quizzes?success=quiz_updated", status_code=303)
+
+
+@router.post("/delete_quiz")
+def delete_quiz_submit(
+    request: Request,
+    quiz_id: int = Form(...),
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
+    if quiz:
+        db.delete(quiz)
+        db.commit()
+
+    return RedirectResponse(url="/add_quizzes?delete_success=quiz", status_code=303)
+
+
+@router.post("/update_admin_profile")
+def update_admin_profile_submit(
+    request: Request,
+    full_name: str = Form(...),
+    username: str = Form(...),
+    email: str = Form(...),
+    new_password: Optional[str] = Form(None),
+    confirm_password: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    """
+    Allow admin to update their profile information.
+    """
+    # Get the admin account (there should only be one)
+    admin = db.query(Admin).first()
+    if not admin:
+        # If no admin exists, create default one
+        init_admin()
+        admin = db.query(Admin).first()
+
+    # Validation: username max 15, email must contain @
+    ok, err = validate_username(username)
+    if not ok:
+        return templates.TemplateResponse(
+            "admin_profile.html",
+            {"request": request, "admin": admin, "error": err, "success": None},
+        )
+    ok, err = validate_email(email)
+    if not ok:
+        return templates.TemplateResponse(
+            "admin_profile.html",
+            {"request": request, "admin": admin, "error": err, "success": None},
+        )
+    # Only check for conflict when admin is changing username or email; allow keeping current
+    if username != admin.username or email != admin.email:
+        existing_user = db.query(User).filter(or_(User.username == username, User.email == email)).first()
+        if existing_user:
+            return templates.TemplateResponse(
+                "admin_profile.html",
+                {
+                    "request": request,
+                    "admin": admin,
+                    "error": "Username or email is already in use by another account.",
+                    "success": None,
+                },
+            )
+
+    # Validate password if provided (must contain at least one of #, @, $)
+    if new_password:
+        if new_password != confirm_password:
+            return templates.TemplateResponse(
+                "admin_profile.html",
+                {
+                    "request": request,
+                    "admin": admin,
+                    "error": "Passwords do not match!",
+                    "success": None,
+                },
+            )
+        ok, err = validate_password(new_password)
+        if not ok:
+            return templates.TemplateResponse(
+                "admin_profile.html",
+                {
+                    "request": request,
+                    "admin": admin,
+                    "error": err,
+                    "success": None,
+                },
+            )
+
+    # If nothing actually changed and no new password, show a different message
+    if (
+        full_name == admin.full_name
+        and username == admin.username
+        and email == admin.email
+        and not new_password
+    ):
+        return templates.TemplateResponse(
+            "admin_profile.html",
+            {
+                "request": request,
+                "admin": admin,
+                "error": None,
+                "success": "No changes made. Your profile is already up to date.",
+            },
+        )
+
+    # Update admin fields
+    admin.full_name = full_name
+    admin.username = username
+    admin.email = email
+
+    # Only update password if a new one was provided
+    if new_password:
+        admin.password = hash_password(new_password)
+
+    db.commit()
+
+    return templates.TemplateResponse(
+        "admin_profile.html",
+        {
+            "request": request,
+            "admin": admin,
+            "error": None,
+            "success": "Profile updated successfully!",
+        },
+    )
+
