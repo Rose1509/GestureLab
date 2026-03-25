@@ -89,15 +89,21 @@ GestureLab/
 └── using cnn.ipynb            # Notebook reference for model work
 ```
 
+---
+
 ## 📡 API Endpoints (at a glance)
-Route Module	Path	Purpose
-auth.py	/login, /register, /logout	User auth
-pages.py	Template routes	UI pages
-admin.py	/admin/*	Admin features
-api.py	/notifications, /stats	Data APIs
-prediction.py	/api/predict-sign	Gesture prediction
+
+| Route Module    | Path                             | Purpose            |
+| --------------- | -------------------------------- | ------------------ |
+| `auth.py`       | `/login`, `/register`, `/logout` | User auth          |
+| `pages.py`      | Template routes                  | UI pages           |
+| `admin.py`      | `/admin/*`                       | Admin features     |
+| `api.py`        | `/notifications`, `/stats`       | Data APIs          |
+| `prediction.py` | `/api/predict-sign`              | Gesture prediction |
+
+---
 
 ## Install dependencies
 pip install -r requirements.txt
 
-
+![Gesture Prediction Demo](assets/demo.gif)
