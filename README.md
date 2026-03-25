@@ -67,6 +67,7 @@ venv\Scripts\activate        # Windows
 - **Admin** logs in with **email + password**
 
 ## 📂 Folder Structure
+```bash
 GestureLab/
 ├── app/
 │   ├── main.py                  # FastAPI app initialization + router includes
@@ -86,7 +87,7 @@ GestureLab/
 ├── requirements.txt            # Python dependencies
 ├── README.md                  # Project documentation
 └── using cnn.ipynb            # Notebook reference for model work
-
+```
 
 ## 📡 API Endpoints (at a glance)
 Route Module	Path	Purpose
