@@ -357,6 +357,38 @@ header {
     left: 130%;
 }
 
+a.btn-perf-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    text-decoration: none;
+    margin-right: 8px;
+    font-size: 0.88rem;
+    padding: 9px 16px;
+    border-radius: 15px;
+}
+
+body.dark-theme a.btn-perf-link {
+    color: #fff;
+}
+
+a.perf-user-cell-link {
+    color: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+}
+
+a.perf-user-cell-link:hover {
+    color: #007bff;
+    border-bottom-color: rgba(0, 123, 255, 0.45);
+}
+
+body.dark-theme a.perf-user-cell-link:hover {
+    color: #93c5fd;
+    border-bottom-color: rgba(147, 197, 253, 0.5);
+}
+
 /* ================= PROFILE ICON ================= */
 
 .user-profile-icon {
@@ -593,6 +625,121 @@ td {
 
 tbody tr:hover {
     background: rgba(0, 123, 255, 0.05);
+}
+
+/* ----- User management table: full-width, single-line rows ----- */
+.user-management {
+    min-width: 0;
+}
+
+.user-management .user-table-wrap {
+    overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 16px;
+}
+
+.user-mgmt-table {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 780px;
+}
+
+.user-mgmt-table col.user-col-email {
+    width: 28%;
+}
+
+.user-mgmt-table col.user-col-name {
+    width: 20%;
+}
+
+.user-mgmt-table col.user-col-role {
+    width: 10%;
+}
+
+.user-mgmt-table col.user-col-login {
+    width: 18%;
+}
+
+.user-mgmt-table col.user-col-actions {
+    width: 24%;
+}
+
+.user-mgmt-table th,
+.user-mgmt-table td {
+    padding: 15px 18px;
+    vertical-align: middle;
+}
+
+.user-mgmt-table tbody td {
+    font-size: 0.95rem;
+}
+
+.user-mgmt-table thead th {
+    font-size: 0.88rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.user-mgmt-table th.user-th-actions,
+.user-mgmt-table td.user-td-actions {
+    text-align: right;
+}
+
+.user-mgmt-table td:nth-child(1),
+.user-mgmt-table td:nth-child(2) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 0;
+}
+
+.user-mgmt-table td:nth-child(1) a.perf-user-cell-link,
+.user-mgmt-table td:nth-child(2) a.perf-user-cell-link {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-mgmt-table td:nth-child(3),
+.user-mgmt-table td:nth-child(4) {
+    white-space: nowrap;
+}
+
+.user-actions-cell {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+}
+
+.user-action-delete-form {
+    display: inline-flex;
+    margin: 0;
+}
+
+.user-actions-cell .btn-update,
+.user-actions-cell .btn-perf-link {
+    padding: 9px 14px !important;
+    font-size: 0.82rem !important;
+    border-radius: 14px !important;
+    flex-shrink: 0;
+}
+
+.user-actions-cell .btn-update::after,
+.user-actions-cell .btn-perf-link::after {
+    display: none;
+}
+
+.user-actions-cell .btn-delete-inline {
+    padding: 9px 12px !important;
+    min-width: 42px;
 }
 
 .btn-delete-inline {

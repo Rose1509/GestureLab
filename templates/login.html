@@ -7,6 +7,7 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/auth_error_pop.css">
     <link rel="stylesheet" href="/static/css/login.css">
 </head>
 <body>
@@ -26,14 +27,12 @@
 
     <div class="right-panel">
         <div class="login-box">
-            <!-- Logout Success Message -->
             {% if logout_success %}
                 <div class="success-message" id="logoutSuccessMsg">
                     <i class="fas fa-check-circle"></i> You have successfully been logged out
                 </div>
             {% endif %}
 
-            <!-- Register Success Message -->
             {% if register_success %}
                 <div class="success-message" id="registerSuccessMsg">
                     <i class="fas fa-check-circle"></i> Account created successfully. You can now log in.
@@ -43,18 +42,53 @@
             <h2>Login</h2>
             <p class="subtitle">Enter your login details below</p>
 
-            <form action="/login" method="post">
-                <input type="email" name="email" placeholder="Email Address" required>
-                <input type="password" name="password" placeholder="Password" required>
+            {% set login_email_error = error and (
+                error.startswith('Email')
+                or 'must contain @' in error
+                or error == 'User not found'
+            ) %}
+            {% set login_password_error = error and ('Incorrect password' in error) %}
+
+            <div
+                id="loginErrorPop"
+                class="auth-error-pop{% if error %} auth-error-pop--visible{% endif %}"
+                role="alert"
+                aria-live="polite"
+                aria-hidden="{% if error %}false{% else %}true{% endif %}"
+            >
+                <span class="auth-error-pop__badge" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 8v5m0 4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <p class="auth-error-pop__msg" id="loginErrorText">{% if error %}{{ error }}{% endif %}</p>
+            </div>
+
+            <form id="loginForm" action="/login" method="post" novalidate>
+                <input
+                    type="email"
+                    name="email"
+                    id="login-email"
+                    placeholder="Email Address"
+                    autocomplete="email"
+                    class="{% if login_email_error %}auth-input--error{% endif %}"
+                    {% if login_email_error %}aria-invalid="true" aria-describedby="loginErrorText"{% endif %}
+                    required
+                >
+                <input
+                    type="password"
+                    name="password"
+                    id="login-password"
+                    placeholder="Password"
+                    autocomplete="current-password"
+                    class="{% if login_password_error %}auth-input--error{% endif %}"
+                    {% if login_password_error %}aria-invalid="true" aria-describedby="loginErrorText"{% endif %}
+                    required
+                >
 
                 <div class="forgot-password">
                     <a href="/forgot-password">Forgot password?</a>
                 </div>
-
-                <!-- Error message placeholder -->
-                {% if error %}
-                    <p class="error-message">{{ error }}</p>
-                {% endif %}
 
                 <button type="submit" class="login-btn">Login</button>
             </form>
@@ -75,18 +109,92 @@
 </div>
 
 <script>
-    // Auto-hide success messages after 3.5 seconds
     function hideSuccessMsg(el) {
         if (!el) return;
         el.style.opacity = '0';
         el.style.transition = 'opacity 0.5s ease-out';
         setTimeout(() => { el.style.display = 'none'; }, 500);
     }
-    const logoutSuccessMsg = document.getElementById('logoutSuccessMsg');
-    const registerSuccessMsg = document.getElementById('registerSuccessMsg');
+    var logoutSuccessMsg = document.getElementById('logoutSuccessMsg');
+    var registerSuccessMsg = document.getElementById('registerSuccessMsg');
     [logoutSuccessMsg, registerSuccessMsg].forEach(function(msg) {
         if (msg) setTimeout(() => hideSuccessMsg(msg), 3500);
     });
+
+    (function () {
+        var form = document.getElementById('loginForm');
+        var pop = document.getElementById('loginErrorPop');
+        var textEl = document.getElementById('loginErrorText');
+        var emailEl = document.getElementById('login-email');
+        var passEl = document.getElementById('login-password');
+
+        function showPop(message) {
+            if (!pop || !textEl) return;
+            textEl.textContent = message;
+            pop.classList.remove('auth-error-pop--visible');
+            void pop.offsetWidth;
+            pop.classList.add('auth-error-pop--visible');
+            pop.setAttribute('aria-hidden', 'false');
+        }
+
+        function mark(el) {
+            if (!el) return;
+            el.classList.add('auth-input--error');
+            el.setAttribute('aria-invalid', 'true');
+            el.setAttribute('aria-describedby', 'loginErrorText');
+        }
+
+        function clearMark(el) {
+            if (!el) return;
+            el.classList.remove('auth-input--error');
+            el.removeAttribute('aria-invalid');
+            el.removeAttribute('aria-describedby');
+        }
+
+        function hidePop() {
+            if (!pop || !textEl) return;
+            pop.classList.remove('auth-error-pop--visible');
+            textEl.textContent = '';
+            pop.setAttribute('aria-hidden', 'true');
+            clearMark(emailEl);
+            clearMark(passEl);
+        }
+
+        if (!form) return;
+
+        form.addEventListener('input', hidePop);
+
+        form.addEventListener('submit', function (e) {
+            var em = (emailEl && emailEl.value) ? emailEl.value.trim() : '';
+            var pw = (passEl && passEl.value) ? passEl.value.trim() : '';
+
+            if (!em && !pw) {
+                e.preventDefault();
+                mark(emailEl);
+                mark(passEl);
+                showPop('Email and password are required.');
+                return;
+            }
+            if (!em) {
+                e.preventDefault();
+                mark(emailEl);
+                showPop('Email is required.');
+                return;
+            }
+            if (em.indexOf('@') === -1) {
+                e.preventDefault();
+                mark(emailEl);
+                showPop('Email must contain @.');
+                return;
+            }
+            if (!pw) {
+                e.preventDefault();
+                mark(passEl);
+                showPop('Password is required.');
+                return;
+            }
+        });
+    })();
 </script>
 
 </body>

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User performance — Gesture Lab Admin</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/admin_user_performance.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/logout_modal.css">
+</head>
+<body>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="logo">
+                <img src="/static/images/logo_white.png" alt="Logo">
+            </div>
+            <nav>
+                <ul>
+                    <li class="active"><a href="/dashboard">Dashboard</a></li>
+                    <li><a href="/add_lessons">Lessons</a></li>
+                    <li><a href="/add_quizzes">Quizzes</a></li>
+                    <li><a href="/send_notifications">Notifications</a></li>
+                    <li><a href="/contact_messages">Contact Messages</a></li>
+                </ul>
+            </nav>
+            <div class="logout">
+                <a href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="dashboard-header">
+                <div class="header-text">
+                    <div class="perf-back-wrap">
+                        <a href="{{ dashboard_back_url }}" class="perf-back-btn" aria-label="Back to admin dashboard">
+                            <span class="perf-back-btn__icon" aria-hidden="true"><i class="fas fa-arrow-left"></i></span>
+                            <span class="perf-back-btn__label">Back to dashboard</span>
+                        </a>
+                    </div>
+                    <h1>User performance</h1>
+                    <p class="perf-subtitle">
+                        <strong>{{ target_user.username }}</strong>
+                        <span class="perf-email">{{ target_user.email }}</span>
+                    </p>
+                </div>
+                <div class="header-actions">
+                    <a href="/admin_profile" class="user-profile-link">
+                        <div class="user-profile-icon">
+                            <i class="far fa-user-circle"></i>
+                        </div>
+                    </a>
+                </div>
+            </header>
+
+            <section class="stats-container perf-stats">
+                <div class="stat-card stat-card-purple">
+                    <div class="stat-icon-wrap"><i class="fas fa-clipboard-check"></i></div>
+                    <div class="stat-value">{{ quizzes_taken }}</div>
+                    <div class="stat-label">Quiz attempts</div>
+                </div>
+                <div class="stat-card stat-card-blue">
+                    <div class="stat-icon-wrap"><i class="fas fa-star"></i></div>
+                    <div class="stat-value">{{ total_points }}</div>
+                    <div class="stat-label">Total points</div>
+                </div>
+                <div class="stat-card stat-card-orange">
+                    <div class="stat-icon-wrap"><i class="fas fa-medal"></i></div>
+                    <div class="stat-value">{{ badges }}</div>
+                    <div class="stat-label">Badges (20 pts each)</div>
+                </div>
+                <div class="stat-card stat-card-green">
+                    <div class="stat-icon-wrap"><i class="fas fa-fire"></i></div>
+                    <div class="stat-value">{{ current_streak }}</div>
+                    <div class="stat-label">Day streak</div>
+                </div>
+            </section>
+
+            {% if certificates %}
+            <section class="perf-section">
+                <h3 class="perf-section-title"><i class="fas fa-certificate"></i> Certificates earned</h3>
+                <ul class="perf-cert-list">
+                    {% for c in certificates %}
+                    <li>{{ c }}</li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+
+            {% if level_rows %}
+            <section class="perf-section">
+                <h3 class="perf-section-title"><i class="fas fa-layer-group"></i> By level</h3>
+                <div class="table-container perf-table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Level</th>
+                                <th>Attempts</th>
+                                <th>Best score</th>
+                                <th>Last activity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in level_rows %}
+                            <tr>
+                                <td>{{ row.level }}</td>
+                                <td>{{ row.attempts }}</td>
+                                <td>{{ row.best_score }}/{{ row.best_total }}</td>
+                                <td>
+                                    {% if row.last_at %}
+                                        {{ row.last_at.strftime('%Y-%m-%d %H:%M') }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            {% endif %}
+
+            <section class="perf-section perf-section--recent">
+                <div class="perf-section-head">
+                    <h3 class="perf-section-title"><i class="fas fa-history"></i> Recent quiz attempts</h3>
+                    {% if recent_results and quizzes_taken > recent_results_limit %}
+                    <p class="perf-section-hint">Showing the latest {{ recent_results_limit }} of {{ quizzes_taken }} attempts.</p>
+                    {% elif recent_results %}
+                    <p class="perf-section-hint">All {{ quizzes_taken }} attempt{% if quizzes_taken != 1 %}s{% endif %} on record.</p>
+                    {% endif %}
+                </div>
+                {% if recent_results %}
+                <div class="table-container perf-table-wrap perf-recent-table-wrap">
+                    <table class="perf-recent-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Level</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in recent_results %}
+                            <tr>
+                                <td>
+                                    {% if r.taken_at %}
+                                        {{ r.taken_at.strftime('%Y-%m-%d %H:%M') }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                                <td>{{ r.quiz_level or '—' }}</td>
+                                <td>{{ r.score }}/{{ r.total_questions }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="perf-empty">This user has not completed any quizzes yet.</p>
+                {% endif %}
+            </section>
+
+            <footer>
+                <p>&copy; 2025 GestureLab. All rights reserved.</p>
+            </footer>
+        </main>
+    </div>
+
+    <button class="home-theme-toggle" id="homeThemeToggle" type="button" aria-label="Toggle light and dark theme">
+        <span class="home-theme-icon home-theme-icon-sun">☀</span>
+        <span class="home-theme-icon home-theme-icon-moon">🌙</span>
+    </button>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var THEME_KEY = 'gesturelab-home-theme';
+            var btn = document.getElementById('homeThemeToggle');
+            var saved = localStorage.getItem(THEME_KEY);
+            if (saved === 'dark') document.body.classList.add('dark-theme');
+            if (btn) {
+                btn.addEventListener('click', function () {
+                    var nowDark = !document.body.classList.contains('dark-theme');
+                    document.body.classList.toggle('dark-theme', nowDark);
+                    localStorage.setItem(THEME_KEY, nowDark ? 'dark' : 'light');
+                });
+            }
+        });
+    </script>
+
+    {% include "logout_modal.html" %}
+</body>
+</html>

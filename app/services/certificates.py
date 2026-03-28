@@ -57,4 +57,3 @@ def _certificate_achieved_date(db: Session, user_id: int, level: str) -> Optiona
 def get_certificates_earned(db: Session, user_id: int) -> list:
     """Return list of level names for which the user has earned a certificate (perfect score)."""
     return [lev for lev in CERTIFICATE_LEVELS if _has_perfect_for_level(db, user_id, lev)]
-

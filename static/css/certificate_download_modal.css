@@ -1,0 +1,77 @@
+.certificate-download-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+    padding: 16px;
+}
+
+.certificate-download-modal.active {
+    display: flex;
+}
+
+.certificate-download-dialog {
+    width: 100%;
+    max-width: 520px;
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+}
+
+.certificate-download-dialog-header {
+    padding: 18px 20px 10px 20px;
+    background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+    color: #ffffff;
+}
+
+.certificate-download-dialog-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.certificate-download-dialog-body {
+    padding: 14px 20px 18px 20px;
+    color: #1f2937;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.certificate-download-dialog-actions {
+    padding: 0 20px 20px 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.certificate-download-dialog .certificate-download-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.certificate-download-dialog .certificate-download-btn.secondary {
+    background: #f1f5f9;
+    color: #111827;
+}
+
+.certificate-download-dialog .certificate-download-btn.primary {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.certificate-download-dialog .certificate-download-btn.secondary:hover {
+    background: #e2e8f0;
+}
+
+.certificate-download-dialog .certificate-download-btn.primary:hover {
+    background: #1d4ed8;
+}
+

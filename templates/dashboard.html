@@ -97,23 +97,42 @@
                         {% endif %}
                     </div>
                 </div>
-                <div class="table-container">
-                    <table>
+                <div class="table-container user-table-wrap">
+                    <table class="user-mgmt-table">
+                        <colgroup>
+                            <col class="user-col-email">
+                            <col class="user-col-name">
+                            <col class="user-col-role">
+                            <col class="user-col-login">
+                            <col class="user-col-actions">
+                        </colgroup>
                         <thead>
                             <tr>
-                                <th>Email</th>
-                                <th>Username</th>
-                                <th>Role</th>
-                                <th>Last login</th>
-                                <th>Actions</th>
+                                <th scope="col">Email</th>
+                                <th scope="col">Username</th>
+                                <th scope="col">Role</th>
+                                <th scope="col">Last login</th>
+                                <th scope="col" class="user-th-actions">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% if users %}
                                 {% for user in users %}
                                     <tr>
-                                        <td>{{ user.email }}</td>
-                                        <td>{{ user.username }}</td>
+                                        <td>
+                                            {% if user.performance_url %}
+                                            <a href="{{ user.performance_url }}" class="perf-user-cell-link" title="{{ user.email }}">{{ user.email }}</a>
+                                            {% else %}
+                                            {{ user.email }}
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if user.performance_url %}
+                                            <a href="{{ user.performance_url }}" class="perf-user-cell-link" title="{{ user.username }}">{{ user.username }}</a>
+                                            {% else %}
+                                            {{ user.username }}
+                                            {% endif %}
+                                        </td>
                                         <td>
                                             {{ user.role }}
                                         </td>
@@ -124,23 +143,30 @@
                                                 —
                                             {% endif %}
                                         </td>
-                                        <td>
+                                        <td class="user-td-actions">
                                             {% if user.is_admin %}
                                                 —
                                             {% else %}
+                                            <div class="user-actions-cell">
+                                                {% if user.performance_url %}
+                                                <a href="{{ user.performance_url }}" class="btn-update btn-perf-link" title="View quiz performance">
+                                                    <i class="fas fa-chart-line"></i> Performance
+                                                </a>
+                                                {% endif %}
                                                 <button type="button" class="btn-update edit-user-btn"
                                                         data-id="{{ user.id }}"
                                                         data-email="{{ user.email }}"
                                                         data-username="{{ user.username }}">
                                                     <i class="fas fa-edit"></i> Edit
                                                 </button>
-                                                <form method="post" action="/delete_user" class="js-delete-form" data-delete-message="Are you sure you want to delete this user?" style="display: inline; margin-left: 8px;">
+                                                <form method="post" action="/delete_user" class="js-delete-form user-action-delete-form" data-delete-message="Are you sure you want to delete this user?">
                                                     <input type="hidden" name="user_id" value="{{ user.id }}">
                                                     {% if search_query %}<input type="hidden" name="search_query" value="{{ search_query }}">{% endif %}
                                                     <button type="submit" class="btn-update btn-delete-inline">
                                                         <i class="fas fa-trash-alt"></i>
                                                     </button>
                                                 </form>
+                                            </div>
                                             {% endif %}
                                         </td>
                                     </tr>

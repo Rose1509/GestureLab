@@ -73,4 +73,3 @@ def create_notification_for_user(
     except Exception as e:
         print(f"Error creating user notification: {e}")
         db.rollback()
-

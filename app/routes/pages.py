@@ -303,18 +303,56 @@ def quiz_results_page(request: Request, db: Session = Depends(get_db)):
         # If not logged in, send to login page
         return RedirectResponse(url="/login", status_code=303)
 
-    results = (
+    try:
+        page = int(request.query_params.get("page", "1"))
+    except ValueError:
+        page = 1
+    page = max(1, page)
+
+    per_page = 10
+
+    base_query = (
         db.query(QuizResult)
         .filter(QuizResult.user_id == user_id)
-        .order_by(QuizResult.taken_at.desc())
+    )
+    total_results = base_query.count()
+
+    # Ensure at least one page when user has zero results
+    total_pages = max(1, (total_results + per_page - 1) // per_page) if total_results else 1
+    page = min(page, total_pages)
+
+    offset = (page - 1) * per_page
+    results = (
+        base_query.order_by(QuizResult.taken_at.desc())
+        .offset(offset)
+        .limit(per_page)
         .all()
     )
+
+    has_prev = page > 1
+    has_next = page < total_pages
+
+    # Page links (kept compact)
+    if total_pages <= 5:
+        page_range = list(range(1, total_pages + 1))
+    elif page <= 3:
+        page_range = [1, 2, 3, total_pages]
+    elif page >= total_pages - 2:
+        page_range = [1, total_pages - 2, total_pages - 1, total_pages]
+    else:
+        page_range = [1, page - 1, page, page + 1, total_pages]
+    page_range = sorted(set(page_range))
 
     return templates.TemplateResponse(
         "quiz_results.html",
         {
             "request": request,
             "results": results,
+            "current_page": page,
+            "total_pages": total_pages,
+            "has_prev": has_prev,
+            "has_next": has_next,
+            "page_range": page_range,
         },
     )
 
@@ -373,7 +411,6 @@ def update_user_profile_submit(
             },
         )
 
-    # Check if username/email conflicts with admin
     admin = db.query(Admin).first()
     if admin:
         if username.lower() == admin.username.lower() or email.lower() == admin.email.lower():

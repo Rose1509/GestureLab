@@ -14,4 +14,3 @@ from .db_models import (  # noqa: F401
     ContactSubmission,
     PasswordResetCode,
 )
-

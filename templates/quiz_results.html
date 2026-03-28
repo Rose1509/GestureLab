@@ -160,6 +160,39 @@
                 <p>You haven't taken any quizzes yet. Start a quiz from the <a href="/quizzes">Quizzes</a> page.</p>
             </div>
             {% endif %}
+
+            {% if total_pages and total_pages > 1 %}
+            <div class="results-pagination" aria-label="Quiz results pagination">
+                <a
+                    class="page-link"
+                    href="/quiz_results?page=1"
+                >
+                    First
+                </a>
+
+                {% if has_prev %}
+                <a class="page-link" href="/quiz_results?page={{ current_page - 1 }}">Prev</a>
+                {% else %}
+                <span class="page-link disabled">Prev</span>
+                {% endif %}
+
+                {% for p in page_range %}
+                    {% if p == current_page %}
+                        <span class="page-number active">{{ p }}</span>
+                    {% else %}
+                        <a class="page-number" href="/quiz_results?page={{ p }}">{{ p }}</a>
+                    {% endif %}
+                {% endfor %}
+
+                {% if has_next %}
+                <a class="page-link" href="/quiz_results?page={{ current_page + 1 }}">Next</a>
+                {% else %}
+                <span class="page-link disabled">Next</span>
+                {% endif %}
+
+                <a class="page-link" href="/quiz_results?page={{ total_pages }}">Last</a>
+            </div>
+            {% endif %}
         </section>
     </main>
 

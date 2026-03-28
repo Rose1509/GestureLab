@@ -6,6 +6,7 @@
     <title>Join Us | Learn. Sign. Connect.</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/auth_error_pop.css">
     <link rel="stylesheet" href="/static/css/register.css">
 </head>
 <body>
@@ -28,19 +29,189 @@
             <h2>Create Your Account</h2>
             <p class="subtitle">Start your sign language journey today</p>
 
-            <form action="/register" method="post">
-                <input type="email" name="email" placeholder="Email Address" required>
-                <input type="text" name="username" placeholder="Username" required>
-                <input type="password" name="password" placeholder="Create Password" required>
-                <input type="password" name="confirm_password" placeholder="Confirm Password" required>
+            {% set email_validation_error = error and (
+                error.startswith('Email')
+                or 'must contain @' in error
+                or 'email already exists' in (error|lower)
+                or 'email is reserved' in (error|lower)
+            ) %}
+            {% set username_validation_error = error and error.startswith('Username') %}
+            {% set password_validation_error = error and (
+                (error.startswith('Password') and 'do not match' not in (error|lower))
+                or ('#, @, $' in error)
+            ) %}
+            {% set confirm_validation_error = error and ('Passwords do not match' in error) %}
+            {% set dual_account_error = error and ('already exists' in (error|lower)) %}
+            {% set reserved_error = error and ('reserved' in (error|lower)) %}
 
-                <!-- Error message placeholder -->
-                {% if error %}
-                    <p class="error-message">{{ error }}</p>
-                {% endif %}
+            <div
+                id="registerErrorPop"
+                class="auth-error-pop{% if error %} auth-error-pop--visible{% endif %}"
+                role="alert"
+                aria-live="polite"
+                aria-hidden="{% if error %}false{% else %}true{% endif %}"
+            >
+                <span class="auth-error-pop__badge" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 8v5m0 4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <p class="auth-error-pop__msg" id="registerErrorText">{% if error %}{{ error }}{% endif %}</p>
+            </div>
+
+            <form id="registerForm" action="/register" method="post" novalidate>
+                <input
+                    type="email"
+                    name="email"
+                    id="reg-email"
+                    placeholder="Email Address"
+                    autocomplete="email"
+                    class="{% if email_validation_error or dual_account_error or reserved_error %}auth-input--error{% endif %}"
+                    {% if email_validation_error or dual_account_error or reserved_error %}aria-invalid="true" aria-describedby="registerErrorText"{% endif %}
+                    required
+                >
+                <input
+                    type="text"
+                    name="username"
+                    id="reg-username"
+                    placeholder="Username"
+                    autocomplete="username"
+                    class="{% if username_validation_error or dual_account_error or reserved_error %}auth-input--error{% endif %}"
+                    {% if username_validation_error or dual_account_error or reserved_error %}aria-invalid="true" aria-describedby="registerErrorText"{% endif %}
+                    required
+                >
+                <input
+                    type="password"
+                    name="password"
+                    id="reg-password"
+                    placeholder="Create Password"
+                    autocomplete="new-password"
+                    class="{% if password_validation_error or confirm_validation_error %}auth-input--error{% endif %}"
+                    {% if password_validation_error or confirm_validation_error %}aria-invalid="true" aria-describedby="registerErrorText"{% endif %}
+                    required
+                >
+                <input
+                    type="password"
+                    name="confirm_password"
+                    id="reg-confirm"
+                    placeholder="Confirm Password"
+                    autocomplete="new-password"
+                    class="{% if confirm_validation_error %}auth-input--error{% endif %}"
+                    {% if confirm_validation_error %}aria-invalid="true" aria-describedby="registerErrorText"{% endif %}
+                    required
+                >
 
                 <button type="submit" class="login-btn">Register Now</button>
             </form>
+
+            <script>
+            (function () {
+                var USERNAME_MAX = 25;
+                var form = document.getElementById('registerForm');
+                var pop = document.getElementById('registerErrorPop');
+                var textEl = document.getElementById('registerErrorText');
+                var email = document.getElementById('reg-email');
+                var username = document.getElementById('reg-username');
+                var password = document.getElementById('reg-password');
+                var confirmPw = document.getElementById('reg-confirm');
+
+                function showPop(message) {
+                    if (!pop || !textEl) return;
+                    textEl.textContent = message;
+                    pop.classList.remove('auth-error-pop--visible');
+                    void pop.offsetWidth;
+                    pop.classList.add('auth-error-pop--visible');
+                    pop.setAttribute('aria-hidden', 'false');
+                }
+
+                function markError(el) {
+                    if (!el) return;
+                    el.classList.add('auth-input--error');
+                    el.setAttribute('aria-invalid', 'true');
+                    el.setAttribute('aria-describedby', 'registerErrorText');
+                }
+
+                function clearMark(el) {
+                    if (!el) return;
+                    el.classList.remove('auth-input--error');
+                    el.removeAttribute('aria-invalid');
+                    el.removeAttribute('aria-describedby');
+                }
+
+                function clearAllMarks() {
+                    [email, username, password, confirmPw].forEach(clearMark);
+                }
+
+                function hidePop() {
+                    if (!pop || !textEl) return;
+                    pop.classList.remove('auth-error-pop--visible');
+                    textEl.textContent = '';
+                    pop.setAttribute('aria-hidden', 'true');
+                    clearAllMarks();
+                }
+
+                if (!form) return;
+
+                form.addEventListener('input', function () {
+                    hidePop();
+                });
+
+                function passwordHasSpecial(pw) {
+                    return /[#@$]/.test(pw || '');
+                }
+
+                form.addEventListener('submit', function (e) {
+                    var em = (email && email.value) ? email.value.trim() : '';
+                    var un = (username && username.value) ? username.value.trim() : '';
+                    var pw = (password && password.value) ? password.value : '';
+                    var c2 = (confirmPw && confirmPw.value) ? confirmPw.value : '';
+
+                    if (!em) {
+                        e.preventDefault();
+                        markError(email);
+                        showPop('Email is required.');
+                        return;
+                    }
+                    if (em.indexOf('@') === -1) {
+                        e.preventDefault();
+                        markError(email);
+                        showPop('Email must contain @.');
+                        return;
+                    }
+                    if (!un) {
+                        e.preventDefault();
+                        markError(username);
+                        showPop('Username is required.');
+                        return;
+                    }
+                    if (un.length > USERNAME_MAX) {
+                        e.preventDefault();
+                        markError(username);
+                        showPop('Username must be at most ' + USERNAME_MAX + ' characters.');
+                        return;
+                    }
+                    if (!pw) {
+                        e.preventDefault();
+                        markError(password);
+                        showPop('Password is required.');
+                        return;
+                    }
+                    if (!passwordHasSpecial(pw)) {
+                        e.preventDefault();
+                        markError(password);
+                        showPop('Password must contain at least one of: #, @, $.');
+                        return;
+                    }
+                    if (pw !== c2) {
+                        e.preventDefault();
+                        markError(password);
+                        markError(confirmPw);
+                        showPop('Passwords do not match!');
+                        return;
+                    }
+                });
+            })();
+            </script>
 
             <p class="register-text">
                 Already have an account? <a href="/login">Login</a>

@@ -135,7 +135,7 @@ body::before {
 .subtitle {
     font-size: 0.9rem;
     color: #555;
-    margin-bottom: 25px;
+    margin-bottom: 18px;
 }
 
 /* Inputs */
@@ -189,13 +189,6 @@ input:focus {
     font-weight: 700;
     text-decoration: none;
 }
-
-.error-message {
-    color: red;
-    font-size: 0.9rem;
-    margin-top: 5px;
-}
-
 
 /* ================= RESPONSIVE ================= */
 @media (max-width: 850px) {

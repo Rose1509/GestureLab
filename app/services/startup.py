@@ -7,9 +7,6 @@ from ..database import SessionLocal, ensure_schema
 from ..models import Admin
 
 
-# -------------------------
-# Initialize default admin if none exists
-# -------------------------
 def init_admin():
     """Create default admin account if it doesn't exist."""
     db = SessionLocal()
@@ -34,18 +31,14 @@ def init_admin():
 
 def on_startup() -> None:
     try:
-        # Create all tables defined in models
         from ..database import Base, engine
 
         Base.metadata.create_all(bind=engine)
         print("[OK] Database tables created")
 
-        # Ensure DB schema matches models for local/dev databases (no migrations in repo)
         ensure_schema()
-        # Create default admin account if missing
         init_admin()
         print("[OK] Database schema and admin initialization completed successfully")
     except Exception as e:
         print(f"[WARN] Warning during startup: {e}")
         print("App will continue, but database operations may fail until the database is available")
-

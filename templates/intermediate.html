@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/static/css/footer.css">        
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/logout_modal.css">
+    <link rel="stylesheet" href="/static/css/certificate_download_modal.css">
 </head>
 
 
@@ -286,6 +287,20 @@
                         Download certificate
                     </a>
                 </div>
+                <div id="certificate-download-confirm-modal" class="certificate-download-modal" role="dialog" aria-modal="true" aria-labelledby="certificate-download-confirm-title" aria-hidden="true">
+                    <div class="certificate-download-dialog">
+                        <div class="certificate-download-dialog-header">
+                            <h3 id="certificate-download-confirm-title">Confirm download</h3>
+                        </div>
+                        <div class="certificate-download-dialog-body">
+                            Do you want to download your certificate now?
+                        </div>
+                        <div class="certificate-download-dialog-actions">
+                            <button type="button" id="certificate-download-confirm-cancel" class="certificate-download-btn secondary">Cancel</button>
+                            <button type="button" id="certificate-download-confirm-ok" class="certificate-download-btn primary">Download</button>
+                        </div>
+                    </div>
+                </div>
                 <div class="results-buttons">
                     <button class="retry-btn" id="retry-btn">Retry</button>
                     <button class="next-btn" id="next-btn">Next</button>
@@ -504,6 +519,44 @@
         document.getElementById('next-btn').addEventListener('click', function() {
             window.location.href = '/advance';
         });
+
+        // Certificate download confirmation modal (no native alert)
+        (function initCertificateDownloadConfirm() {
+            const certBtn = document.getElementById('certificate-download-btn');
+            const modal = document.getElementById('certificate-download-confirm-modal');
+            const cancelBtn = document.getElementById('certificate-download-confirm-cancel');
+            const okBtn = document.getElementById('certificate-download-confirm-ok');
+            if (!certBtn || !modal || !cancelBtn || !okBtn) return;
+
+            let skipConfirm = false;
+
+            function showModal() {
+                modal.classList.add('active');
+                modal.setAttribute('aria-hidden', 'false');
+            }
+
+            function hideModal() {
+                modal.classList.remove('active');
+                modal.setAttribute('aria-hidden', 'true');
+            }
+
+            certBtn.addEventListener('click', function (e) {
+                if (skipConfirm) return;
+                e.preventDefault();
+                showModal();
+            });
+
+            cancelBtn.addEventListener('click', function () {
+                hideModal();
+            });
+
+            okBtn.addEventListener('click', function () {
+                skipConfirm = true;
+                certBtn.click();
+                skipConfirm = false;
+                hideModal();
+            });
+        })();
     </script>
 
     <!-- Notification Scripts -->

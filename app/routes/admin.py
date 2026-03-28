@@ -1,8 +1,10 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy import desc, or_
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
-from typing import Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote
 
 from ..authentication import validate_email, validate_password, validate_username, hash_password
@@ -16,12 +18,144 @@ from ..models import (
     QuizResult,
     User,
 )
+from ..services.certificates import get_certificates_earned
 from ..services.notifications import create_notification_for_all_users
 from ..services.startup import init_admin
+from ..services.streaks import compute_streak, get_activity_dates
 from ..utils.deps import get_db, require_admin
 from ..utils.uploads import save_uploaded_file
 
 router = APIRouter()
+
+
+def _performance_url_for_user(user_id: int, search_query: Optional[str]) -> str:
+    base = f"/dashboard/user/{user_id}/performance"
+    if search_query and str(search_query).strip():
+        return f"{base}?return_q={quote(search_query.strip())}"
+    return base
+
+
+def _build_dashboard_user_rows(
+    db: Session,
+    q: Optional[str],
+    admin_id: Optional[int],
+) -> Tuple[List[Dict[str, Any]], int, str, Optional[str]]:
+    """
+    Rows for dashboard.html (includes performance_url for each learner).
+    user_count is the number of User rows matching the search filter (not counting the synthetic admin row).
+    """
+    admin_name = "Admin"
+    admin_email = None
+    admin_last_login_at = None
+    if admin_id:
+        admin = db.query(Admin).filter(Admin.id == admin_id).first()
+        if admin and admin.full_name:
+            admin_name = admin.full_name
+        if admin and admin.email:
+            admin_email = admin.email
+        if admin and getattr(admin, "last_login_at", None):
+            admin_last_login_at = admin.last_login_at
+
+    users_query = db.query(User)
+    if q and q.strip():
+        term = f"%{q.strip()}%"
+        users_query = users_query.filter(
+            or_(
+                User.username.ilike(term),
+                User.email.ilike(term),
+            )
+        )
+    users = users_query.all()
+
+    user_rows: List[Dict[str, Any]] = []
+    sq = q.strip() if q and q.strip() else None
+    if admin_email:
+        if (
+            not q
+            or not q.strip()
+            or (admin_email and q.strip().lower() in admin_email.lower())
+            or (admin_name and q.strip().lower() in admin_name.lower())
+        ):
+            user_rows.append(
+                {
+                    "id": None,
+                    "email": admin_email,
+                    "username": admin_name,
+                    "role": "Admin",
+                    "last_login_at": admin_last_login_at,
+                    "is_admin": True,
+                    "performance_url": None,
+                }
+            )
+
+    for u in users:
+        if admin_email and u.email and u.email.strip().lower() == admin_email.strip().lower():
+            continue
+        user_rows.append(
+            {
+                "id": u.id,
+                "email": u.email,
+                "username": u.username,
+                "role": "User",
+                "last_login_at": getattr(u, "last_login_at", None),
+                "is_admin": False,
+                "performance_url": _performance_url_for_user(u.id, sq),
+            }
+        )
+
+    user_count = len(users)
+    return user_rows, user_count, admin_name, admin_email
+
+
+def _aggregate_user_performance(
+    db: Session, user_id: int
+) -> Tuple[List[QuizResult], int, int, int, int, List[str], List[Dict[str, Any]]]:
+    """Quiz results (newest first), quizzes_taken, total_points, badges, streak, certificates, per-level rows."""
+    results = (
+        db.query(QuizResult)
+        .filter(QuizResult.user_id == user_id)
+        .order_by(desc(QuizResult.taken_at))
+        .all()
+    )
+    quizzes_taken = len(results)
+    total_points = sum(r.score for r in results)
+    badges = total_points // 20
+    activity_dates = get_activity_dates(user_id, db)
+    reference = max(activity_dates) if activity_dates else None
+    today_utc = datetime.now(timezone.utc).date()
+    if reference is None or (today_utc - reference) >= timedelta(days=3):
+        current_streak = 0
+    else:
+        current_streak = compute_streak(activity_dates, reference)
+    certificates = get_certificates_earned(db, user_id)
+
+    by_level: Dict[str, Dict[str, Any]] = {}
+    for r in results:
+        lv = (r.quiz_level or "—").strip() or "—"
+        den = r.total_questions or 1
+        ratio = r.score / den
+        if lv not in by_level:
+            by_level[lv] = {
+                "level": lv,
+                "attempts": 0,
+                "best_score": r.score,
+                "best_total": r.total_questions or 0,
+                "best_ratio": ratio,
+                "last_at": r.taken_at,
+            }
+        row = by_level[lv]
+        row["attempts"] += 1
+        if r.taken_at and (row["last_at"] is None or r.taken_at > row["last_at"]):
+            row["last_at"] = r.taken_at
+        if ratio > row["best_ratio"] or (
+            ratio == row["best_ratio"] and r.score > row["best_score"]
+        ):
+            row["best_score"] = r.score
+            row["best_total"] = r.total_questions or 0
+            row["best_ratio"] = ratio
+
+    level_rows = sorted(by_level.values(), key=lambda x: x["level"].lower())
+    return results, quizzes_taken, total_points, badges, current_streak, certificates, level_rows
 
 
 @router.get("/add_quizzes", response_class=HTMLResponse)
@@ -46,67 +180,8 @@ def dashboard_page(
     Admin dashboard showing basic stats and user list.
     Optional query param 'q' filters users by username or email (case-insensitive).
     """
-    admin_name = "Admin"
-    admin_email = None
-    admin_last_login_at = None
     admin_id = request.session.get("admin_id")
-    if admin_id:
-        admin = db.query(Admin).filter(Admin.id == admin_id).first()
-        if admin and admin.full_name:
-            admin_name = admin.full_name
-        if admin and admin.email:
-            admin_email = admin.email
-        if admin and getattr(admin, "last_login_at", None):
-            admin_last_login_at = admin.last_login_at
-
-    users_query = db.query(User)
-    if q and q.strip():
-        term = f"%{q.strip()}%"
-        users_query = users_query.filter(
-            or_(
-                User.username.ilike(term),
-                User.email.ilike(term),
-            )
-        )
-    users = users_query.all()
-
-    # Build rows for the "User Management" table (include admin too).
-    user_rows = []
-    if admin_email:
-        if (
-            not q
-            or not q.strip()
-            or (admin_email and q.strip().lower() in admin_email.lower())
-            or (admin_name and q.strip().lower() in admin_name.lower())
-        ):
-            user_rows.append(
-                {
-                    "id": None,
-                    "email": admin_email,
-                    "username": admin_name,
-                    "role": "Admin",
-                    "last_login_at": admin_last_login_at,
-                    "is_admin": True,
-                }
-            )
-
-    for u in users:
-        if admin_email and u.email and u.email.strip().lower() == admin_email.strip().lower():
-            # avoid duplicate row if admin email also exists in register table
-            continue
-        user_rows.append(
-            {
-                "id": u.id,
-                "email": u.email,
-                "username": u.username,
-                "role": "User",
-                "last_login_at": getattr(u, "last_login_at", None),
-                "is_admin": False,
-            }
-        )
-
-    # User count stays as "registered users" (register table)
-    user_count = len(users)
+    user_rows, user_count, admin_name, admin_email = _build_dashboard_user_rows(db, q, admin_id)
     lesson_count = db.query(Lesson).count()
     quiz_count = db.query(Quiz).count()
     quiz_attempts_count = db.query(QuizResult).count()
@@ -124,6 +199,62 @@ def dashboard_page(
             "admin_name": admin_name,
             "admin_email": admin_email,
             "search_query": q.strip() if q and q.strip() else None,
+        },
+    )
+
+
+@router.get("/dashboard/user/{user_id}/performance", response_class=HTMLResponse)
+def user_performance_page(
+    request: Request,
+    user_id: int,
+    return_q: Optional[str] = None,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    """Admin view of a learner's quiz performance (same metrics as user profile stats)."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return RedirectResponse(url="/dashboard", status_code=303)
+
+    dashboard_back = "/dashboard"
+    if return_q and return_q.strip():
+        dashboard_back = f"/dashboard?q={quote(return_q.strip())}"
+
+    (
+        results,
+        quizzes_taken,
+        total_points,
+        badges,
+        current_streak,
+        certificates,
+        level_rows,
+    ) = _aggregate_user_performance(db, user_id)
+
+    admin_name = "Admin"
+    aid = request.session.get("admin_id")
+    if aid:
+        adm = db.query(Admin).filter(Admin.id == aid).first()
+        if adm and adm.full_name:
+            admin_name = adm.full_name
+
+    recent_limit = 6
+    recent = results[:recent_limit]
+
+    return templates.TemplateResponse(
+        "admin_user_performance.html",
+        {
+            "request": request,
+            "admin_name": admin_name,
+            "target_user": user,
+            "dashboard_back_url": dashboard_back,
+            "quizzes_taken": quizzes_taken,
+            "total_points": total_points,
+            "badges": badges,
+            "current_streak": current_streak,
+            "certificates": certificates,
+            "level_rows": level_rows,
+            "recent_results": recent,
+            "recent_results_limit": recent_limit,
         },
     )
 
@@ -193,7 +324,6 @@ def get_admin_recent_notifications(
     db: Session = Depends(get_db), _: None = Depends(require_admin)
 ):
     """Get recent notifications added by admin only (sent from Notifications page), within last 30 days."""
-    from datetime import datetime, timedelta
 
     thirty_days_ago = datetime.utcnow() - timedelta(days=30)
     notifications = (
@@ -235,7 +365,6 @@ def admin_profile_page(
     """Admin profile page with current admin data."""
     admin = db.query(Admin).first()
     if not admin:
-        # If no admin exists, create default one
         init_admin()
         admin = db.query(Admin).first()
 
@@ -270,61 +399,39 @@ def update_user_submit(
     Allow admin to update a user's email and username.
     """
 
-    def get_users_for_dashboard(db_session, q=None):
-        users_query = db_session.query(User)
-        if q and str(q).strip():
-            term = f"%{q.strip()}%"
-            users_query = users_query.filter(
-                or_(User.username.ilike(term), User.email.ilike(term))
-            )
-        return users_query.all()
-
-    # Validation: username max 15, email must contain @
-    admin_name = "Admin"
     aid = request.session.get("admin_id")
+    admin_name = "Admin"
     if aid:
         adm = db.query(Admin).filter(Admin.id == aid).first()
         if adm and adm.full_name:
             admin_name = adm.full_name
+
+    sq = search_query.strip() if search_query and str(search_query).strip() else None
+
+    def _dashboard_error_response(err_msg: str):
+        user_rows, user_count, _, admin_email = _build_dashboard_user_rows(db, sq, aid)
+        return templates.TemplateResponse(
+            "dashboard.html",
+            {
+                "request": request,
+                "users": user_rows,
+                "user_count": user_count,
+                "lesson_count": db.query(Lesson).count(),
+                "quiz_count": db.query(Quiz).count(),
+                "quiz_attempts_count": db.query(QuizResult).count(),
+                "user_error": err_msg,
+                "admin_name": admin_name,
+                "admin_email": admin_email,
+                "search_query": sq,
+            },
+        )
+
     ok, err = validate_username(username)
     if not ok:
-        users = get_users_for_dashboard(db, search_query)
-        return templates.TemplateResponse(
-            "dashboard.html",
-            {
-                "request": request,
-                "users": users,
-                "user_count": len(users),
-                "lesson_count": db.query(Lesson).count(),
-                "quiz_count": db.query(Quiz).count(),
-                "quiz_attempts_count": db.query(QuizResult).count(),
-                "user_error": err,
-                "admin_name": admin_name,
-                "search_query": search_query.strip()
-                if search_query and search_query.strip()
-                else None,
-            },
-        )
+        return _dashboard_error_response(err)
     ok, err = validate_email(email)
     if not ok:
-        users = get_users_for_dashboard(db, search_query)
-        return templates.TemplateResponse(
-            "dashboard.html",
-            {
-                "request": request,
-                "users": users,
-                "user_count": len(users),
-                "lesson_count": db.query(Lesson).count(),
-                "quiz_count": db.query(Quiz).count(),
-                "quiz_attempts_count": db.query(QuizResult).count(),
-                "user_error": err,
-                "admin_name": admin_name,
-                "search_query": search_query.strip()
-                if search_query and search_query.strip()
-                else None,
-            },
-        )
-    # Check if the new email/username is already used by another user
+        return _dashboard_error_response(err)
     existing = (
         db.query(User)
         .filter(
@@ -335,24 +442,22 @@ def update_user_submit(
     )
 
     if existing:
-        users = get_users_for_dashboard(db, search_query)
-        user_count = len(users)
+        user_rows, user_count, _, admin_email = _build_dashboard_user_rows(db, sq, aid)
         lesson_count = db.query(Lesson).count()
         quiz_count = db.query(Quiz).count()
         return templates.TemplateResponse(
             "dashboard.html",
             {
                 "request": request,
-                "users": users,
+                "users": user_rows,
                 "user_count": user_count,
                 "lesson_count": lesson_count,
                 "quiz_count": quiz_count,
                 "quiz_attempts_count": db.query(QuizResult).count(),
                 "user_error": "Email or username is already in use by another account.",
                 "admin_name": admin_name,
-                "search_query": search_query.strip()
-                if search_query and search_query.strip()
-                else None,
+                "admin_email": admin_email,
+                "search_query": sq,
             },
         )
 
@@ -391,7 +496,6 @@ def delete_user_submit(
     """
     user = db.query(User).filter(User.id == user_id).first()
     if user:
-        # Don't allow deleting if username/email matches admin
         admin = db.query(Admin).first()
         if admin:
             if not (user.username == admin.username or user.email == admin.email):
@@ -704,10 +808,8 @@ def update_admin_profile_submit(
     """
     Allow admin to update their profile information.
     """
-    # Get the admin account (there should only be one)
     admin = db.query(Admin).first()
     if not admin:
-        # If no admin exists, create default one
         init_admin()
         admin = db.query(Admin).first()
 

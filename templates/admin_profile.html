@@ -127,11 +127,9 @@
         <p id="adminNoChangesMessage" class="delete-success-toast-message">No changes have been made.</p>
         <button type="button" class="delete-success-toast-close" id="adminNoChangesToastClose" aria-label="Close">&times;</button>
     </div>
+    {% if success and success == 'No changes made. Your profile is already up to date.' %}
     <script>
     (function() {
-        var noChangesMsg = {{ 'No changes made. Your profile is already up to date.'|tojson }};
-        var successMsg = {{ success|tojson if success else 'null' }};
-        if (successMsg !== noChangesMsg) return;
         var toast = document.getElementById('adminNoChangesToast');
         var closeBtn = document.getElementById('adminNoChangesToastClose');
         if (!toast || !closeBtn) return;
@@ -144,6 +142,7 @@
         setTimeout(hide, 4000);
     })();
     </script>
+    {% endif %}
 
     <script>
         // Auto-hide admin profile alerts after ~4.5 seconds + hook dark/light toggle

@@ -38,4 +38,3 @@ def require_admin(request: Request) -> None:
 
 def admin_required_redirect_handler(request: Request, exc: AdminRequiredRedirect):
     return RedirectResponse(url=exc.url, status_code=exc.status_code)
-
