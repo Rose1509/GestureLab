@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile - Gesture Lab</title>
+    <link rel="stylesheet" href="/static/css/auth_error_pop.css">
     <link rel="stylesheet" href="/static/css/profile.css">
     <link rel="stylesheet" href="/static/css/header.css">
     <link rel="stylesheet" href="/static/css/footer.css">
@@ -35,13 +36,13 @@
             
             if (isNewLogin && notification) {
                 notification.style.display = 'flex';
-                // Auto-hide after 3.5 seconds
+                // Auto-hide after ~5.5 seconds (standard popup duration)
                 setTimeout(() => {
                     notification.classList.add('hide');
                     setTimeout(() => {
                         notification.style.display = 'none';
                     }, 400);
-                }, 3500);
+                }, 5500);
                 sessionStorage.removeItem('justLoggedIn');
             }
         });
@@ -155,42 +156,230 @@
             <h2>Personal Information</h2>
             <p class="subtitle">Update your login details</p>
 
-            {% if error %}
-            <div class="profile-inline-alert profile-inline-error">
-                {{ error }}
+            {% set profile_email_error = error and (
+                error.startswith('Email')
+                or 'must contain @' in error
+                or 'already in use' in error
+                or 'reserved' in error|lower
+            ) %}
+            {% set profile_username_error = error and (
+                error.startswith('Username')
+                or 'already in use' in error
+                or 'reserved' in error|lower
+            ) %}
+            {% set profile_pw_error = error and (
+                'Passwords do not match' in error
+                or (error.startswith('Password') and 'do not match' not in error|lower)
+                or '#, @, $' in error
+            ) %}
+
+            <div
+                id="profileErrorPop"
+                class="auth-error-pop profile-auth-error-pop{% if error %} auth-error-pop--visible{% endif %}"
+                role="alert"
+                aria-live="polite"
+                aria-hidden="{% if error %}false{% else %}true{% endif %}"
+            >
+                <span class="auth-error-pop__badge" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 8v5m0 4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <p class="auth-error-pop__msg" id="profileErrorText">{% if error %}{{ error }}{% endif %}</p>
             </div>
-            {% endif %}
 
             {% if success and success != 'No changes made. Your profile is already up to date.' %}
-            <div class="profile-inline-alert profile-inline-success">
+            <div id="profileInlineSuccess" class="profile-inline-alert profile-inline-success">
                 {{ success }}
             </div>
+            <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                var el = document.getElementById('profileInlineSuccess');
+                if (el) setTimeout(function () { el.style.display = 'none'; }, 5500);
+            });
+            </script>
             {% endif %}
             
-            <form method="post" action="/update_user_profile" class="profile-form">
+            <form method="post" action="/update_user_profile" class="profile-form" id="profileForm" novalidate>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>User Name</label>
-                        <input type="text" name="username" id="username" value="{{ user.username if user else '' }}" required>
+                        <label for="profile-username">User Name</label>
+                        <input
+                            type="text"
+                            name="username"
+                            id="profile-username"
+                            value="{% if form_username is not none %}{{ form_username }}{% else %}{{ user.username if user else '' }}{% endif %}"
+                            required
+                            class="{% if profile_username_error %}auth-input--error{% endif %}"
+                            {% if profile_username_error %}aria-invalid="true" aria-describedby="profileErrorText"{% endif %}
+                            autocomplete="username"
+                        >
                     </div>
                     <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" name="email" id="email" value="{{ user.email if user else '' }}" required>
+                        <label for="profile-email">Email</label>
+                        <input
+                            type="email"
+                            name="email"
+                            id="profile-email"
+                            value="{% if form_email is not none %}{{ form_email }}{% else %}{{ user.email if user else '' }}{% endif %}"
+                            required
+                            class="{% if profile_email_error %}auth-input--error{% endif %}"
+                            {% if profile_email_error %}aria-invalid="true" aria-describedby="profileErrorText"{% endif %}
+                            autocomplete="email"
+                        >
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>New Password</label>
-                        <input type="password" name="new_password" id="new_password" placeholder="Leave empty to keep current password">
-                        <small style="display: block; margin-top: 5px; color: #666;">Leave empty to keep current password</small>
+                        <label for="profile-new-password">New Password</label>
+                        <input
+                            type="password"
+                            name="new_password"
+                            id="profile-new-password"
+                            placeholder="Leave empty to keep current password"
+                            class="{% if profile_pw_error %}auth-input--error{% endif %}"
+                            {% if profile_pw_error %}aria-invalid="true" aria-describedby="profileErrorText"{% endif %}
+                            autocomplete="new-password"
+                        >
+                        <small class="profile-password-hint">Leave empty to keep current password. If set, include at least one of #, @, or $.</small>
                     </div>
                     <div class="form-group">
-                        <label>Confirm Password</label>
-                        <input type="password" name="confirm_password" id="confirm_password" placeholder="Leave empty to keep current password">
+                        <label for="profile-confirm-password">Confirm Password</label>
+                        <input
+                            type="password"
+                            name="confirm_password"
+                            id="profile-confirm-password"
+                            placeholder="Leave empty to keep current password"
+                            class="{% if profile_pw_error %}auth-input--error{% endif %}"
+                            {% if profile_pw_error %}aria-invalid="true" aria-describedby="profileErrorText"{% endif %}
+                            autocomplete="new-password"
+                        >
                     </div>
                 </div>
                 <button type="submit" class="save-btn">SAVE CHANGES</button>
             </form>
+
+            <script>
+            (function () {
+                var USERNAME_MAX = 25;
+                var POPUP_MS = 5500;
+                var form = document.getElementById('profileForm');
+                var pop = document.getElementById('profileErrorPop');
+                var textEl = document.getElementById('profileErrorText');
+                var userEl = document.getElementById('profile-username');
+                var emailEl = document.getElementById('profile-email');
+                var pwEl = document.getElementById('profile-new-password');
+                var c2El = document.getElementById('profile-confirm-password');
+                var errTimer = null;
+
+                function scheduleErrHide() {
+                    if (errTimer) clearTimeout(errTimer);
+                    errTimer = setTimeout(function () {
+                        errTimer = null;
+                        hidePop();
+                    }, POPUP_MS);
+                }
+
+                function showPop(message) {
+                    if (!pop || !textEl) return;
+                    textEl.textContent = message;
+                    pop.classList.remove('auth-error-pop--visible');
+                    void pop.offsetWidth;
+                    pop.classList.add('auth-error-pop--visible');
+                    pop.setAttribute('aria-hidden', 'false');
+                    scheduleErrHide();
+                }
+
+                function mark(el) {
+                    if (!el) return;
+                    el.classList.add('auth-input--error');
+                    el.setAttribute('aria-invalid', 'true');
+                    el.setAttribute('aria-describedby', 'profileErrorText');
+                }
+
+                function clearMark(el) {
+                    if (!el) return;
+                    el.classList.remove('auth-input--error');
+                    el.removeAttribute('aria-invalid');
+                    el.removeAttribute('aria-describedby');
+                }
+
+                function clearAll() {
+                    [userEl, emailEl, pwEl, c2El].forEach(clearMark);
+                }
+
+                function hidePop() {
+                    if (errTimer) {
+                        clearTimeout(errTimer);
+                        errTimer = null;
+                    }
+                    if (!pop || !textEl) return;
+                    pop.classList.remove('auth-error-pop--visible');
+                    textEl.textContent = '';
+                    pop.setAttribute('aria-hidden', 'true');
+                    clearAll();
+                }
+
+                function passwordHasSpecial(pw) {
+                    return /[#@$]/.test(pw || '');
+                }
+
+                if (pop && textEl && pop.classList.contains('auth-error-pop--visible') && (textEl.textContent || '').trim()) {
+                    scheduleErrHide();
+                }
+
+                if (!form) return;
+
+                form.addEventListener('input', hidePop);
+
+                form.addEventListener('submit', function (e) {
+                    var un = (userEl && userEl.value) ? userEl.value.trim() : '';
+                    var em = (emailEl && emailEl.value) ? emailEl.value.trim() : '';
+                    var pw = (pwEl && pwEl.value) ? pwEl.value : '';
+                    var c2 = (c2El && c2El.value) ? c2El.value : '';
+
+                    if (!un) {
+                        e.preventDefault();
+                        mark(userEl);
+                        showPop('Username is required.');
+                        return;
+                    }
+                    if (un.length > USERNAME_MAX) {
+                        e.preventDefault();
+                        mark(userEl);
+                        showPop('Username must be at most ' + USERNAME_MAX + ' characters.');
+                        return;
+                    }
+                    if (!em) {
+                        e.preventDefault();
+                        mark(emailEl);
+                        showPop('Email is required.');
+                        return;
+                    }
+                    if (em.indexOf('@') === -1) {
+                        e.preventDefault();
+                        mark(emailEl);
+                        showPop('Email must contain @.');
+                        return;
+                    }
+                    if (pw || c2) {
+                        if (pw !== c2) {
+                            e.preventDefault();
+                            mark(pwEl);
+                            mark(c2El);
+                            showPop('Passwords do not match!');
+                            return;
+                        }
+                        if (!passwordHasSpecial(pw)) {
+                            e.preventDefault();
+                            mark(pwEl);
+                            showPop('Password must contain at least one of: #, @, $.');
+                            return;
+                        }
+                    }
+                });
+            })();
+            </script>
         </section>
 
         <section class="profile-card">
@@ -661,7 +850,7 @@
         }
         toast.classList.add('is-visible');
         closeBtn.addEventListener('click', hide);
-        setTimeout(hide, 4000);
+        setTimeout(hide, 5500);
     })();
     </script>
     {% endif %}

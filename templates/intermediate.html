@@ -58,7 +58,7 @@
                     setTimeout(() => {
                         notification.style.display = 'none';
                     }, 400);
-                }, 3500);
+                }, 5500);
                 sessionStorage.removeItem('justLoggedIn');
             }
         });
@@ -76,7 +76,7 @@
                 window.setTimeout(() => {
                     notification.style.display = 'none';
                 }, 400);
-            }, 5000);
+            }, 5500);
         }
     </script>
     
@@ -488,7 +488,7 @@
                     if (toast) {
                         toast.textContent = '🎉 Badge unlocked!';
                         toast.style.display = 'block';
-                        setTimeout(function() { toast.style.display = 'none'; }, 3500);
+                        setTimeout(function() { toast.style.display = 'none'; }, 5500);
                     }
                 }
                 if (data.status === 'success' && data.certificate_earned && data.certificate_level) {

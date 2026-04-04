@@ -107,6 +107,7 @@
             <script>
             (function () {
                 var USERNAME_MAX = 25;
+                var POPUP_MS = 5500;
                 var form = document.getElementById('registerForm');
                 var pop = document.getElementById('registerErrorPop');
                 var textEl = document.getElementById('registerErrorText');
@@ -114,6 +115,15 @@
                 var username = document.getElementById('reg-username');
                 var password = document.getElementById('reg-password');
                 var confirmPw = document.getElementById('reg-confirm');
+                var errTimer = null;
+
+                function scheduleErrHide() {
+                    if (errTimer) clearTimeout(errTimer);
+                    errTimer = setTimeout(function () {
+                        errTimer = null;
+                        hidePop();
+                    }, POPUP_MS);
+                }
 
                 function showPop(message) {
                     if (!pop || !textEl) return;
@@ -122,6 +132,7 @@
                     void pop.offsetWidth;
                     pop.classList.add('auth-error-pop--visible');
                     pop.setAttribute('aria-hidden', 'false');
+                    scheduleErrHide();
                 }
 
                 function markError(el) {
@@ -143,6 +154,10 @@
                 }
 
                 function hidePop() {
+                    if (errTimer) {
+                        clearTimeout(errTimer);
+                        errTimer = null;
+                    }
                     if (!pop || !textEl) return;
                     pop.classList.remove('auth-error-pop--visible');
                     textEl.textContent = '';
@@ -150,15 +165,19 @@
                     clearAllMarks();
                 }
 
+                function passwordHasSpecial(pw) {
+                    return /[#@$]/.test(pw || '');
+                }
+
+                if (pop && textEl && pop.classList.contains('auth-error-pop--visible') && (textEl.textContent || '').trim()) {
+                    scheduleErrHide();
+                }
+
                 if (!form) return;
 
                 form.addEventListener('input', function () {
                     hidePop();
                 });
-
-                function passwordHasSpecial(pw) {
-                    return /[#@$]/.test(pw || '');
-                }
 
                 form.addEventListener('submit', function (e) {
                     var em = (email && email.value) ? email.value.trim() : '';

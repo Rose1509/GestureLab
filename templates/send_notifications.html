@@ -177,7 +177,7 @@
                 responseMessage.style.display = 'flex';
                 setTimeout(() => {
                     responseMessage.style.display = 'none';
-                }, 5000);
+                }, 5500);
             } catch (error) {
                 console.error('Error:', error);
                 responseMessage.className = 'response-message error';
@@ -189,6 +189,9 @@
                     </div>
                 `;
                 responseMessage.style.display = 'flex';
+                setTimeout(() => {
+                    responseMessage.style.display = 'none';
+                }, 5500);
             }
         });
 

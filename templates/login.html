@@ -118,15 +118,25 @@
     var logoutSuccessMsg = document.getElementById('logoutSuccessMsg');
     var registerSuccessMsg = document.getElementById('registerSuccessMsg');
     [logoutSuccessMsg, registerSuccessMsg].forEach(function(msg) {
-        if (msg) setTimeout(() => hideSuccessMsg(msg), 3500);
+        if (msg) setTimeout(() => hideSuccessMsg(msg), 5500);
     });
 
     (function () {
+        var POPUP_MS = 5500;
         var form = document.getElementById('loginForm');
         var pop = document.getElementById('loginErrorPop');
         var textEl = document.getElementById('loginErrorText');
         var emailEl = document.getElementById('login-email');
         var passEl = document.getElementById('login-password');
+        var errTimer = null;
+
+        function scheduleErrHide() {
+            if (errTimer) clearTimeout(errTimer);
+            errTimer = setTimeout(function () {
+                errTimer = null;
+                hidePop();
+            }, POPUP_MS);
+        }
 
         function showPop(message) {
             if (!pop || !textEl) return;
@@ -135,6 +145,7 @@
             void pop.offsetWidth;
             pop.classList.add('auth-error-pop--visible');
             pop.setAttribute('aria-hidden', 'false');
+            scheduleErrHide();
         }
 
         function mark(el) {
@@ -152,12 +163,20 @@
         }
 
         function hidePop() {
+            if (errTimer) {
+                clearTimeout(errTimer);
+                errTimer = null;
+            }
             if (!pop || !textEl) return;
             pop.classList.remove('auth-error-pop--visible');
             textEl.textContent = '';
             pop.setAttribute('aria-hidden', 'true');
             clearMark(emailEl);
             clearMark(passEl);
+        }
+
+        if (pop && textEl && pop.classList.contains('auth-error-pop--visible') && (textEl.textContent || '').trim()) {
+            scheduleErrHide();
         }
 
         if (!form) return;

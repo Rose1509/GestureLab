@@ -370,7 +370,15 @@ def admin_profile_page(
 
     return templates.TemplateResponse(
         "admin_profile.html",
-        {"request": request, "admin": admin, "error": None, "success": None},
+        {
+            "request": request,
+            "admin": admin,
+            "error": None,
+            "success": None,
+            "form_full_name": None,
+            "form_username": None,
+            "form_email": None,
+        },
     )
 
 
@@ -818,13 +826,29 @@ def update_admin_profile_submit(
     if not ok:
         return templates.TemplateResponse(
             "admin_profile.html",
-            {"request": request, "admin": admin, "error": err, "success": None},
+            {
+                "request": request,
+                "admin": admin,
+                "error": err,
+                "success": None,
+                "form_full_name": full_name,
+                "form_username": username,
+                "form_email": email,
+            },
         )
     ok, err = validate_email(email)
     if not ok:
         return templates.TemplateResponse(
             "admin_profile.html",
-            {"request": request, "admin": admin, "error": err, "success": None},
+            {
+                "request": request,
+                "admin": admin,
+                "error": err,
+                "success": None,
+                "form_full_name": full_name,
+                "form_username": username,
+                "form_email": email,
+            },
         )
     # Only check for conflict when admin is changing username or email; allow keeping current
     if username != admin.username or email != admin.email:
@@ -837,6 +861,9 @@ def update_admin_profile_submit(
                     "admin": admin,
                     "error": "Username or email is already in use by another account.",
                     "success": None,
+                    "form_full_name": full_name,
+                    "form_username": username,
+                    "form_email": email,
                 },
             )
 
@@ -850,6 +877,9 @@ def update_admin_profile_submit(
                     "admin": admin,
                     "error": "Passwords do not match!",
                     "success": None,
+                    "form_full_name": full_name,
+                    "form_username": username,
+                    "form_email": email,
                 },
             )
         ok, err = validate_password(new_password)
@@ -861,6 +891,9 @@ def update_admin_profile_submit(
                     "admin": admin,
                     "error": err,
                     "success": None,
+                    "form_full_name": full_name,
+                    "form_username": username,
+                    "form_email": email,
                 },
             )
 
@@ -878,6 +911,9 @@ def update_admin_profile_submit(
                 "admin": admin,
                 "error": None,
                 "success": "No changes made. Your profile is already up to date.",
+                "form_full_name": None,
+                "form_username": None,
+                "form_email": None,
             },
         )
 
@@ -899,6 +935,9 @@ def update_admin_profile_submit(
             "admin": admin,
             "error": None,
             "success": "Profile updated successfully!",
+            "form_full_name": None,
+            "form_username": None,
+            "form_email": None,
         },
     )
 

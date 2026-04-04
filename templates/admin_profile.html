@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gesture Lab Admin Dashboard</title>
+    <link rel="stylesheet" href="/static/css/auth_error_pop.css">
     <link rel="stylesheet" href="/static/css/admin_profile.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/logout_modal.css">
@@ -53,11 +54,35 @@
                 <h2 class="form-title">Personal Information</h2>
                 <p class="form-subtitle">Update your personal details</p>
 
-                {% if error %}
-                <div class="admin-alert admin-alert-error">
-                    {{ error }}
+                {% set admin_email_error = error and (
+                    error.startswith('Email')
+                    or 'must contain @' in error
+                    or 'already in use' in error
+                ) %}
+                {% set admin_username_error = error and (
+                    error.startswith('Username')
+                    or 'already in use' in error
+                ) %}
+                {% set admin_pw_error = error and (
+                    'Passwords do not match' in error
+                    or (error.startswith('Password') and 'do not match' not in error|lower)
+                    or '#, @, $' in error
+                ) %}
+
+                <div
+                    id="adminProfileErrorPop"
+                    class="auth-error-pop admin-profile-error-pop{% if error %} auth-error-pop--visible{% endif %}"
+                    role="alert"
+                    aria-live="polite"
+                    aria-hidden="{% if error %}false{% else %}true{% endif %}"
+                >
+                    <span class="auth-error-pop__badge" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 8v5m0 4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <p class="auth-error-pop__msg" id="adminProfileErrorText">{% if error %}{{ error }}{% endif %}</p>
                 </div>
-                {% endif %}
 
                 {% if success and success != 'No changes made. Your profile is already up to date.' %}
                 <div class="admin-alert admin-alert-success">
@@ -65,7 +90,7 @@
                 </div>
                 {% endif %}
 
-                <form method="post" action="/update_admin_profile" id="adminProfileForm">
+                <form method="post" action="/update_admin_profile" id="adminProfileForm" novalidate>
                     <div class="profile-layout">
                         <div class="image-section">
                             <div class="profile-image-wrapper">
@@ -75,29 +100,70 @@
 
                         <div class="form-section">
                             <div class="input-group">
-                                <label>Full Name</label>
-                                <input type="text" name="full_name" id="full_name" value="{{ admin.full_name if admin else 'Rose Khatiwada' }}" required>
+                                <label for="admin_full_name">Full Name</label>
+                                <input
+                                    type="text"
+                                    name="full_name"
+                                    id="admin_full_name"
+                                    value="{% if form_full_name is not none %}{{ form_full_name }}{% elif admin %}{{ admin.full_name }}{% else %}Rose Khatiwada{% endif %}"
+                                    required
+                                    autocomplete="name"
+                                >
                             </div>
 
                             <div class="input-group">
-                                <label>User Name</label>
-                                <input type="text" name="username" id="username" value="{{ admin.username if admin else 'Rose' }}" required>
+                                <label for="admin_profile_username">User Name</label>
+                                <input
+                                    type="text"
+                                    name="username"
+                                    id="admin_profile_username"
+                                    value="{% if form_username is not none %}{{ form_username }}{% elif admin %}{{ admin.username }}{% else %}Rose{% endif %}"
+                                    required
+                                    class="{% if admin_username_error %}auth-input--error{% endif %}"
+                                    {% if admin_username_error %}aria-invalid="true" aria-describedby="adminProfileErrorText"{% endif %}
+                                    autocomplete="username"
+                                >
                             </div>
 
                             <div class="input-group">
-                                <label>Email</label>
-                                <input type="email" name="email" id="email" value="{{ admin.email if admin else 'rkc123@gmail.com' }}" required>
+                                <label for="admin_profile_email">Email</label>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    id="admin_profile_email"
+                                    value="{% if form_email is not none %}{{ form_email }}{% elif admin %}{{ admin.email }}{% else %}rkc123@gmail.com{% endif %}"
+                                    required
+                                    class="{% if admin_email_error %}auth-input--error{% endif %}"
+                                    {% if admin_email_error %}aria-invalid="true" aria-describedby="adminProfileErrorText"{% endif %}
+                                    autocomplete="email"
+                                >
                             </div>
 
                             <div class="input-group">
-                                <label>New Password</label>
-                                <input type="password" name="new_password" id="new_password" placeholder="Leave empty to keep current password">
-                                <small style="display: block; margin-top: 5px; color: #666;">Leave empty to keep current password</small>
+                                <label for="admin_new_password">New Password</label>
+                                <input
+                                    type="password"
+                                    name="new_password"
+                                    id="admin_new_password"
+                                    placeholder="Leave empty to keep current password"
+                                    class="{% if admin_pw_error %}auth-input--error{% endif %}"
+                                    {% if admin_pw_error %}aria-invalid="true" aria-describedby="adminProfileErrorText"{% endif %}
+                                    autocomplete="new-password"
+                                >
+                                <small class="admin-profile-password-hint">Leave empty to keep current password. If set, include at least one of #, @, or $.</small>
                             </div>
 
                             <div class="input-group">
-                                <label>Confirm Password</label>
-                                <input type="password" name="confirm_password" id="confirm_password" placeholder="Leave empty to keep current password">
+                                <label for="admin_confirm_password">Confirm Password</label>
+                                <input
+                                    type="password"
+                                    name="confirm_password"
+                                    id="admin_confirm_password"
+                                    placeholder="Leave empty to keep current password"
+                                    class="{% if admin_pw_error %}auth-input--error{% endif %}"
+                                    {% if admin_pw_error %}aria-invalid="true" aria-describedby="adminProfileErrorText"{% endif %}
+                                    autocomplete="new-password"
+                                >
                             </div>
                         </div>
                     </div>
@@ -106,6 +172,132 @@
                         <button type="submit" class="btn-save">SAVE CHANGES</button>
                     </div>
                 </form>
+
+                <script>
+                (function () {
+                    var USERNAME_MAX = 25;
+                    var POPUP_MS = 5500;
+                    var form = document.getElementById('adminProfileForm');
+                    var pop = document.getElementById('adminProfileErrorPop');
+                    var textEl = document.getElementById('adminProfileErrorText');
+                    var nameEl = document.getElementById('admin_full_name');
+                    var userEl = document.getElementById('admin_profile_username');
+                    var emailEl = document.getElementById('admin_profile_email');
+                    var pwEl = document.getElementById('admin_new_password');
+                    var c2El = document.getElementById('admin_confirm_password');
+                    var errTimer = null;
+
+                    function scheduleErrHide() {
+                        if (errTimer) clearTimeout(errTimer);
+                        errTimer = setTimeout(function () {
+                            errTimer = null;
+                            hidePop();
+                        }, POPUP_MS);
+                    }
+
+                    function showPop(message) {
+                        if (!pop || !textEl) return;
+                        textEl.textContent = message;
+                        pop.classList.remove('auth-error-pop--visible');
+                        void pop.offsetWidth;
+                        pop.classList.add('auth-error-pop--visible');
+                        pop.setAttribute('aria-hidden', 'false');
+                        scheduleErrHide();
+                    }
+
+                    function mark(el) {
+                        if (!el) return;
+                        el.classList.add('auth-input--error');
+                        el.setAttribute('aria-invalid', 'true');
+                        el.setAttribute('aria-describedby', 'adminProfileErrorText');
+                    }
+
+                    function clearMark(el) {
+                        if (!el) return;
+                        el.classList.remove('auth-input--error');
+                        el.removeAttribute('aria-invalid');
+                        el.removeAttribute('aria-describedby');
+                    }
+
+                    function hidePop() {
+                        if (errTimer) {
+                            clearTimeout(errTimer);
+                            errTimer = null;
+                        }
+                        if (!pop || !textEl) return;
+                        pop.classList.remove('auth-error-pop--visible');
+                        textEl.textContent = '';
+                        pop.setAttribute('aria-hidden', 'true');
+                        [nameEl, userEl, emailEl, pwEl, c2El].forEach(clearMark);
+                    }
+
+                    function passwordHasSpecial(pw) {
+                        return /[#@$]/.test(pw || '');
+                    }
+
+                    if (pop && textEl && pop.classList.contains('auth-error-pop--visible') && (textEl.textContent || '').trim()) {
+                        scheduleErrHide();
+                    }
+
+                    if (!form) return;
+
+                    form.addEventListener('input', hidePop);
+
+                    form.addEventListener('submit', function (e) {
+                        var fn = (nameEl && nameEl.value) ? nameEl.value.trim() : '';
+                        var un = (userEl && userEl.value) ? userEl.value.trim() : '';
+                        var em = (emailEl && emailEl.value) ? emailEl.value.trim() : '';
+                        var pw = (pwEl && pwEl.value) ? pwEl.value : '';
+                        var c2 = (c2El && c2El.value) ? c2El.value : '';
+
+                        if (!fn) {
+                            e.preventDefault();
+                            mark(nameEl);
+                            showPop('Full name is required.');
+                            return;
+                        }
+                        if (!un) {
+                            e.preventDefault();
+                            mark(userEl);
+                            showPop('Username is required.');
+                            return;
+                        }
+                        if (un.length > USERNAME_MAX) {
+                            e.preventDefault();
+                            mark(userEl);
+                            showPop('Username must be at most ' + USERNAME_MAX + ' characters.');
+                            return;
+                        }
+                        if (!em) {
+                            e.preventDefault();
+                            mark(emailEl);
+                            showPop('Email is required.');
+                            return;
+                        }
+                        if (em.indexOf('@') === -1) {
+                            e.preventDefault();
+                            mark(emailEl);
+                            showPop('Email must contain @.');
+                            return;
+                        }
+                        if (pw || c2) {
+                            if (pw !== c2) {
+                                e.preventDefault();
+                                mark(pwEl);
+                                mark(c2El);
+                                showPop('Passwords do not match!');
+                                return;
+                            }
+                            if (!passwordHasSpecial(pw)) {
+                                e.preventDefault();
+                                mark(pwEl);
+                                showPop('Password must contain at least one of: #, @, $.');
+                                return;
+                            }
+                        }
+                    });
+                })();
+                </script>
             </section>
 
             <footer class="main-footer">
@@ -139,19 +331,19 @@
         }
         toast.classList.add('is-visible');
         closeBtn.addEventListener('click', hide);
-        setTimeout(hide, 4000);
+        setTimeout(hide, 5500);
     })();
     </script>
     {% endif %}
 
     <script>
-        // Auto-hide admin profile alerts after ~4.5 seconds + hook dark/light toggle
+        // Auto-hide admin profile alerts after ~5.5 seconds + hook dark/light toggle
         document.addEventListener('DOMContentLoaded', function () {
             const alerts = document.querySelectorAll('.admin-alert');
             alerts.forEach(alert => {
                 setTimeout(() => {
                     alert.style.display = 'none';
-                }, 4500);
+                }, 5500);
             });
 
             // Shared dark/light theme toggle using same key as other pages

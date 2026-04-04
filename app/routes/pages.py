@@ -189,6 +189,8 @@ def profile_page(request: Request, db: Session = Depends(get_db)):
             "user": user,
             "error": None,
             "success": None,
+            "form_username": None,
+            "form_email": None,
             "total_quizzes": total_quizzes,
             "total_points": total_points,
             "badges": badges,
@@ -386,13 +388,27 @@ def update_user_profile_submit(
     if not ok:
         return templates.TemplateResponse(
             "profile.html",
-            {"request": request, "user": user, "error": err, "success": None},
+            {
+                "request": request,
+                "user": user,
+                "error": err,
+                "success": None,
+                "form_username": username,
+                "form_email": email,
+            },
         )
     ok, err = validate_email(email)
     if not ok:
         return templates.TemplateResponse(
             "profile.html",
-            {"request": request, "user": user, "error": err, "success": None},
+            {
+                "request": request,
+                "user": user,
+                "error": err,
+                "success": None,
+                "form_username": username,
+                "form_email": email,
+            },
         )
     # Check if new username or email conflicts with another user
     existing_user = (
@@ -408,6 +424,8 @@ def update_user_profile_submit(
                 "user": user,
                 "error": "Username or email is already in use by another account.",
                 "success": None,
+                "form_username": username,
+                "form_email": email,
             },
         )
 
@@ -421,6 +439,8 @@ def update_user_profile_submit(
                     "user": user,
                     "error": "This username or email is reserved.",
                     "success": None,
+                    "form_username": username,
+                    "form_email": email,
                 },
             )
 
@@ -434,6 +454,8 @@ def update_user_profile_submit(
                     "user": user,
                     "error": "Passwords do not match!",
                     "success": None,
+                    "form_username": username,
+                    "form_email": email,
                 },
             )
         ok, err = validate_password(new_password)
@@ -445,6 +467,8 @@ def update_user_profile_submit(
                     "user": user,
                     "error": err,
                     "success": None,
+                    "form_username": username,
+                    "form_email": email,
                 },
             )
 
@@ -457,6 +481,8 @@ def update_user_profile_submit(
                 "user": user,
                 "error": None,
                 "success": "No changes made. Your profile is already up to date.",
+                "form_username": None,
+                "form_email": None,
             },
         )
 
@@ -477,6 +503,8 @@ def update_user_profile_submit(
             "user": user,
             "error": None,
             "success": "Profile updated successfully!",
+            "form_username": None,
+            "form_email": None,
         },
     )
 

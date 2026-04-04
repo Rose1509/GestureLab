@@ -441,3 +441,37 @@ body.dark-theme .main-footer {
     padding-bottom: 20px;
 }
 
+/* Auth-style validation pop (auth_error_pop.css) */
+.admin-profile-error-pop {
+    margin-bottom: 20px;
+}
+
+.admin-profile-password-hint {
+    display: block;
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+body.dark-theme .admin-profile-password-hint {
+    color: #94a3b8;
+}
+
+body.dark-theme .admin-profile-error-pop.auth-error-pop {
+    background: rgba(15, 23, 42, 0.96);
+    border-color: rgba(248, 113, 113, 0.38);
+    box-shadow:
+        0 6px 22px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+body.dark-theme .admin-profile-error-pop .auth-error-pop__msg {
+    color: #fecaca;
+}
+
+body.dark-theme .admin-profile-error-pop .auth-error-pop__badge {
+    background: linear-gradient(145deg, rgba(127, 29, 29, 0.55), rgba(185, 28, 28, 0.45));
+    color: #fecaca;
+}
+
