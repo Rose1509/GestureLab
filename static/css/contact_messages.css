@@ -71,11 +71,12 @@ body.dark-theme .cm-toolbar-label {
     backdrop-filter: blur(8px);
 }
 
-/* Solid white body (matches add_lessons table on glass) */
+/* Solid white body (matches add_lessons table on glass); padding so row “pop” shadows aren’t clipped */
 .cm-table-scroll {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     background: #fff;
+    padding: 8px 4px 16px;
 }
 
 body.dark-theme .cm-table-scroll {
@@ -160,11 +161,78 @@ body.dark-theme .cm-table tbody td.cm-empty-cell {
     background: rgba(15, 23, 42, 0.35);
 }
 
-/* Detail row: no row-scale hover (main rows use add_lessons .lessons-table tbody tr:hover) */
-.cm-table-wrap .lessons-table tbody tr.cm-row-detail:hover {
-    transform: none;
-    box-shadow: none;
-    background-color: transparent;
+/* Main inbox rows — pop-up hover (td backgrounds must be set; tr carries lift + shadow) */
+.cm-table tbody tr.cm-row-main {
+    position: relative;
+    transition:
+        transform 0.3s cubic-bezier(0.34, 1.35, 0.64, 1),
+        filter 0.3s ease;
+}
+
+.cm-table tbody tr.cm-row-main td {
+    transition: background-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.cm-table tbody tr.cm-row-main:hover {
+    transform: translateY(-4px) scale(1.003);
+    filter: drop-shadow(0 14px 28px rgba(30, 58, 138, 0.14)) drop-shadow(0 6px 14px rgba(0, 123, 255, 0.12));
+    z-index: 2;
+}
+
+.cm-table tbody tr.cm-row-main:hover td {
+    background-color: #eff6ff;
+}
+
+.cm-table tbody tr.cm-row-main:hover td:first-child {
+    box-shadow: inset 3px 0 0 0 var(--accent-blue, #007bff);
+}
+
+body.dark-theme .cm-table tbody tr.cm-row-main:hover {
+    filter: drop-shadow(0 14px 32px rgba(0, 0, 0, 0.45)) drop-shadow(0 6px 16px rgba(59, 130, 246, 0.25));
+}
+
+body.dark-theme .cm-table tbody tr.cm-row-main:hover td {
+    background-color: rgba(30, 58, 138, 0.32);
+}
+
+body.dark-theme .cm-table tbody tr.cm-row-main:hover td:first-child {
+    box-shadow: inset 3px 0 0 0 #60a5fa;
+}
+
+.cm-table tbody tr:has(td.cm-empty-cell) {
+    transition:
+        transform 0.3s cubic-bezier(0.34, 1.35, 0.64, 1),
+        filter 0.3s ease;
+}
+
+.cm-table tbody tr:hover td.cm-empty-cell {
+    background-color: rgba(0, 123, 255, 0.06);
+}
+
+.cm-table tbody tr:has(td.cm-empty-cell):hover {
+    transform: translateY(-3px);
+    filter: drop-shadow(0 10px 22px rgba(30, 58, 138, 0.1));
+}
+
+body.dark-theme .cm-table tbody tr:hover td.cm-empty-cell {
+    background-color: rgba(30, 58, 138, 0.2);
+}
+
+body.dark-theme .cm-table tbody tr:has(td.cm-empty-cell):hover {
+    filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.35));
+}
+
+/* Detail row: keep panel look; no strong list-row hover */
+.cm-table tbody tr.cm-row-detail {
+    transition: background-color 0.2s ease;
+}
+
+.cm-table tbody tr.cm-row-detail:hover td {
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+body.dark-theme .cm-table tbody tr.cm-row-detail:hover td {
+    background: rgba(15, 23, 42, 0.65);
 }
 
 .cm-col-date { min-width: 118px; }

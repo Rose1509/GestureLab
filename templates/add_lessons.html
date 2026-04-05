@@ -54,55 +54,71 @@
             <div class="form-alert error" id="pageError" role="alert" style="display: none;"></div>
             {% endif %}
 
-            <section class="table-container">
-                <table class="lessons-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Level</th>
-                            <th>Name</th>
-                            <th>Image</th>
-                            <th>Heading</th>
-                            <th>Description</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if lessons %}
-                            {% for lesson in lessons %}
+            <section class="user-management">
+                <div class="user-management-header">
+                    <h3>All lessons</h3>
+                </div>
+                <div class="table-container user-table-wrap">
+                    <table class="user-mgmt-table lessons-mgmt-table">
+                        <colgroup>
+                            <col class="lesson-col-id">
+                            <col class="lesson-col-level">
+                            <col class="lesson-col-name">
+                            <col class="lesson-col-image">
+                            <col class="lesson-col-heading">
+                            <col class="lesson-col-desc">
+                            <col class="lesson-col-actions">
+                        </colgroup>
+                        <thead>
                             <tr>
-                                <td>{{ lesson.id }}</td>
-                                <td>{{ lesson.sign_level }}</td>
-                                <td>{{ lesson.name }}</td>
-                                <td><img src="{{ lesson.image }}" alt="{{ lesson.name }}" class="sign-img" style="max-width: 100px; max-height: 100px;"></td>
-                                <td>{{ lesson.heading }}</td>
-                                <td class="description-cell">{{ lesson.description[:100] }}{% if lesson.description|length > 100 %}...{% endif %}</td>
-                                <td class="action-cell">
-                                    <button class="edit-btn" 
-                                            data-id="{{ lesson.id }}"
-                                            data-level="{{ lesson.sign_level }}"
-                                            data-name="{{ lesson.name }}"
-                                            data-image="{{ lesson.image }}"
-                                            data-heading="{{ lesson.heading }}"
-                                            data-description="{{ lesson.description|replace('\r\n', '\n')|replace('\n', ' ')|e }}">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <form method="post" action="/delete_lesson" class="js-delete-form" data-delete-message="Are you sure you want to delete this lesson?" style="display: inline;">
-                                        <input type="hidden" name="lesson_id" value="{{ lesson.id }}">
-                                        <button type="submit" class="delete-btn">
-                                            <i class="fas fa-trash delete-icon"></i>
-                                        </button>
-                                    </form>
-                                </td>
+                                <th scope="col">ID</th>
+                                <th scope="col">Level</th>
+                                <th scope="col">Name</th>
+                                <th scope="col">Image</th>
+                                <th scope="col">Heading</th>
+                                <th scope="col">Description</th>
+                                <th scope="col" class="user-th-actions">Actions</th>
                             </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="7" style="text-align: center;">No lessons found. Add your first lesson below!</td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {% if lessons %}
+                                {% for lesson in lessons %}
+                                <tr>
+                                    <td>{{ lesson.id }}</td>
+                                    <td>{{ lesson.sign_level }}</td>
+                                    <td>{{ lesson.name }}</td>
+                                    <td class="lesson-td-thumb"><img src="{{ lesson.image }}" alt="" class="sign-img lesson-thumb"></td>
+                                    <td>{{ lesson.heading }}</td>
+                                    <td class="description-cell">{{ lesson.description[:100] }}{% if lesson.description|length > 100 %}...{% endif %}</td>
+                                    <td class="user-td-actions">
+                                        <div class="user-actions-cell">
+                                            <button type="button" class="btn-update edit-btn"
+                                                    data-id="{{ lesson.id }}"
+                                                    data-level="{{ lesson.sign_level }}"
+                                                    data-name="{{ lesson.name }}"
+                                                    data-image="{{ lesson.image }}"
+                                                    data-heading="{{ lesson.heading }}"
+                                                    data-description="{{ lesson.description|replace('\r\n', '\n')|replace('\n', ' ')|e }}">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </button>
+                                            <form method="post" action="/delete_lesson" class="js-delete-form user-action-delete-form" data-delete-message="Are you sure you want to delete this lesson?">
+                                                <input type="hidden" name="lesson_id" value="{{ lesson.id }}">
+                                                <button type="submit" class="btn-update btn-delete-inline delete-btn" aria-label="Delete lesson">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="mgmt-empty-row">No lessons found. Add your first lesson below!</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
             </section>
 
             <section class="add-section-card">

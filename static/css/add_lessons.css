@@ -206,7 +206,7 @@ body::-webkit-scrollbar-thumb:active {
 .user-profile-icon { font-size: 2.8rem; color: var(--sidebar-bg); display: block; transition: transform 0.2s ease; }
 .user-profile-link:hover .user-profile-icon { transform: translateY(-2px); }
 
-/* Table Styling */
+/* Table Styling (contact messages & other admin tables using .table-container.lessons-table) */
 .table-container {
     background: var(--glass-bg);
     backdrop-filter: blur(12px);
@@ -244,15 +244,235 @@ body::-webkit-scrollbar-thumb:active {
     border-bottom: 1px solid #eee;
 }
 
-/* Row hover effect – same feel as add_quizzes/dashboard */
-.lessons-table tbody tr {
-    transition: all 0.3s ease;
+/* Row hover — legacy .lessons-table only (contact inbox uses .cm-table; styled in contact_messages.css) */
+.lessons-table:not(.cm-table) tbody tr:not(.cm-row-detail) {
+    position: relative;
+    transition:
+        transform 0.3s cubic-bezier(0.34, 1.35, 0.64, 1),
+        background-color 0.22s ease,
+        filter 0.3s ease;
 }
 
-.lessons-table tbody tr:hover {
-    background-color: rgba(0, 123, 255, 0.05);
-    transform: scale(1.01);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+.lessons-table:not(.cm-table) tbody tr:not(.cm-row-detail):hover {
+    transform: translateY(-3px);
+    background-color: rgba(0, 123, 255, 0.07);
+    filter: drop-shadow(0 10px 20px rgba(30, 58, 138, 0.12)) drop-shadow(0 4px 10px rgba(0, 123, 255, 0.1));
+    z-index: 2;
+}
+
+/* ----- Lessons & Quizzes list: match dashboard User Management ----- */
+.user-management {
+    margin-bottom: 40px;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.user-management .user-management-header {
+    margin-bottom: 16px;
+}
+
+.user-management .table-container {
+    padding: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    max-height: none;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 24px;
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px var(--glass-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* Scrollport: table fills width of card; no forced min-width overflow */
+.user-management .user-table-wrap {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: min(68vh, 560px);
+    -webkit-overflow-scrolling: touch;
+    padding: 6px 0 14px;
+}
+
+/* Fill the glass card (dashboard .user-mgmt-table has min-width:780px — override here) */
+.user-management .user-mgmt-table.lessons-mgmt-table,
+.user-management .user-mgmt-table.quizzes-mgmt-table {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+}
+
+/* Action column can shrink so row stays inside card */
+.user-management .user-mgmt-table td.user-td-actions {
+    min-width: 0;
+}
+
+.user-management .user-mgmt-table .user-actions-cell {
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* Rounded table shape (original .lessons-table look): pill header + soft bottom corners */
+.lessons-mgmt-table thead th:first-child,
+.quizzes-mgmt-table thead th:first-child {
+    border-radius: 20px 0 0 20px;
+}
+
+.lessons-mgmt-table thead th:last-child,
+.quizzes-mgmt-table thead th:last-child {
+    border-radius: 0 20px 20px 0;
+}
+
+.lessons-mgmt-table tbody tr:last-child td:first-child,
+.quizzes-mgmt-table tbody tr:last-child td:first-child {
+    border-radius: 0 0 0 18px;
+}
+
+.lessons-mgmt-table tbody tr:last-child td:last-child,
+.quizzes-mgmt-table tbody tr:last-child td:last-child {
+    border-radius: 0 0 18px 0;
+}
+
+.lessons-mgmt-table tbody tr:last-child td.mgmt-empty-row:only-child,
+.quizzes-mgmt-table tbody tr:last-child td.mgmt-empty-row:only-child {
+    border-radius: 0 0 18px 18px;
+}
+
+.lessons-mgmt-table col.lesson-col-id { width: 5%; }
+.lessons-mgmt-table col.lesson-col-level { width: 10%; }
+.lessons-mgmt-table col.lesson-col-name { width: 12%; }
+.lessons-mgmt-table col.lesson-col-image { width: 11%; }
+.lessons-mgmt-table col.lesson-col-heading { width: 14%; }
+.lessons-mgmt-table col.lesson-col-desc { width: 30%; }
+.lessons-mgmt-table col.lesson-col-actions { width: 18%; }
+
+.quizzes-mgmt-table col.quiz-col-id { width: 6%; }
+.quizzes-mgmt-table col.quiz-col-level { width: 11%; }
+.quizzes-mgmt-table col.quiz-col-question { width: 34%; }
+.quizzes-mgmt-table col.quiz-col-image { width: 14%; }
+.quizzes-mgmt-table col.quiz-col-correct { width: 9%; }
+.quizzes-mgmt-table col.quiz-col-actions { width: 26%; }
+
+/* dashboard .user-mgmt-table targets cols 1–2 for user email/name — reset for these data tables */
+.lessons-mgmt-table td:nth-child(1),
+.lessons-mgmt-table td:nth-child(2),
+.lessons-mgmt-table td:nth-child(3),
+.lessons-mgmt-table td:nth-child(4),
+.lessons-mgmt-table td:nth-child(5),
+.lessons-mgmt-table td:nth-child(6),
+.quizzes-mgmt-table td:nth-child(1),
+.quizzes-mgmt-table td:nth-child(2),
+.quizzes-mgmt-table td:nth-child(3),
+.quizzes-mgmt-table td:nth-child(4),
+.quizzes-mgmt-table td:nth-child(5) {
+    overflow: hidden;
+    max-width: 0;
+}
+
+.lessons-mgmt-table td:nth-child(1),
+.lessons-mgmt-table td:nth-child(2),
+.lessons-mgmt-table td:nth-child(3),
+.lessons-mgmt-table td:nth-child(5),
+.quizzes-mgmt-table td:nth-child(1),
+.quizzes-mgmt-table td:nth-child(2),
+.quizzes-mgmt-table td:nth-child(5) {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.lessons-mgmt-table td.lesson-td-thumb,
+.quizzes-mgmt-table td.lesson-td-thumb {
+    overflow: visible;
+    max-width: none;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.lessons-mgmt-table .description-cell,
+.quizzes-mgmt-table .description-cell {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 0.88rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.quizzes-mgmt-table .quiz-question-preview {
+    white-space: nowrap;
+}
+
+.lesson-thumb {
+    width: 56px;
+    height: 56px;
+    max-width: 56px;
+    max-height: 56px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid rgba(30, 49, 77, 0.12);
+    vertical-align: middle;
+}
+
+.mgmt-dash {
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.mgmt-empty-row {
+    text-align: center;
+    padding: 28px 18px !important;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.user-management .user-actions-cell .btn-update.edit-btn::after,
+.user-management .user-actions-cell .btn-delete-inline::after {
+    display: none;
+}
+
+.user-management .user-actions-cell .btn-update.edit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    padding: 9px 14px !important;
+    border-radius: 14px !important;
+}
+
+/* Data rows: pop-up hover (tint + lift + shadow + left accent); empty-state excluded */
+.user-management .user-mgmt-table tbody tr {
+    position: relative;
+    transition:
+        transform 0.3s cubic-bezier(0.34, 1.35, 0.64, 1),
+        background-color 0.22s ease,
+        filter 0.3s ease;
+}
+
+.user-management .user-mgmt-table tbody tr:hover:not(:has(td.mgmt-empty-row)) {
+    transform: translateY(-4px) scale(1.003);
+    background-color: rgba(0, 123, 255, 0.085);
+    filter: drop-shadow(0 14px 28px rgba(30, 58, 138, 0.14)) drop-shadow(0 6px 14px rgba(0, 123, 255, 0.12));
+    z-index: 2;
+}
+
+.user-management .user-mgmt-table tbody tr:hover:not(:has(td.mgmt-empty-row)) td:first-child {
+    box-shadow: inset 3px 0 0 0 rgba(0, 123, 255, 0.55);
+}
+
+body.dark-theme .user-management .user-mgmt-table tbody tr:hover:not(:has(td.mgmt-empty-row)) {
+    background-color: rgba(37, 99, 235, 0.24);
+    filter: drop-shadow(0 14px 32px rgba(0, 0, 0, 0.45)) drop-shadow(0 6px 16px rgba(59, 130, 246, 0.25));
+}
+
+body.dark-theme .user-management .user-mgmt-table tbody tr:hover:not(:has(td.mgmt-empty-row)) td:first-child {
+    box-shadow: inset 3px 0 0 0 rgba(96, 165, 250, 0.65);
 }
 
 .sign-img { width: 50px; height: auto; }
@@ -264,43 +484,21 @@ body::-webkit-scrollbar-thumb:active {
     font-weight: 400;
 }
 
-.delete-icon { color: var(--sidebar-bg); cursor: pointer; font-size: 1.2rem; }
-
-/* Table action buttons - keep side by side */
-.action-cell {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: nowrap;
+body.dark-theme .lessons-mgmt-table .description-cell,
+body.dark-theme .quizzes-mgmt-table .description-cell {
+    color: #94a3b8;
 }
 
-.action-cell form {
-    display: inline-flex;
-    margin: 0;
+body.dark-theme .lesson-thumb {
+    border-color: rgba(148, 163, 184, 0.35);
 }
 
-.edit-btn,
-.delete-btn {
-    background: var(--sidebar-bg);
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 1rem;
-    margin: 0;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
+body.dark-theme .mgmt-empty-row {
+    color: #94a3b8;
 }
 
-.edit-btn:hover,
-.delete-btn:hover {
-    opacity: 0.9;
-    transform: scale(1.05);
-}
-
-.delete-btn {
-    background: #dc3545;
+body.dark-theme .mgmt-dash {
+    color: #64748b;
 }
 
 /* Add Section Form */
