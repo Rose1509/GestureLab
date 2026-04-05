@@ -55,8 +55,9 @@ def create_notification_for_user(
     message: str,
     notification_type: str,
     related_id: Optional[int] = None,
+    is_admin_created: bool = False,
 ):
-    """Create a notification for a single user (e.g. quiz completed, points earned, badge unlocked). Only for non-admin users for system messages."""
+    """Create a notification for a single user (e.g. quiz completed, contact reply from admin)."""
     try:
         notification = Notification(
             user_id=user_id,
@@ -65,7 +66,7 @@ def create_notification_for_user(
             notification_type=notification_type,
             related_id=related_id,
             is_read=False,
-            is_admin_created=False,
+            is_admin_created=is_admin_created,
             admin_batch_id=None,
         )
         db.add(notification)

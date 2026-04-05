@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from ..certificate import generate_certificate_pdf
+from ..certificates import generate_certificate_pdf
 from ..models import Notification, QuizResult, User
 from ..services.certificates import (
     CERTIFICATE_LEVELS,

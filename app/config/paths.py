@@ -1,12 +1,11 @@
 """Central config: project paths and directory names."""
 
-import os
+from pathlib import Path
 
-# Project root (parent of app/)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# app/config/paths.py → parents[0]=config dir, [1]=app, [2]=repo root (must not use [1] as root)
+_REPO = Path(__file__).resolve()
+BASE_DIR = str(_REPO.parents[2])
 
-# Static assets and templates
-STATIC_DIR = os.path.join(BASE_DIR, "static")
-IMAGES_DIR = os.path.join(STATIC_DIR, "images")
-TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
-
+STATIC_DIR = str(_REPO.parents[2] / "static")
+IMAGES_DIR = str(_REPO.parents[2] / "static" / "images")
+TEMPLATES_DIR = str(_REPO.parents[2] / "templates")

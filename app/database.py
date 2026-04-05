@@ -105,5 +105,16 @@ def ensure_schema() -> None:
                     conn.execute(
                         text("ALTER TABLE notifications ADD COLUMN admin_batch_id VARCHAR(100)")
                     )
+
+            if "contact_submissions" in inspector.get_table_names():
+                cs_cols = {c["name"] for c in inspector.get_columns("contact_submissions")}
+                if "admin_reply" not in cs_cols:
+                    conn.execute(text("ALTER TABLE contact_submissions ADD COLUMN admin_reply TEXT"))
+                if "replied_at" not in cs_cols:
+                    conn.execute(
+                        text(
+                            "ALTER TABLE contact_submissions ADD COLUMN replied_at TIMESTAMP WITH TIME ZONE"
+                        )
+                    )
     except Exception:
         return

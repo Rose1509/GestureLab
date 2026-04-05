@@ -62,6 +62,28 @@ body {
     margin: 0;
 }
 
+/* Server-side AI status (missing model files or TensorFlow) */
+.practice-ai-banner {
+    max-width: 1440px;
+    margin: 0 auto 20px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    color: #78350f;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    max-height: 14rem;
+    overflow-y: auto;
+}
+
+body.dark-theme .practice-ai-banner {
+    background: rgba(120, 53, 15, 0.4);
+    border-color: #d97706;
+    color: #fde68a;
+}
+
 /* LAYOUT GRID – camera a bit narrower, sidebar (image + instructions) */
 .practice-layout-grid {
     display: grid;
@@ -416,6 +438,189 @@ body.dark-theme .asl-image-box {
     font-weight: 800;
     color: var(--navy);
     letter-spacing: 0.05em;
+}
+
+/* Camera permission (before browser prompt) */
+.camera-permission-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2500;
+    padding: 20px;
+}
+
+.camera-permission-modal {
+    background: #ffffff;
+    border-radius: 24px;
+    padding: 28px 28px 24px;
+    max-width: 440px;
+    width: 100%;
+    box-shadow:
+        0 24px 60px rgba(15, 23, 42, 0.35),
+        0 0 0 1px rgba(255, 255, 255, 0.08);
+    text-align: left;
+}
+
+.camera-permission-icon-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.camera-permission-svg {
+    width: 32px;
+    height: 32px;
+}
+
+.camera-permission-modal h2 {
+    margin: 0 0 10px 0;
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--navy);
+    letter-spacing: -0.02em;
+}
+
+.camera-permission-lead {
+    margin: 0 0 14px 0;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--text-muted);
+}
+
+.camera-permission-bullets {
+    margin: 0 0 14px 0;
+    padding-left: 1.2rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+.camera-permission-bullets li {
+    margin-bottom: 6px;
+}
+
+.camera-permission-note {
+    margin: 0 0 20px 0;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: var(--navy);
+    padding: 12px 14px;
+    background: var(--accent-soft);
+    border-radius: 12px;
+    border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.camera-permission-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.camera-permission-cancel {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid rgba(148, 163, 184, 0.5);
+    border-radius: 999px;
+    padding: 10px 18px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.camera-permission-cancel:hover {
+    background: rgba(148, 163, 184, 0.12);
+    border-color: rgba(100, 116, 139, 0.6);
+    color: var(--navy);
+}
+
+.camera-permission-allow {
+    background: linear-gradient(135deg, var(--accent) 0%, #2563eb 100%);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 22px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+    transition: filter 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.camera-permission-allow:hover:not(:disabled) {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(59, 130, 246, 0.45);
+}
+
+.camera-permission-allow:disabled {
+    opacity: 0.75;
+    cursor: wait;
+}
+
+.camera-permission-error {
+    margin: 16px 0 0 0;
+    padding: 12px 14px;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: #991b1b;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+}
+
+body.dark-theme .camera-permission-modal {
+    background: rgba(22, 28, 45, 0.98);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+}
+
+body.dark-theme .camera-permission-modal h2 {
+    color: #f1f5f9;
+}
+
+body.dark-theme .camera-permission-lead,
+body.dark-theme .camera-permission-bullets {
+    color: #94a3b8;
+}
+
+body.dark-theme .camera-permission-note {
+    color: #e2e8f0;
+    background: rgba(30, 58, 138, 0.35);
+    border-color: rgba(96, 165, 250, 0.35);
+}
+
+body.dark-theme .camera-permission-icon-wrap {
+    background: rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+}
+
+body.dark-theme .camera-permission-cancel {
+    color: #94a3b8;
+    border-color: rgba(148, 163, 184, 0.4);
+}
+
+body.dark-theme .camera-permission-cancel:hover {
+    background: rgba(148, 163, 184, 0.12);
+    color: #e2e8f0;
+}
+
+body.dark-theme .camera-permission-error {
+    color: #fecaca;
+    background: rgba(127, 29, 29, 0.45);
+    border-color: rgba(248, 113, 113, 0.4);
 }
 
 /* No-hand-detected modal */

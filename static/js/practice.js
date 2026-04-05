@@ -47,23 +47,31 @@
     let lastLandmarks = null;
     const NO_HAND_TIMEOUT_MS = 1000;
 
-    const TARGET_LETTER = (function () {
+    let TARGET_LETTER = '';
+    let WORD_BUILDER_ENABLED = true;
+
+    function syncPracticePageConfig() {
         try {
             const raw = window.PRACTICE_TARGET_LETTER || '';
-            if (!raw) return '';
-            const s = String(raw).trim();
-            const matches = s.match(/[A-Za-z]/g);
-            const ch = matches && matches.length ? matches[matches.length - 1] : null;
-            return ch ? ch.toUpperCase() : s.toUpperCase();
+            if (!raw) {
+                TARGET_LETTER = '';
+            } else {
+                const s = String(raw).trim();
+                const matches = s.match(/[A-Za-z]/g);
+                const ch = matches && matches.length ? matches[matches.length - 1] : null;
+                TARGET_LETTER = ch ? ch.toUpperCase() : s.toUpperCase();
+            }
         } catch (_) {
-            return '';
+            TARGET_LETTER = '';
         }
-    })();
+        WORD_BUILDER_ENABLED = !TARGET_LETTER;
+    }
+
+    syncPracticePageConfig();
 
     // Word builder mode is ONLY for generic practice (no lesson target selected).
-    const WORD_BUILDER_ENABLED = !TARGET_LETTER;
-    const STABLE_FRAMES = 5;
-    const MIN_LETTER_CONF = 0.80; // accept/display only above 80%
+    const STABLE_FRAMES = 3;
+    const MIN_LETTER_CONF = 0.45; // webcam scores are often <0.8; hiding above 0.8 hid real predictions
 
     let currentWord = '';
     let finalizedWord = '';
@@ -115,7 +123,7 @@
         resetWordBuilderUI();
     }
 
-    const FEEDBACK_THRESHOLD = 0.8;
+    const FEEDBACK_THRESHOLD = 0.55;
 
     function getLessonTips() {
         try {
@@ -274,8 +282,8 @@
         hands.setOptions({
             maxNumHands: 1,
             modelComplexity: 1,
-            minDetectionConfidence: 0.6,
-            minTrackingConfidence: 0.6
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
         });
         hands.onResults(function (results) {
             const lm = results && results.multiHandLandmarks && results.multiHandLandmarks[0];
@@ -293,7 +301,8 @@
                 if (p.x > maxX) maxX = p.x;
                 if (p.y > maxY) maxY = p.y;
             }
-            const pad = 0.12;
+            // Slightly more context around the hand (notebook trains on full letter crops)
+            const pad = 0.2;
             minX = Math.max(0, minX - pad);
             minY = Math.max(0, minY - pad);
             maxX = Math.min(1, maxX + pad);
@@ -470,7 +479,7 @@
                 .finally(function () {
                     predictInFlight = false;
                 });
-        }, 'image/jpeg', 0.85);
+        }, 'image/jpeg', 0.92);
     }
 
     function captureAndPredictOnce() {
@@ -534,7 +543,7 @@
                     .finally(function () {
                         predictInFlight = false;
                     });
-            }, 'image/jpeg', 0.85);
+            }, 'image/jpeg', 0.92);
         });
     }
 
@@ -552,7 +561,7 @@
         }
         setPredictionVisible(true);
         captureAndPredict();
-        predictionIntervalId = setInterval(captureAndPredict, 300);
+        predictionIntervalId = setInterval(captureAndPredict, 350);
         startPredictionLoop._captureAndPredictOnce = captureAndPredictOnce;
     }
 
@@ -564,10 +573,130 @@
         stopHandTrackingLoop();
     }
 
+    function getCameraErrorMessage(err) {
+        const name = err && err.name ? err.name : '';
+        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+            return 'Camera access was blocked. Allow the camera for this site in your browser address bar or site settings, then try again.';
+        }
+        if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+            return 'No camera was found. Connect a webcam and try again.';
+        }
+        if (name === 'NotReadableError' || name === 'TrackStartError') {
+            return 'Your camera may be in use by another app. Close other programs using the camera and try again.';
+        }
+        if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') {
+            return 'Could not start the camera with the required settings. Try another browser or device.';
+        }
+        if (err && err.message && typeof err.message === 'string' && err.message.indexOf('not supported') !== -1) {
+            return err.message;
+        }
+        return 'Could not access the camera. Check permissions and try again.';
+    }
+
+    async function isCameraPermissionGranted() {
+        try {
+            if (!navigator.permissions || typeof navigator.permissions.query !== 'function') {
+                return false;
+            }
+            const st = await navigator.permissions.query({ name: 'camera' });
+            return st && st.state === 'granted';
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function openCameraPermissionModal() {
+        const modal = document.getElementById('camera-permission-modal');
+        const errEl = document.getElementById('camera-permission-error');
+        const allow = document.getElementById('camera-permission-allow');
+        if (!modal) {
+            startCamera().catch(function () {});
+            return;
+        }
+        if (errEl) {
+            errEl.style.display = 'none';
+            errEl.textContent = '';
+        }
+        if (allow) {
+            allow.disabled = false;
+            allow.textContent = 'Allow camera';
+        }
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        setTimeout(function () {
+            if (allow) allow.focus();
+        }, 30);
+    }
+
+    function closeCameraPermissionModal() {
+        const modal = document.getElementById('camera-permission-modal');
+        const allow = document.getElementById('camera-permission-allow');
+        if (modal) modal.style.display = 'none';
+        document.body.style.overflow = '';
+        if (allow) {
+            allow.disabled = false;
+            allow.textContent = 'Allow camera';
+        }
+    }
+
+    async function onAllowCameraFromModal() {
+        const allow = document.getElementById('camera-permission-allow');
+        const errEl = document.getElementById('camera-permission-error');
+        if (allow) {
+            allow.disabled = true;
+            allow.textContent = 'Waiting for browser…';
+        }
+        if (errEl) {
+            errEl.style.display = 'none';
+            errEl.textContent = '';
+        }
+        try {
+            await startCamera();
+            closeCameraPermissionModal();
+        } catch (err) {
+            console.error('Error accessing camera:', err);
+            if (errEl) {
+                errEl.textContent = getCameraErrorMessage(err);
+                errEl.style.display = 'block';
+            }
+            if (allow) {
+                allow.disabled = false;
+                allow.textContent = 'Try again';
+            }
+        }
+    }
+
+    async function onStartPracticeClick() {
+        if (startBtn && startBtn.disabled) return;
+        try {
+            if (await isCameraPermissionGranted()) {
+                try {
+                    await startCamera();
+                } catch (err) {
+                    console.error(err);
+                    openCameraPermissionModal();
+                    const errEl = document.getElementById('camera-permission-error');
+                    const allow = document.getElementById('camera-permission-allow');
+                    if (errEl) {
+                        errEl.textContent = getCameraErrorMessage(err);
+                        errEl.style.display = 'block';
+                    }
+                    if (allow) {
+                        allow.disabled = false;
+                        allow.textContent = 'Try again';
+                    }
+                }
+                return;
+            }
+        } catch (_) {
+            /* fall through to modal */
+        }
+        openCameraPermissionModal();
+    }
+
     async function startCamera() {
         if (!videoEl || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            console.warn('Camera not supported in this browser.');
-            return;
+            throw new Error('Camera is not supported in this browser.');
         }
         try {
             if (currentStream) {
@@ -585,7 +714,9 @@
             if (placeholder) placeholder.style.display = 'none';
             const playPromise = videoEl.play && videoEl.play();
             if (playPromise && typeof playPromise.then === 'function') {
-                playPromise.then(function () { startPractice(); }).catch(function () {});
+                playPromise.then(function () { startPractice(); }).catch(function () {
+                    startPractice();
+                });
             } else {
                 startPractice();
             }
@@ -593,6 +724,7 @@
             console.error('Error accessing camera:', err);
             if (placeholder) placeholder.style.display = 'block';
             setPredictionPlaceholder();
+            throw err;
         }
     }
 
@@ -681,7 +813,30 @@
         }
     }
 
-    function initPracticePage() {
+    async function initPracticePage() {
+        syncPracticePageConfig();
+        try {
+            const r = await fetch('/api/practice-status');
+            const d = await r.json();
+            if (d.ready !== true) {
+                const banner = document.getElementById('practice-ai-banner');
+                if (banner) {
+                    banner.style.display = 'block';
+                    banner.textContent =
+                        d.message ||
+                        'Add sign_language_model_improved.keras and class_labels.pkl to the models folder (see models/README.md), then restart the server.';
+                }
+                const sb = document.getElementById('start-camera-btn');
+                if (sb) {
+                    sb.disabled = true;
+                    sb.setAttribute('aria-disabled', 'true');
+                    sb.style.opacity = '0.65';
+                    sb.style.cursor = 'not-allowed';
+                }
+            }
+        } catch (_) {
+            /* Status check failed; user can still try Start (e.g. offline docs) */
+        }
         // Only show word UI on generic practice page (no lesson selected)
         if (WORD_BUILDER_ENABLED) {
             if (wordWrapEl) wordWrapEl.style.display = 'block';
@@ -693,7 +848,7 @@
             if (retryBtn) retryBtn.textContent = 'Retry';
         }
         if (startBtn) {
-            startBtn.addEventListener('click', startCamera);
+            startBtn.addEventListener('click', onStartPracticeClick);
         }
         if (stopBtn) {
             stopBtn.addEventListener('click', function () {
@@ -711,9 +866,30 @@
                     clearWordBuilder();
                     return;
                 }
-                startCamera();
+                onStartPracticeClick();
             });
         }
+        var permModal = document.getElementById('camera-permission-modal');
+        var permCancel = document.getElementById('camera-permission-cancel');
+        var permAllow = document.getElementById('camera-permission-allow');
+        if (permCancel) {
+            permCancel.addEventListener('click', closeCameraPermissionModal);
+        }
+        if (permAllow) {
+            permAllow.addEventListener('click', onAllowCameraFromModal);
+        }
+        if (permModal) {
+            permModal.addEventListener('click', function (e) {
+                if (e.target === permModal) {
+                    closeCameraPermissionModal();
+                }
+            });
+        }
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Escape') return;
+            if (!permModal || permModal.style.display !== 'flex') return;
+            closeCameraPermissionModal();
+        });
         if (noHandCloseBtn && noHandModal) {
             noHandCloseBtn.addEventListener('click', function () {
                 noHandModal.style.display = 'none';

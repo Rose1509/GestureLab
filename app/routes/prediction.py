@@ -7,6 +7,12 @@ from ..utils.uploads import MAX_IMAGE_SIZE_BYTES
 router = APIRouter()
 
 
+@router.get("/api/practice-status")
+def practice_status():
+    """Tell the practice page if the CNN model is loaded (TensorFlow + files on disk)."""
+    return sign_model.practice_status()
+
+
 @router.post("/api/predict-sign")
 async def predict_sign(frame: UploadFile = File(..., alias="frame"), target: Optional[str] = Form(None)):
     """

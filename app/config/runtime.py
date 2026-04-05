@@ -95,6 +95,7 @@ _session_secret = get_session_secret()
 
 def _render_login(request, error: Optional[str] = None):
     return templates.TemplateResponse(
+        request,
         "login.html",
         {"request": request, "error": error},
     )

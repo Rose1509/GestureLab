@@ -110,6 +110,8 @@ class ContactSubmission(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+    admin_reply = Column(Text, nullable=True)
+    replied_at = Column(DateTime(timezone=True), nullable=True)
 
 
 class QuizResult(Base):

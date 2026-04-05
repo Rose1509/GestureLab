@@ -12,23 +12,24 @@ router = APIRouter()
 
 @router.get("/", response_class=HTMLResponse)
 def landing_page(request: Request):
-    return templates.TemplateResponse("landing_page.html", {"request": request})
+    return templates.TemplateResponse(request, "landing_page.html", {"request": request})
 
 
 @router.get("/home", response_class=HTMLResponse)
 def home_page(request: Request):
-    return templates.TemplateResponse("home.html", {"request": request})
+    return templates.TemplateResponse(request, "home.html", {"request": request})
 
 
 @router.get("/about", response_class=HTMLResponse)
 def about_us(request: Request):
-    return templates.TemplateResponse("about_us.html", {"request": request})
+    return templates.TemplateResponse(request, "about_us.html", {"request": request})
 
 
 @router.get("/contact", response_class=HTMLResponse)
 def contact_us(request: Request):
     contact_success = request.query_params.get("contact_success") == "1"
     return templates.TemplateResponse(
+        request,
         "contact_us.html",
         {
             "request": request,
@@ -63,6 +64,7 @@ def contact_us_submit(
     ok_name, err_name = validate_contact_name(name)
     if not ok_name:
         return templates.TemplateResponse(
+            request,
             "contact_us.html",
             {
                 "request": request,
@@ -76,6 +78,7 @@ def contact_us_submit(
     ok_email, err_email = validate_contact_email(email)
     if not ok_email:
         return templates.TemplateResponse(
+            request,
             "contact_us.html",
             {
                 "request": request,
@@ -89,6 +92,7 @@ def contact_us_submit(
     ok_subject, err_subject = validate_subject_word_count(subject)
     if not ok_subject:
         return templates.TemplateResponse(
+            request,
             "contact_us.html",
             {
                 "request": request,
@@ -102,6 +106,7 @@ def contact_us_submit(
     ok_message, err_message = validate_contact_message(message)
     if not ok_message:
         return templates.TemplateResponse(
+            request,
             "contact_us.html",
             {
                 "request": request,
@@ -129,7 +134,7 @@ def practice_page(request: Request, lesson_id: Optional[int] = None, db: Session
     lesson = None
     if lesson_id is not None:
         lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
-    return templates.TemplateResponse("practice.html", {"request": request, "lesson": lesson})
+    return templates.TemplateResponse(request, "practice.html", {"request": request, "lesson": lesson})
 
 
 @router.get("/profile", response_class=HTMLResponse)
@@ -183,6 +188,7 @@ def profile_page(request: Request, db: Session = Depends(get_db)):
         current_level = "Advanced"
 
     return templates.TemplateResponse(
+        request,
         "profile.html",
         {
             "request": request,
@@ -218,6 +224,7 @@ def public_quizzes_page(request: Request, db: Session = Depends(get_db)):
     advance_count = sum(1 for q in quizzes if q.level == "Advance")
 
     return templates.TemplateResponse(
+        request,
         "quizzes.html",
         {
             "request": request,
@@ -235,7 +242,7 @@ def beginner_quiz(request: Request, db: Session = Depends(get_db)):
     Beginner quiz page showing only quizzes created in the admin with level 'Beginner'.
     """
     quizzes = db.query(Quiz).filter(Quiz.level == "Beginner").all()
-    return templates.TemplateResponse("beginner.html", {"request": request, "quizzes": quizzes})
+    return templates.TemplateResponse(request, "beginner.html", {"request": request, "quizzes": quizzes})
 
 
 @router.get("/intermediate", response_class=HTMLResponse)
@@ -245,6 +252,7 @@ def intermediate_quiz(request: Request, db: Session = Depends(get_db)):
     """
     quizzes = db.query(Quiz).filter(Quiz.level == "Intermediate").all()
     return templates.TemplateResponse(
+        request,
         "intermediate.html", {"request": request, "quizzes": quizzes}
     )
 
@@ -255,7 +263,7 @@ def advance_quiz(request: Request, db: Session = Depends(get_db)):
     Advance quiz page showing only quizzes created in the admin with level 'Advance'.
     """
     quizzes = db.query(Quiz).filter(Quiz.level == "Advance").all()
-    return templates.TemplateResponse("advance.html", {"request": request, "quizzes": quizzes})
+    return templates.TemplateResponse(request, "advance.html", {"request": request, "quizzes": quizzes})
 
 
 @router.get("/lessons", response_class=HTMLResponse)
@@ -270,6 +278,7 @@ def lessons_page(request: Request, q: Optional[str] = None, db: Session = Depend
 
     lessons = lessons_query.all()
     return templates.TemplateResponse(
+        request,
         "lessons.html",
         {
             "request": request,
@@ -284,6 +293,7 @@ def intermediate_lessons_page(request: Request, db: Session = Depends(get_db)):
     # Fetch only Intermediate level lessons
     lessons = db.query(Lesson).filter(Lesson.sign_level == "Intermediate").all()
     return templates.TemplateResponse(
+        request,
         "intermediatee.html", {"request": request, "lessons": lessons}
     )
 
@@ -292,7 +302,7 @@ def intermediate_lessons_page(request: Request, db: Session = Depends(get_db)):
 def advance_lessons_page(request: Request, db: Session = Depends(get_db)):
     # Fetch only Advance level lessons
     lessons = db.query(Lesson).filter(Lesson.sign_level == "Advance").all()
-    return templates.TemplateResponse("advancee.html", {"request": request, "lessons": lessons})
+    return templates.TemplateResponse(request, "advancee.html", {"request": request, "lessons": lessons})
 
 
 @router.get("/quiz_results", response_class=HTMLResponse)
@@ -346,6 +356,7 @@ def quiz_results_page(request: Request, db: Session = Depends(get_db)):
     page_range = sorted(set(page_range))
 
     return templates.TemplateResponse(
+        request,
         "quiz_results.html",
         {
             "request": request,
@@ -387,6 +398,7 @@ def update_user_profile_submit(
     ok, err = validate_username(username)
     if not ok:
         return templates.TemplateResponse(
+            request,
             "profile.html",
             {
                 "request": request,
@@ -400,6 +412,7 @@ def update_user_profile_submit(
     ok, err = validate_email(email)
     if not ok:
         return templates.TemplateResponse(
+            request,
             "profile.html",
             {
                 "request": request,
@@ -418,6 +431,7 @@ def update_user_profile_submit(
     )
     if existing_user:
         return templates.TemplateResponse(
+            request,
             "profile.html",
             {
                 "request": request,
@@ -433,6 +447,7 @@ def update_user_profile_submit(
     if admin:
         if username.lower() == admin.username.lower() or email.lower() == admin.email.lower():
             return templates.TemplateResponse(
+                request,
                 "profile.html",
                 {
                     "request": request,
@@ -448,6 +463,7 @@ def update_user_profile_submit(
     if new_password:
         if new_password != confirm_password:
             return templates.TemplateResponse(
+                request,
                 "profile.html",
                 {
                     "request": request,
@@ -461,6 +477,7 @@ def update_user_profile_submit(
         ok, err = validate_password(new_password)
         if not ok:
             return templates.TemplateResponse(
+                request,
                 "profile.html",
                 {
                     "request": request,
@@ -475,6 +492,7 @@ def update_user_profile_submit(
     # If nothing changed and no new password, show no-changes message
     if user.username == username and user.email == email and not new_password:
         return templates.TemplateResponse(
+            request,
             "profile.html",
             {
                 "request": request,
@@ -497,6 +515,7 @@ def update_user_profile_submit(
     db.commit()
 
     return templates.TemplateResponse(
+        request,
         "profile.html",
         {
             "request": request,

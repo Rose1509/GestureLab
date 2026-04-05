@@ -38,6 +38,7 @@ def login_form(request: Request):
     logout_success = request.query_params.get("logout_success")
     register_success = request.query_params.get("register_success")
     return templates.TemplateResponse(
+        request,
         "login.html",
         {
             "request": request,
@@ -246,6 +247,7 @@ async def auth_google_callback_alias(request: Request):
 @router.get("/forgot-password", response_class=HTMLResponse)
 def forgot_password_form(request: Request):
     return templates.TemplateResponse(
+        request,
         "forgot_password.html",
         {"request": request, "error": None, "success": None, "stage": "request", "email": ""},
     )
@@ -253,7 +255,7 @@ def forgot_password_form(request: Request):
 
 @router.get("/register", response_class=HTMLResponse)
 def register_form(request: Request):
-    return templates.TemplateResponse("register.html", {"request": request, "error": None})
+    return templates.TemplateResponse(request, "register.html", {"request": request, "error": None})
 
 
 @router.get("/logout")
@@ -274,16 +276,17 @@ def register_submit(
 ):
     ok, err = validate_username(username)
     if not ok:
-        return templates.TemplateResponse("register.html", {"request": request, "error": err})
+        return templates.TemplateResponse(request, "register.html", {"request": request, "error": err})
     ok, err = validate_email(email)
     if not ok:
-        return templates.TemplateResponse("register.html", {"request": request, "error": err})
+        return templates.TemplateResponse(request, "register.html", {"request": request, "error": err})
     ok, err = validate_password(password)
     if not ok:
-        return templates.TemplateResponse("register.html", {"request": request, "error": err})
+        return templates.TemplateResponse(request, "register.html", {"request": request, "error": err})
 
     if password != confirm_password:
         return templates.TemplateResponse(
+            request,
             "register.html", {"request": request, "error": "Passwords do not match!"}
         )
 
@@ -291,6 +294,7 @@ def register_submit(
     if admin:
         if username.lower() == admin.username.lower() or email.lower() == admin.email.lower():
             return templates.TemplateResponse(
+                request,
                 "register.html", {"request": request, "error": "This username or email is reserved!"}
             )
 
@@ -299,6 +303,7 @@ def register_submit(
     )
     if existing_user:
         return templates.TemplateResponse(
+            request,
             "register.html", {"request": request, "error": "Username or email already exists!"}
         )
 
@@ -321,6 +326,7 @@ def forgot_password_submit(
 ):
     def _render(stage: str, *, error: Optional[str], success: Optional[str], email_value: str):
         return templates.TemplateResponse(
+            request,
             "forgot_password.html",
             {
                 "request": request,

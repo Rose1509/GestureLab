@@ -152,6 +152,8 @@
             <p>Practice signs with AI-powered real-time feedback</p>
         </div>
 
+        <div id="practice-ai-banner" class="practice-ai-banner" style="display: none;" role="alert" aria-live="polite"></div>
+
         <div class="practice-layout-grid">
             <section class="practice-card camera-view-section">
                 <div class="card-titles">
@@ -161,7 +163,7 @@
                 
                 <div class="video-feed-container">
                     <video id="practice-camera-stream" autoplay playsinline muted style="display: none;"></video>
-                    <canvas id="practice-capture-canvas" style="display: none; position: absolute; left: -9999px;" width="224" height="224"></canvas>
+                    <canvas id="practice-capture-canvas" style="display: none; position: absolute; left: -9999px;" width="256" height="256"></canvas>
                     <div class="camera-overlay-hint" id="camera-overlay-hint" style="display: none;"></div>
                     <div class="camera-placeholder-ui" id="camera-placeholder">
                         <img src="/static/images/camera icon.png" alt="Camera Icon">
@@ -251,7 +253,7 @@
                     </div>
                     {% if lesson %}
                     <ol class="instruction-steps">
-                        {% for step in lesson.description.split('\n') %}
+                        {% for step in (lesson.description or '').split('\n') %}
                         {% if step.strip() %}
                         <li>{{ step.strip() }}</li>
                         {% endif %}
@@ -276,6 +278,31 @@
         <span class="home-theme-icon home-theme-icon-sun">☀</span>
         <span class="home-theme-icon home-theme-icon-moon">🌙</span>
     </button>
+
+    <!-- Camera permission: shown before getUserMedia so users see why access is needed -->
+    <div class="camera-permission-overlay" id="camera-permission-modal" role="dialog" aria-modal="true" aria-labelledby="camera-permission-title" style="display: none;">
+        <div class="camera-permission-modal" tabindex="-1">
+            <div class="camera-permission-icon-wrap" aria-hidden="true">
+                <svg class="camera-permission-svg" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="8" y="18" width="48" height="34" rx="6" stroke="currentColor" stroke-width="2.5"/>
+                    <circle cx="32" cy="35" r="10" stroke="currentColor" stroke-width="2.5"/>
+                    <path d="M24 14h16v6H24v-6z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <h2 id="camera-permission-title">Enable your camera</h2>
+            <p class="camera-permission-lead">Gesture Lab uses your webcam to detect hand signs in real time. Video is processed for recognition and is not stored on our servers.</p>
+            <ul class="camera-permission-bullets">
+                <li>Allow when your browser asks — usually next to the address bar.</li>
+                <li>Use good lighting and keep your hand in frame.</li>
+            </ul>
+            <p class="camera-permission-note"><strong>Next step:</strong> your browser will show its own permission prompt.</p>
+            <div class="camera-permission-actions">
+                <button type="button" class="camera-permission-cancel" id="camera-permission-cancel">Not now</button>
+                <button type="button" class="camera-permission-allow" id="camera-permission-allow">Allow camera</button>
+            </div>
+            <p class="camera-permission-error" id="camera-permission-error" role="alert" style="display: none;"></p>
+        </div>
+    </div>
 
     <!-- Simple popup shown when Mediapipe stops seeing any hand for a short time -->
     <div class="no-hand-modal-overlay" id="no-hand-modal" style="display: none;">
@@ -339,11 +366,19 @@
     <!-- Practice page camera access + real-time sign prediction using /api/predict-sign -->
     <!-- MediaPipe Hands: used only to find the hand region (no ML here) -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script type="application/json" id="practice-page-data">{"targetLetter":{{ (lesson.name if lesson else '')|tojson|safe }},"lessonTips":{{ (lesson.description if lesson and lesson.description else '')|tojson|safe }}}</script>
     <script>
-        // Expose the raw lesson name so practice.js can compute the target letter
-        window.PRACTICE_TARGET_LETTER = `{% if lesson %}{{ lesson.name }}{% else %}{% endif %}`;
-        // Tips for this sign (from lesson description) — shown when score < 80%
-        window.PRACTICE_LESSON_TIPS = {{ (lesson.description if lesson and lesson.description else '') | tojson }};
+        (function () {
+            window.PRACTICE_TARGET_LETTER = '';
+            window.PRACTICE_LESSON_TIPS = '';
+            var el = document.getElementById('practice-page-data');
+            if (!el || !el.textContent) return;
+            try {
+                var d = JSON.parse(el.textContent.trim());
+                if (d.targetLetter != null) window.PRACTICE_TARGET_LETTER = String(d.targetLetter);
+                if (d.lessonTips != null) window.PRACTICE_LESSON_TIPS = d.lessonTips;
+            } catch (ignore) {}
+        })();
     </script>
     <script src="/static/js/practice.js"></script>
 

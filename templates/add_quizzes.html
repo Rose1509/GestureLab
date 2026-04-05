@@ -90,16 +90,16 @@
                                     <button class="edit-btn"
                                             data-id="{{ quiz.id }}"
                                             data-level="{{ quiz.level }}"
-                                            data-question_text="{{ quiz.question_text }}"
-                                            data-question_image="{{ quiz.question_image or '' }}"
-                                            data-option1_text="{{ quiz.option1_text or '' }}"
-                                            data-option2_text="{{ quiz.option2_text or '' }}"
-                                            data-option3_text="{{ quiz.option3_text or '' }}"
-                                            data-option4_text="{{ quiz.option4_text or '' }}"
-                                            data-option1_image="{{ quiz.option1_image or '' }}"
-                                            data-option2_image="{{ quiz.option2_image or '' }}"
-                                            data-option3_image="{{ quiz.option3_image or '' }}"
-                                            data-option4_image="{{ quiz.option4_image or '' }}"
+                                            data-question_text="{{ (quiz.question_text or '')|replace('\r\n', '\n')|replace('\n', ' ')|e }}"
+                                            data-question_image="{{ (quiz.question_image or '')|e }}"
+                                            data-option1_text="{{ (quiz.option1_text or '')|replace('\r\n', '\n')|replace('\n', ' ')|e }}"
+                                            data-option2_text="{{ (quiz.option2_text or '')|replace('\r\n', '\n')|replace('\n', ' ')|e }}"
+                                            data-option3_text="{{ (quiz.option3_text or '')|replace('\r\n', '\n')|replace('\n', ' ')|e }}"
+                                            data-option4_text="{{ (quiz.option4_text or '')|replace('\r\n', '\n')|replace('\n', ' ')|e }}"
+                                            data-option1_image="{{ (quiz.option1_image or '')|e }}"
+                                            data-option2_image="{{ (quiz.option2_image or '')|e }}"
+                                            data-option3_image="{{ (quiz.option3_image or '')|e }}"
+                                            data-option4_image="{{ (quiz.option4_image or '')|e }}"
                                             data-correct_option="{{ quiz.correct_option }}">
                                         <i class="fas fa-edit"></i>
                                     </button>
@@ -255,6 +255,7 @@
                     </div>
                 </form>
             </section>
+            <script type="application/json" id="add-quizzes-initial-error">{% if error %}{{ error|tojson|safe }}{% else %}null{% endif %}</script>
             <script>
                 let isEditMode = false;
 
@@ -336,11 +337,11 @@
                     const optionFormatSelect = document.getElementById('option_format');
 
                     // Reset required flags
-                    questionText.required = false;
-                    questionImage.required = false;
-                    optionTexts.forEach(i => i.required = false);
-                    optionImages.forEach(i => i.required = false);
-                    correctOption.required = false;
+                    if (questionText) questionText.required = false;
+                    if (questionImage) questionImage.required = false;
+                    optionTexts.forEach(function (i) { if (i) i.required = false; });
+                    optionImages.forEach(function (i) { if (i) i.required = false; });
+                    if (correctOption) correctOption.required = false;
 
                     if (!level) {
                         if (optionFormatSection) optionFormatSection.style.display = 'none';
@@ -348,117 +349,130 @@
                     }
 
                     // Always show question section (optional) and correct option
-                    document.getElementById('question-section').style.display = 'block';
-                    document.getElementById('correct-option-section').style.display = 'block';
-                    document.getElementById('submit-buttons').style.display = 'block';
-                    correctOption.required = true;
+                    var qSection = document.getElementById('question-section');
+                    var correctSection = document.getElementById('correct-option-section');
+                    var submitBtns = document.getElementById('submit-buttons');
+                    if (qSection) qSection.style.display = 'block';
+                    if (correctSection) correctSection.style.display = 'block';
+                    if (submitBtns) submitBtns.style.display = 'block';
+                    if (correctOption) correctOption.required = true;
 
                     if (level === 'Beginner') {
                         // Beginner: Question text + Option images only (no question image, no option texts)
-                        document.getElementById('option1-image-section').style.display = 'block';
-                        document.getElementById('option2-image-section').style.display = 'block';
-                        document.getElementById('option3-image-section').style.display = 'block';
-                        document.getElementById('option4-image-section').style.display = 'block';
-                        
-                        optionImages.forEach(i => {
+                        ['option1-image-section', 'option2-image-section', 'option3-image-section', 'option4-image-section'].forEach(function (sid) {
+                            var sec = document.getElementById(sid);
+                            if (sec) sec.style.display = 'block';
+                        });
+
+                        optionImages.forEach(function (i) {
+                            if (!i) return;
                             i.required = true;
-                            if (!preserveValues) {
-                                i.value = ''; // Only clear if not preserving values
-                            }
+                            if (!preserveValues) i.value = '';
                         });
                         if (!preserveValues) {
-                            optionTexts.forEach(i => {
-                                i.value = ''; // Clear text values
+                            optionTexts.forEach(function (i) {
+                                if (i) i.value = '';
                             });
-                            questionImage.value = ''; // Clear question image
+                            if (questionImage) questionImage.value = '';
                         }
 
                         if (optionFormatSection) optionFormatSection.style.display = 'none';
 
                     } else if (level === 'Intermediate') {
                         // Intermediate: Question text + Question image (optional) + Option texts only (no option images)
-                        document.getElementById('question-image-section').style.display = 'block';
-                        document.getElementById('option1-text-section').style.display = 'block';
-                        document.getElementById('option2-text-section').style.display = 'block';
-                        document.getElementById('option3-text-section').style.display = 'block';
-                        document.getElementById('option4-text-section').style.display = 'block';
-                        
-                        optionTexts.forEach(i => {
-                            i.required = true;
+                        ['question-image-section', 'option1-text-section', 'option2-text-section', 'option3-text-section', 'option4-text-section'].forEach(function (sid) {
+                            var sec = document.getElementById(sid);
+                            if (sec) sec.style.display = 'block';
+                        });
+
+                        optionTexts.forEach(function (i) {
+                            if (i) i.required = true;
                         });
                         if (!preserveValues) {
-                            optionImages.forEach(i => {
-                                i.value = ''; // Clear option images
+                            optionImages.forEach(function (i) {
+                                if (i) i.value = '';
                             });
                         }
 
                     } else if (level === 'Advance') {
                         // Advance: allow admin to choose format (text / images)
-                        document.getElementById('question-image-section').style.display = 'block';
+                        var qImgSec = document.getElementById('question-image-section');
+                        if (qImgSec) qImgSec.style.display = 'block';
 
                         if (optionFormatSection) optionFormatSection.style.display = 'block';
-                        const format = optionFormatSelect ? (optionFormatSelect.value || 'text') : 'text';
+                        var format = optionFormatSelect ? (optionFormatSelect.value || 'text') : 'text';
 
                         if (format === 'text') {
-                            // Text-only options
-                            document.getElementById('option1-text-section').style.display = 'block';
-                            document.getElementById('option2-text-section').style.display = 'block';
-                            document.getElementById('option3-text-section').style.display = 'block';
-                            document.getElementById('option4-text-section').style.display = 'block';
-
-                            optionTexts.forEach(i => {
-                                i.required = true;
+                            ['option1-text-section', 'option2-text-section', 'option3-text-section', 'option4-text-section'].forEach(function (sid) {
+                                var sec = document.getElementById(sid);
+                                if (sec) sec.style.display = 'block';
                             });
 
-                            // Hide image sections
-                            document.getElementById('option1-image-section').style.display = 'none';
-                            document.getElementById('option2-image-section').style.display = 'none';
-                            document.getElementById('option3-image-section').style.display = 'none';
-                            document.getElementById('option4-image-section').style.display = 'none';
-                            optionImages.forEach(i => (i.required = false));
+                            optionTexts.forEach(function (i) {
+                                if (i) i.required = true;
+                            });
+
+                            ['option1-image-section', 'option2-image-section', 'option3-image-section', 'option4-image-section'].forEach(function (sid) {
+                                var sec = document.getElementById(sid);
+                                if (sec) sec.style.display = 'none';
+                            });
+                            optionImages.forEach(function (i) {
+                                if (i) i.required = false;
+                            });
                         } else if (format === 'images') {
-                            // Image-only options
-                            document.getElementById('option1-image-section').style.display = 'block';
-                            document.getElementById('option2-image-section').style.display = 'block';
-                            document.getElementById('option3-image-section').style.display = 'block';
-                            document.getElementById('option4-image-section').style.display = 'block';
+                            ['option1-image-section', 'option2-image-section', 'option3-image-section', 'option4-image-section'].forEach(function (sid) {
+                                var sec = document.getElementById(sid);
+                                if (sec) sec.style.display = 'block';
+                            });
 
-                            optionImages.forEach(i => {
+                            optionImages.forEach(function (i) {
+                                if (!i) return;
                                 i.required = true;
                             });
 
-                            // Hide text sections
-                            document.getElementById('option1-text-section').style.display = 'none';
-                            document.getElementById('option2-text-section').style.display = 'none';
-                            document.getElementById('option3-text-section').style.display = 'none';
-                            document.getElementById('option4-text-section').style.display = 'none';
-                            optionTexts.forEach(i => (i.required = false));
+                            ['option1-text-section', 'option2-text-section', 'option3-text-section', 'option4-text-section'].forEach(function (sid) {
+                                var sec = document.getElementById(sid);
+                                if (sec) sec.style.display = 'none';
+                            });
+                            optionTexts.forEach(function (i) {
+                                if (i) i.required = false;
+                            });
                         }
                     }
                 }
 
                 function applyLevelRules() {
-                    const level = document.getElementById('level').value;
-                    // Only preserve values if we're in edit mode
-                    showFieldsForLevel(level, isEditMode);
+                    var levelEl = document.getElementById('level');
+                    if (!levelEl) return;
+                    showFieldsForLevel(levelEl.value, isEditMode);
                 }
 
                 document.addEventListener('DOMContentLoaded', function() {
-                    {% if error %}
-                    showPageError({{ error|tojson }});
-                    {% endif %}
+                    var errJson = document.getElementById('add-quizzes-initial-error');
+                    if (errJson && errJson.textContent) {
+                        try {
+                            var initialErr = JSON.parse(errJson.textContent.trim());
+                            if (initialErr !== null && initialErr !== undefined) {
+                                showPageError(typeof initialErr === 'string' ? initialErr : String(initialErr));
+                            }
+                        } catch (ignore) {}
+                    }
 
-                    document.getElementById('quizForm').addEventListener('submit', function(e) {
-                        var err = validateQuizImageInputs();
-                        if (err) {
-                            e.preventDefault();
-                            showPageError(err);
-                            return false;
-                        }
-                    });
+                    var quizForm = document.getElementById('quizForm');
+                    if (quizForm) {
+                        quizForm.addEventListener('submit', function(e) {
+                            var err = validateQuizImageInputs();
+                            if (err) {
+                                e.preventDefault();
+                                showPageError(err);
+                            }
+                        });
+                    }
 
-                    const levelSelect = document.getElementById('level');
-                    levelSelect.addEventListener('change', applyLevelRules);
+                    var levelSelect = document.getElementById('level');
+                    if (levelSelect) {
+                        levelSelect.addEventListener('change', applyLevelRules);
+                    }
 
                     const optionFormatSelect = document.getElementById('option_format');
                     if (optionFormatSelect) {
@@ -481,48 +495,52 @@
                     });
 
                     // Add file input change handlers to show previews of newly selected files
-                    document.getElementById('question_image').addEventListener('change', function(e) {
-                        const file = e.target.files[0];
-                        const previewDiv = document.getElementById('question-image-preview');
-                        const previewImg = document.getElementById('question-image-preview-img');
-                        if (file) {
-                            const reader = new FileReader();
-                            reader.onload = function(e) {
-                                previewImg.src = e.target.result;
-                                previewDiv.style.display = 'block';
-                            };
-                            reader.readAsDataURL(file);
-                        } else {
-                            // If file input cleared, show existing image if any
-                            const existingImg = document.getElementById('existing_question_image').value;
-                            if (existingImg) {
-                                previewImg.src = existingImg;
-                                previewDiv.style.display = 'block';
-                            } else {
-                                previewDiv.style.display = 'none';
-                            }
-                        }
-                    });
-
-                    // Option image preview handlers
-                    ['option1', 'option2', 'option3', 'option4'].forEach(optNum => {
-                        const fileInput = document.getElementById(`${optNum}_image`);
-                        const previewDiv = document.getElementById(`${optNum}-image-preview`);
-                        const previewImg = document.getElementById(`${optNum}-image-preview-img`);
-                        const existingInput = document.getElementById(`existing_${optNum}_image`);
-
-                        fileInput.addEventListener('change', function(e) {
-                            const file = e.target.files[0];
+                    var questionImageInput = document.getElementById('question_image');
+                    if (questionImageInput) {
+                        questionImageInput.addEventListener('change', function(e) {
+                            var file = e.target.files && e.target.files[0];
+                            var previewDiv = document.getElementById('question-image-preview');
+                            var previewImg = document.getElementById('question-image-preview-img');
+                            if (!previewDiv || !previewImg) return;
                             if (file) {
-                                const reader = new FileReader();
-                                reader.onload = function(e) {
-                                    previewImg.src = e.target.result;
+                                var reader = new FileReader();
+                                reader.onload = function(ev) {
+                                    previewImg.src = ev.target.result;
                                     previewDiv.style.display = 'block';
                                 };
                                 reader.readAsDataURL(file);
                             } else {
-                                // If file input cleared, show existing image if any
-                                const existingImg = existingInput.value;
+                                var existingImgEl = document.getElementById('existing_question_image');
+                                var existingImg = existingImgEl ? existingImgEl.value : '';
+                                if (existingImg) {
+                                    previewImg.src = existingImg;
+                                    previewDiv.style.display = 'block';
+                                } else {
+                                    previewDiv.style.display = 'none';
+                                }
+                            }
+                        });
+                    }
+
+                    // Option image preview handlers
+                    ['option1', 'option2', 'option3', 'option4'].forEach(function (optNum) {
+                        var fileInput = document.getElementById(optNum + '_image');
+                        var previewDiv = document.getElementById(optNum + '-image-preview');
+                        var previewImg = document.getElementById(optNum + '-image-preview-img');
+                        var existingInput = document.getElementById('existing_' + optNum + '_image');
+                        if (!fileInput || !previewDiv || !previewImg || !existingInput) return;
+
+                        fileInput.addEventListener('change', function(e) {
+                            var file = e.target.files && e.target.files[0];
+                            if (file) {
+                                var reader = new FileReader();
+                                reader.onload = function(ev) {
+                                    previewImg.src = ev.target.result;
+                                    previewDiv.style.display = 'block';
+                                };
+                                reader.readAsDataURL(file);
+                            } else {
+                                var existingImg = existingInput.value;
                                 if (existingImg) {
                                     previewImg.src = existingImg;
                                     previewDiv.style.display = 'block';

@@ -39,6 +39,18 @@ def on_startup() -> None:
         ensure_schema()
         init_admin()
         print("[OK] Database schema and admin initialization completed successfully")
+
+        try:
+            from .. import sign_model
+
+            st = sign_model.practice_status()
+            if st.get("ready"):
+                print("[OK] Sign-language model loaded (practice AI ready)")
+            else:
+                msg = (st.get("message") or "")[:400]
+                print("[WARN] Practice AI is not ready — " + msg.replace("\n", " "))
+        except Exception as e:
+            print(f"[WARN] Could not check sign-language model: {e}")
     except Exception as e:
         print(f"[WARN] Warning during startup: {e}")
         print("App will continue, but database operations may fail until the database is available")

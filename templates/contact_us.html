@@ -295,17 +295,23 @@
     <!-- Notification Scripts -->
     <script>
         // Toggle notification dropdown
-        document.getElementById('notificationBell').addEventListener('click', function(e) {
-            e.stopPropagation();
-            const dropdown = document.getElementById('notificationDropdown');
-            dropdown.classList.toggle('active');
-        });
+        (function () {
+            var bell = document.getElementById('notificationBell');
+            var dropdown = document.getElementById('notificationDropdown');
+            if (bell && dropdown) {
+                bell.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    dropdown.classList.toggle('active');
+                });
+            }
+        })();
 
         // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
-            const container = document.querySelector('.notification-container');
-            if (!container.contains(e.target)) {
-                document.getElementById('notificationDropdown').classList.remove('active');
+        document.addEventListener('click', function (e) {
+            var container = document.querySelector('.notification-container');
+            var dropdown = document.getElementById('notificationDropdown');
+            if (container && dropdown && !container.contains(e.target)) {
+                dropdown.classList.remove('active');
             }
         });
 
@@ -325,7 +331,8 @@
         function updateNotificationUI(notifications, unreadCount) {
             const notificationList = document.getElementById('notificationList');
             const notificationBadge = document.getElementById('notificationBadge');
-            
+            if (!notificationList || !notificationBadge) return;
+
             // Update badge
             if (unreadCount > 0) {
                 notificationBadge.textContent = unreadCount;
@@ -445,7 +452,8 @@
             const modalTitle = document.getElementById('modalTitle');
             const modalMessage = document.getElementById('modalMessage');
             const modalTimestamp = document.getElementById('modalTimestamp');
-            
+            if (!modal || !modalTitle || !modalMessage || !modalTimestamp) return;
+
             // Set modal content
             modalTitle.textContent = title;
             modalMessage.textContent = message;
@@ -464,6 +472,7 @@
         // Close notification detail modal
         function closeNotificationModal() {
             const modal = document.getElementById('notificationModal');
+            if (!modal) return;
             modal.classList.remove('active');
             
             // Restore body scroll
@@ -532,15 +541,18 @@
         <button type="button" class="contact-toast-close" id="contactToastClose" aria-label="Close">&times;</button>
     </div>
 
+    <script type="application/json" id="contact-initial-toast">{"error":{% if contact_error %}{{ contact_error|tojson|safe }}{% else %}null{% endif %},"success":{% if contact_success %}true{% else %}false{% endif %}}</script>
     <script>
     (function() {
-        var toast = document.getElementById('contactToast');
-        var messageEl = document.getElementById('contactToastMessage');
-        var iconEl = document.getElementById('contactToastIcon');
-        var closeBtn = document.getElementById('contactToastClose');
-        if (!toast || !messageEl) return;
-
         function showContactToast(msg, isError) {
+            var toast = document.getElementById('contactToast');
+            var messageEl = document.getElementById('contactToastMessage');
+            var iconEl = document.getElementById('contactToastIcon');
+            if (!toast || !messageEl) return;
+            if (toast._hideTimer) {
+                clearTimeout(toast._hideTimer);
+                toast._hideTimer = null;
+            }
             messageEl.textContent = msg;
             toast.classList.remove('contact-toast-success', 'contact-toast-error');
             toast.classList.add(isError ? 'contact-toast-error' : 'contact-toast-success');
@@ -556,6 +568,8 @@
         }
 
         function hideContactToast() {
+            var toast = document.getElementById('contactToast');
+            if (!toast) return;
             if (toast._hideTimer) {
                 clearTimeout(toast._hideTimer);
                 toast._hideTimer = null;
@@ -566,20 +580,32 @@
             }, 300);
             var u = new URL(window.location.href);
             u.searchParams.delete('contact_success');
-            window.history.replaceState({}, '', u.pathname + (u.search || '') + u.hash);
+            var next = u.pathname + u.search + u.hash;
+            if (next !== window.location.pathname + window.location.search + window.location.hash) {
+                window.history.replaceState({}, '', next);
+            }
         }
 
+        window.showContactToast = showContactToast;
+
+        var closeBtn = document.getElementById('contactToastClose');
         if (closeBtn) closeBtn.addEventListener('click', hideContactToast);
 
         document.addEventListener('DOMContentLoaded', function() {
-            {% if contact_error %}
-            showContactToast({{ contact_error|tojson }}, true);
-            {% endif %}
-            {% if contact_success %}
-            showContactToast('Thank you! Your message has been sent to the admin team and will be reviewed shortly.', false);
-            {% endif %}
+            var toastDataEl = document.getElementById('contact-initial-toast');
+            if (toastDataEl && toastDataEl.textContent) {
+                try {
+                    var toastData = JSON.parse(toastDataEl.textContent.trim());
+                    if (toastData.error !== null && toastData.error !== undefined) {
+                        var errMsg = toastData.error;
+                        showContactToast(typeof errMsg === 'string' ? errMsg : String(errMsg), true);
+                    }
+                    if (toastData.success) {
+                        showContactToast('Thank you! Your message has been sent to the admin team and will be reviewed shortly.', false);
+                    }
+                } catch (ignore) {}
+            }
         });
-        window.showContactToast = showContactToast;
     })();
     </script>
 

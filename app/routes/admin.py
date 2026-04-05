@@ -19,7 +19,11 @@ from ..models import (
     User,
 )
 from ..services.certificates import get_certificates_earned
-from ..services.notifications import create_notification_for_all_users
+from ..services.notifications import (
+    create_notification_for_all_users,
+    create_notification_for_user,
+    is_user_also_admin,
+)
 from ..services.startup import init_admin
 from ..services.streaks import compute_streak, get_activity_dates
 from ..utils.deps import get_db, require_admin
@@ -164,6 +168,7 @@ def quizzes_page(request: Request, db: Session = Depends(get_db), _: None = Depe
     quizzes = db.query(Quiz).all()
     error = request.query_params.get("error")
     return templates.TemplateResponse(
+        request,
         "add_quizzes.html",
         {"request": request, "quizzes": quizzes, "error": error},
     )
@@ -187,6 +192,7 @@ def dashboard_page(
     quiz_attempts_count = db.query(QuizResult).count()
 
     return templates.TemplateResponse(
+        request,
         "dashboard.html",
         {
             "request": request,
@@ -241,6 +247,7 @@ def user_performance_page(
     recent = results[:recent_limit]
 
     return templates.TemplateResponse(
+        request,
         "admin_user_performance.html",
         {
             "request": request,
@@ -264,7 +271,7 @@ def send_notifications_page(
     request: Request, db: Session = Depends(get_db), _: None = Depends(require_admin)
 ):
     """Admin page to send custom notifications to all users."""
-    return templates.TemplateResponse("send_notifications.html", {"request": request})
+    return templates.TemplateResponse(request, "send_notifications.html", {"request": request})
 
 
 @router.get("/contact_messages", response_class=HTMLResponse)
@@ -279,10 +286,62 @@ def contact_messages_page(
         admin = db.query(Admin).filter(Admin.id == admin_id).first()
         if admin and admin.full_name:
             admin_name = admin.full_name
+    qp = request.query_params
     return templates.TemplateResponse(
+        request,
         "contact_messages.html",
-        {"request": request, "submissions": submissions, "admin_name": admin_name},
+        {
+            "request": request,
+            "submissions": submissions,
+            "admin_name": admin_name,
+            "flash_success": qp.get("success") == "1",
+            "flash_notified": qp.get("notified") == "1",
+            "flash_error": qp.get("error"),
+        },
     )
+
+
+@router.post("/contact_messages/reply")
+def contact_message_reply(
+    request: Request,
+    submission_id: int = Form(...),
+    reply: str = Form(...),
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    """Save admin reply and notify the submitting user in-app if they have a registered account."""
+    body = (reply or "").strip()
+    if not body or len(body) > 4000:
+        return RedirectResponse(url="/contact_messages?error=invalid", status_code=303)
+    sub = db.query(ContactSubmission).filter(ContactSubmission.id == submission_id).first()
+    if not sub:
+        return RedirectResponse(url="/contact_messages?error=notfound", status_code=303)
+    if sub.admin_reply:
+        return RedirectResponse(url="/contact_messages?error=already_replied", status_code=303)
+
+    sub.admin_reply = body
+    sub.replied_at = datetime.now(timezone.utc)
+    db.commit()
+
+    user = db.query(User).filter(User.email.ilike(sub.email.strip())).first()
+    notified = False
+    if user and not is_user_also_admin(user.id, db):
+        title = f"Re: {sub.subject}"[:200]
+        create_notification_for_user(
+            db=db,
+            user_id=user.id,
+            title=title,
+            message=body,
+            notification_type="contact_reply",
+            related_id=sub.id,
+            is_admin_created=True,
+        )
+        notified = True
+
+    q = "success=1"
+    if notified:
+        q += "&notified=1"
+    return RedirectResponse(url=f"/contact_messages?{q}", status_code=303)
 
 
 @router.post("/send_custom_notification")
@@ -369,6 +428,7 @@ def admin_profile_page(
         admin = db.query(Admin).first()
 
     return templates.TemplateResponse(
+        request,
         "admin_profile.html",
         {
             "request": request,
@@ -389,6 +449,7 @@ def add_lessons_page(
     lessons = db.query(Lesson).all()
     error = request.query_params.get("error")
     return templates.TemplateResponse(
+        request,
         "add_lessons.html", {"request": request, "lessons": lessons, "error": error}
     )
 
@@ -419,6 +480,7 @@ def update_user_submit(
     def _dashboard_error_response(err_msg: str):
         user_rows, user_count, _, admin_email = _build_dashboard_user_rows(db, sq, aid)
         return templates.TemplateResponse(
+            request,
             "dashboard.html",
             {
                 "request": request,
@@ -454,6 +516,7 @@ def update_user_submit(
         lesson_count = db.query(Lesson).count()
         quiz_count = db.query(Quiz).count()
         return templates.TemplateResponse(
+            request,
             "dashboard.html",
             {
                 "request": request,
@@ -825,6 +888,7 @@ def update_admin_profile_submit(
     ok, err = validate_username(username)
     if not ok:
         return templates.TemplateResponse(
+            request,
             "admin_profile.html",
             {
                 "request": request,
@@ -839,6 +903,7 @@ def update_admin_profile_submit(
     ok, err = validate_email(email)
     if not ok:
         return templates.TemplateResponse(
+            request,
             "admin_profile.html",
             {
                 "request": request,
@@ -855,6 +920,7 @@ def update_admin_profile_submit(
         existing_user = db.query(User).filter(or_(User.username == username, User.email == email)).first()
         if existing_user:
             return templates.TemplateResponse(
+                request,
                 "admin_profile.html",
                 {
                     "request": request,
@@ -871,6 +937,7 @@ def update_admin_profile_submit(
     if new_password:
         if new_password != confirm_password:
             return templates.TemplateResponse(
+                request,
                 "admin_profile.html",
                 {
                     "request": request,
@@ -885,6 +952,7 @@ def update_admin_profile_submit(
         ok, err = validate_password(new_password)
         if not ok:
             return templates.TemplateResponse(
+                request,
                 "admin_profile.html",
                 {
                     "request": request,
@@ -905,6 +973,7 @@ def update_admin_profile_submit(
         and not new_password
     ):
         return templates.TemplateResponse(
+            request,
             "admin_profile.html",
             {
                 "request": request,
@@ -929,6 +998,7 @@ def update_admin_profile_submit(
     db.commit()
 
     return templates.TemplateResponse(
+        request,
         "admin_profile.html",
         {
             "request": request,

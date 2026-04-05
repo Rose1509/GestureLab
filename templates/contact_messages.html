@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/static/css/add_lessons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/logout_modal.css">
+    <link rel="stylesheet" href="/static/css/contact_messages.css">
 </head>
 <body>
 
@@ -34,7 +35,7 @@
             <header class="dashboard-header">
                 <div class="header-text">
                     <h1>Contact Messages</h1>
-                    <p>Messages submitted from the Contact Us page</p>
+                    <p>Review submissions and reply — registered users get an in-app notification.</p>
                 </div>
                 <div class="header-actions">
                     <a href="/admin_profile" class="user-profile-link">
@@ -45,35 +46,118 @@
                 </div>
             </header>
 
-            <section class="table-container">
-                <table class="lessons-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Subject</th>
-                            <th>Message</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if submissions %}
-                            {% for s in submissions %}
+            {% if flash_success %}
+            <div class="cm-flash cm-flash--success" role="status">
+                <i class="fas fa-check-circle" aria-hidden="true"></i>
+                <div>
+                    <strong>Reply saved.</strong>
+                    {% if flash_notified %}
+                    <span>The user was notified in the app (notification bell).</span>
+                    {% else %}
+                    <span>No registered account uses this email — reply is stored only (no in-app notification).</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% if flash_error %}
+            <div class="cm-flash cm-flash--error" role="alert">
+                <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+                <div>
+                    {% if flash_error == 'invalid' %}Reply is empty or too long (max 4000 characters).{% endif %}
+                    {% if flash_error == 'notfound' %}Message not found.{% endif %}
+                    {% if flash_error == 'already_replied' %}This thread was already replied to.{% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <section class="table-container cm-table-wrap">
+                <div class="cm-table-toolbar">
+                    <span class="cm-toolbar-label"><i class="fas fa-inbox" aria-hidden="true"></i> Inbox</span>
+                    <span class="cm-toolbar-count">{{ submissions|length }} message{% if submissions|length != 1 %}s{% endif %}</span>
+                </div>
+                <div class="cm-table-scroll">
+                    <table class="lessons-table cm-table" aria-label="Contact form submissions">
+                        <thead>
                             <tr>
-                                <td>{{ s.created_at.strftime('%Y-%m-%d %H:%M') if s.created_at else '—' }}</td>
-                                <td>{{ s.name }}</td>
-                                <td><a href="mailto:{{ s.email }}">{{ s.email }}</a></td>
-                                <td>{{ s.subject[:80] }}{% if s.subject|length > 80 %}...{% endif %}</td>
-                                <td class="description-cell" title="{{ s.message }}">{{ s.message[:200] }}{% if s.message|length > 200 %}...{% endif %}</td>
+                                <th class="cm-col-date"><span class="cm-th-inner"><i class="far fa-calendar-alt" aria-hidden="true"></i> Received</span></th>
+                                <th class="cm-col-name"><span class="cm-th-inner"><i class="far fa-user" aria-hidden="true"></i> Name</span></th>
+                                <th class="cm-col-email"><span class="cm-th-inner"><i class="far fa-envelope" aria-hidden="true"></i> Email</span></th>
+                                <th class="cm-col-subject"><span class="cm-th-inner"><i class="far fa-comment-alt" aria-hidden="true"></i> Subject</span></th>
+                                <th class="cm-col-status"><span class="cm-th-inner"><i class="fas fa-clipboard-check" aria-hidden="true"></i> Status</span></th>
+                                <th class="cm-col-actions"><span class="cm-th-inner"><i class="fas fa-bolt" aria-hidden="true"></i> Action</span></th>
                             </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="5" style="text-align: center;">No contact messages yet.</td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {% if submissions %}
+                                {% for s in submissions %}
+                                <tr class="cm-row-main" data-contact-id="{{ s.id }}">
+                                    <td class="cm-cell-date">
+                                        {% if s.created_at %}
+                                        <span class="cm-date-badge">{{ s.created_at.strftime('%d %b %Y') }}</span>
+                                        <span class="cm-time-sub">{{ s.created_at.strftime('%H:%M') }}</span>
+                                        {% else %}
+                                        <span class="cm-date-badge cm-date-badge--empty">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="cm-cell-name"><span class="cm-name-text">{{ s.name }}</span></td>
+                                    <td class="cm-cell-email"><a href="mailto:{{ s.email }}">{{ s.email }}</a></td>
+                                    <td class="cm-cell-subject" title="{{ s.subject }}">{{ s.subject[:56] }}{% if s.subject|length > 56 %}…{% endif %}</td>
+                                    <td>
+                                        {% if s.admin_reply %}
+                                        <span class="cm-pill cm-pill--done"><i class="fas fa-check" aria-hidden="true"></i> Replied</span>
+                                        {% else %}
+                                        <span class="cm-pill cm-pill--wait"><i class="fas fa-clock" aria-hidden="true"></i> Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button type="button" class="cm-btn-expand" data-expand="{{ s.id }}" aria-expanded="false" aria-controls="cm-detail-{{ s.id }}">
+                                            <span class="cm-btn-expand-text">View</span>
+                                            <i class="fas fa-chevron-down cm-chevron" aria-hidden="true"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr class="cm-row-detail" id="cm-detail-{{ s.id }}" hidden>
+                                    <td colspan="6">
+                                        <div class="cm-detail-inner">
+                                            <div class="cm-detail-grid">
+                                                <div class="cm-detail-block">
+                                                    <h4 class="cm-detail-heading">Original message</h4>
+                                                    <div class="cm-detail-msg">{{ s.message }}</div>
+                                                </div>
+                                                {% if s.admin_reply %}
+                                                <div class="cm-detail-block cm-detail-block--reply">
+                                                    <h4 class="cm-detail-heading">Your reply
+                                                        {% if s.replied_at %}<span class="cm-detail-meta">{{ s.replied_at.strftime('%Y-%m-%d %H:%M') }}</span>{% endif %}
+                                                    </h4>
+                                                    <div class="cm-detail-msg cm-detail-msg--reply">{{ s.admin_reply }}</div>
+                                                </div>
+                                                {% else %}
+                                                <div class="cm-detail-block cm-detail-block--form">
+                                                    <h4 class="cm-detail-heading">Send reply</h4>
+                                                    <p class="cm-detail-hint">Delivered as an in-app notification if this email has a user account.</p>
+                                                    <form method="post" action="/contact_messages/reply" class="cm-reply-form">
+                                                        <input type="hidden" name="submission_id" value="{{ s.id }}">
+                                                        <label class="sr-only" for="reply-{{ s.id }}">Reply text</label>
+                                                        <textarea id="reply-{{ s.id }}" name="reply" rows="5" required maxlength="4000" placeholder="Write your reply…"></textarea>
+                                                        <div class="cm-form-actions">
+                                                            <button type="submit" class="cm-btn-send"><i class="fas fa-paper-plane" aria-hidden="true"></i> Send reply</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="cm-empty-cell">No contact messages yet.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
             </section>
 
             <footer class="main-footer">
@@ -82,29 +166,49 @@
         </main>
     </div>
 
-    <!-- Global theme toggle button (same as other admin pages) -->
     <button class="home-theme-toggle" id="homeThemeToggle" type="button" aria-label="Toggle light and dark theme">
         <span class="home-theme-icon home-theme-icon-sun">☀</span>
         <span class="home-theme-icon home-theme-icon-moon">🌙</span>
     </button>
 
-    <style>
-        .description-cell { max-width: 280px; }
-    </style>
-
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const THEME_KEY = 'gesturelab-home-theme';
-            const btn = document.getElementById('homeThemeToggle');
-            const saved = localStorage.getItem(THEME_KEY);
+            document.querySelectorAll('.cm-btn-expand').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var id = btn.getAttribute('data-expand');
+                    var row = document.getElementById('cm-detail-' + id);
+                    if (!row) return;
+                    var open = row.hasAttribute('hidden') ? false : true;
+                    if (open) {
+                        row.setAttribute('hidden', '');
+                        btn.setAttribute('aria-expanded', 'false');
+                        btn.querySelector('.cm-btn-expand-text').textContent = 'View';
+                        btn.classList.remove('is-open');
+                    } else {
+                        row.removeAttribute('hidden');
+                        btn.setAttribute('aria-expanded', 'true');
+                        btn.querySelector('.cm-btn-expand-text').textContent = 'Hide';
+                        btn.classList.add('is-open');
+                        requestAnimationFrame(function () {
+                            var actions = row.querySelector('.cm-form-actions');
+                            var sendBtn = row.querySelector('.cm-btn-send');
+                            var el = actions || sendBtn;
+                            if (el && typeof el.scrollIntoView === 'function') {
+                                el.scrollIntoView({ block: 'end', behavior: 'smooth', inline: 'nearest' });
+                            }
+                        });
+                    }
+                });
+            });
 
-            if (saved === 'dark') {
+            var THEME_KEY = 'gesturelab-home-theme';
+            var themeBtn = document.getElementById('homeThemeToggle');
+            if (localStorage.getItem(THEME_KEY) === 'dark') {
                 document.body.classList.add('dark-theme');
             }
-
-            if (btn) {
-                btn.addEventListener('click', () => {
-                    const nowDark = !document.body.classList.contains('dark-theme');
+            if (themeBtn) {
+                themeBtn.addEventListener('click', function () {
+                    var nowDark = !document.body.classList.contains('dark-theme');
                     document.body.classList.toggle('dark-theme', nowDark);
                     localStorage.setItem(THEME_KEY, nowDark ? 'dark' : 'light');
                 });
