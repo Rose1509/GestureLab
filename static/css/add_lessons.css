@@ -275,7 +275,7 @@ body::-webkit-scrollbar-thumb:active {
 
 .user-management .table-container {
     padding: 0;
-    padding-bottom: 0;
+    padding-bottom: 20px;
     margin-bottom: 0;
     max-height: none;
     width: 100%;
@@ -298,7 +298,7 @@ body::-webkit-scrollbar-thumb:active {
     overflow-y: auto;
     max-height: min(68vh, 560px);
     -webkit-overflow-scrolling: touch;
-    padding: 6px 0 14px;
+    padding-bottom: 16px;
 }
 
 /* Fill the glass card (dashboard .user-mgmt-table has min-width:780px — override here) */
@@ -320,30 +320,20 @@ body::-webkit-scrollbar-thumb:active {
     max-width: 100%;
 }
 
-/* Rounded table shape (original .lessons-table look): pill header + soft bottom corners */
+/* Keep action alignment like dashboard table */
+.lessons-mgmt-table .user-actions-cell,
+.quizzes-mgmt-table .user-actions-cell {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    row-gap: 0;
+}
+
+/* Dashboard-like flat table edges inside rounded glass card */
 .lessons-mgmt-table thead th:first-child,
-.quizzes-mgmt-table thead th:first-child {
-    border-radius: 20px 0 0 20px;
-}
-
 .lessons-mgmt-table thead th:last-child,
+.quizzes-mgmt-table thead th:first-child,
 .quizzes-mgmt-table thead th:last-child {
-    border-radius: 0 20px 20px 0;
-}
-
-.lessons-mgmt-table tbody tr:last-child td:first-child,
-.quizzes-mgmt-table tbody tr:last-child td:first-child {
-    border-radius: 0 0 0 18px;
-}
-
-.lessons-mgmt-table tbody tr:last-child td:last-child,
-.quizzes-mgmt-table tbody tr:last-child td:last-child {
-    border-radius: 0 0 18px 0;
-}
-
-.lessons-mgmt-table tbody tr:last-child td.mgmt-empty-row:only-child,
-.quizzes-mgmt-table tbody tr:last-child td.mgmt-empty-row:only-child {
-    border-radius: 0 0 18px 18px;
+    border-radius: 0;
 }
 
 .lessons-mgmt-table col.lesson-col-id { width: 5%; }
@@ -356,10 +346,10 @@ body::-webkit-scrollbar-thumb:active {
 
 .quizzes-mgmt-table col.quiz-col-id { width: 6%; }
 .quizzes-mgmt-table col.quiz-col-level { width: 11%; }
-.quizzes-mgmt-table col.quiz-col-question { width: 34%; }
+.quizzes-mgmt-table col.quiz-col-question { width: 36%; }
 .quizzes-mgmt-table col.quiz-col-image { width: 14%; }
 .quizzes-mgmt-table col.quiz-col-correct { width: 9%; }
-.quizzes-mgmt-table col.quiz-col-actions { width: 26%; }
+.quizzes-mgmt-table col.quiz-col-actions { width: 24%; }
 
 /* dashboard .user-mgmt-table targets cols 1–2 for user email/name — reset for these data tables */
 .lessons-mgmt-table td:nth-child(1),
@@ -442,7 +432,7 @@ body::-webkit-scrollbar-thumb:active {
     align-items: center;
     gap: 6px;
     font-size: 0.82rem;
-    padding: 9px 14px !important;
+    padding: 8px 12px !important;
     border-radius: 14px !important;
 }
 
