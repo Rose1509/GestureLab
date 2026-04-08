@@ -359,10 +359,10 @@ def send_custom_notification(
     try:
         if not title or not message or not notification_type:
             return {"status": "error", "detail": "All fields are required"}
-        if len(title) > 200:
-            return {"status": "error", "detail": "Title must be 200 characters or less"}
-        if len(message) > 1000:
-            return {"status": "error", "detail": "Message must be 1000 characters or less"}
+        if len(title) > 50:
+            return {"status": "error", "detail": "Title must be 50 characters or less"}
+        if len(message) > 200:
+            return {"status": "error", "detail": "Message must be 200 characters or less"}
         admin_batch_id = str(uuid.uuid4())
         create_notification_for_all_users(
             db=db,

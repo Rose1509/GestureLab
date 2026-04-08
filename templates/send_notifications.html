@@ -6,6 +6,7 @@
     <title>Send Notifications - Gesture Lab Admin</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
     <link rel="stylesheet" href="/static/css/send_notifications.css">
+    <link rel="stylesheet" href="/static/css/auth_error_pop.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/logout_modal.css">
 </head>
@@ -52,7 +53,23 @@
                 <div class="notification-form-card">
                     <h2><i class="fas fa-bell"></i> Create & Send Notification</h2>
                     
-                    <form id="notificationForm" method="POST" action="/send_custom_notification">
+                    <!-- Validation error pop (same UI as other pages) -->
+                    <div
+                        id="notifErrorPop"
+                        class="auth-error-pop"
+                        role="alert"
+                        aria-live="polite"
+                        aria-hidden="true"
+                    >
+                        <span class="auth-error-pop__badge" aria-hidden="true">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 8v5m0 4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </span>
+                        <p class="auth-error-pop__msg" id="notifErrorText"></p>
+                    </div>
+
+                    <form id="notificationForm" method="POST" action="/send_custom_notification" novalidate>
                         <div class="form-group">
                             <label for="notification_type">Notification Type *</label>
                             <select id="notification_type" name="notification_type" required>
@@ -73,10 +90,9 @@
                                 id="notification_title" 
                                 name="title" 
                                 placeholder="Enter notification title" 
-                                maxlength="200" 
                                 required
                             >
-                            <small class="form-help">Brief title for the notification (max 200 characters)</small>
+                            <small class="form-help">Brief title for the notification (max 50 characters)</small>
                         </div>
 
                         <div class="form-group">
@@ -86,13 +102,12 @@
                                 name="message" 
                                 placeholder="Enter detailed message here..." 
                                 rows="6" 
-                                maxlength="1000"
                                 required
                             ></textarea>
                             <div class="char-count">
-                                <span id="charCount">0</span>/1000
+                                <span id="charCount">0</span>/200
                             </div>
-                            <small class="form-help">Detailed message for the notification (max 1000 characters)</small>
+                            <small class="form-help">Detailed message for the notification (max 200 characters)</small>
                         </div>
 
                         <div class="form-actions">
@@ -128,20 +143,116 @@
     </button>
 
     <script>
-        // Character counter
+        // Character counter + soft limit indicator (200)
         const textarea = document.getElementById('notification_message');
         const charCount = document.getElementById('charCount');
-        
-        textarea.addEventListener('input', function() {
-            charCount.textContent = this.value.length;
-        });
+        const MESSAGE_MAX = 200;
+        const TITLE_MAX = 50;
+
+        function updateCharCount() {
+            if (!textarea || !charCount) return;
+            const len = (textarea.value || '').length;
+            charCount.textContent = String(len);
+            if (len > MESSAGE_MAX) {
+                charCount.style.color = '#dc2626';
+                charCount.style.fontWeight = '800';
+            } else {
+                charCount.style.color = '';
+                charCount.style.fontWeight = '';
+            }
+        }
+        if (textarea) {
+            textarea.addEventListener('input', updateCharCount);
+            textarea.addEventListener('change', updateCharCount);
+            updateCharCount();
+        }
+
+        // Validation popup helpers (same feel as other pages)
+        const pop = document.getElementById('notifErrorPop');
+        const popText = document.getElementById('notifErrorText');
+        let popTimer = null;
+
+        function clearMarks() {
+            ['notification_type', 'notification_title', 'notification_message'].forEach(function(id) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.classList.remove('auth-input--error');
+                el.removeAttribute('aria-invalid');
+                el.removeAttribute('aria-describedby');
+            });
+        }
+
+        function showErrorPop(message, focusEl) {
+            if (!pop || !popText) return;
+            popText.textContent = message || 'Please fix the highlighted fields.';
+            pop.classList.remove('auth-error-pop--visible');
+            void pop.offsetWidth;
+            pop.classList.add('auth-error-pop--visible');
+            pop.setAttribute('aria-hidden', 'false');
+
+            if (focusEl) {
+                focusEl.classList.add('auth-input--error');
+                focusEl.setAttribute('aria-invalid', 'true');
+                focusEl.setAttribute('aria-describedby', 'notifErrorText');
+                try { focusEl.focus({ preventScroll: false }); } catch (e) { try { focusEl.focus(); } catch (ignore) {} }
+            }
+
+            if (popTimer) clearTimeout(popTimer);
+            popTimer = setTimeout(hideErrorPop, 5500);
+        }
+
+        function hideErrorPop() {
+            if (popTimer) {
+                clearTimeout(popTimer);
+                popTimer = null;
+            }
+            if (!pop || !popText) return;
+            pop.classList.remove('auth-error-pop--visible');
+            pop.setAttribute('aria-hidden', 'true');
+            popText.textContent = '';
+            clearMarks();
+        }
 
         // Form submission
         document.getElementById('notificationForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+
+            hideErrorPop();
             
             const formData = new FormData(this);
             const responseMessage = document.getElementById('responseMessage');
+
+            const typeEl = document.getElementById('notification_type');
+            const titleEl = document.getElementById('notification_title');
+            const msgEl = document.getElementById('notification_message');
+            const typeVal = typeEl ? (typeEl.value || '').trim() : '';
+            const titleVal = titleEl ? (titleEl.value || '').trim() : '';
+            const msgVal = msgEl ? (msgEl.value || '').trim() : '';
+
+            let err = null;
+            let errEl = null;
+            if (!typeVal) {
+                err = 'Notification type is required.';
+                errEl = typeEl;
+            } else if (!titleVal) {
+                err = 'Title is required.';
+                errEl = titleEl;
+            } else if (titleVal.length > TITLE_MAX) {
+                err = 'Title must be at most ' + TITLE_MAX + ' characters.';
+                errEl = titleEl;
+            } else if (!msgVal) {
+                err = 'Message is required.';
+                errEl = msgEl;
+            } else if (msgVal.length > MESSAGE_MAX) {
+                err = 'Message must be at most ' + MESSAGE_MAX + ' characters.';
+                errEl = msgEl;
+            }
+
+            if (err) {
+                clearMarks();
+                showErrorPop(err, errEl);
+                return false;
+            }
             
             try {
                 const response = await fetch('/send_custom_notification', {
@@ -161,7 +272,7 @@
                         </div>
                     `;
                     this.reset();
-                    charCount.textContent = '0';
+                    updateCharCount();
                     loadRecentNotifications();
                 } else {
                     responseMessage.className = 'response-message error';
@@ -172,6 +283,8 @@
                             <p>${data.detail || 'Failed to send notification'}</p>
                         </div>
                     `;
+                    // Prefer popup for validation-type errors as well
+                    if (data && data.detail) showErrorPop(String(data.detail), titleEl || msgEl || typeEl);
                 }
                 
                 responseMessage.style.display = 'flex';

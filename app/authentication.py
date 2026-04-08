@@ -46,13 +46,13 @@ def validate_email(email: str) -> Tuple[bool, Optional[str]]:
     return True, None
 
 
-# Contact form: email @gmail.com, subject max 200 words, name max 100, message max 5000
-CONTACT_SUBJECT_MAX_WORDS = 200
-CONTACT_NAME_MAX_LENGTH = 100
-CONTACT_MESSAGE_MAX_LENGTH = 5000
+# Contact form: email @gmail.com, subject max 50 characters, name max 50, message max 200
+CONTACT_SUBJECT_MAX_LENGTH = 50
+CONTACT_NAME_MAX_LENGTH = 50
+CONTACT_MESSAGE_MAX_LENGTH = 200
 
 def validate_contact_name(name: str) -> Tuple[bool, Optional[str]]:
-    """Returns (valid, error_message). Name is required, max 100 characters."""
+    """Returns (valid, error_message). Name is required, max 50 characters."""
     if not name or not name.strip():
         return False, "Name is required."
     if len(name.strip()) > CONTACT_NAME_MAX_LENGTH:
@@ -60,7 +60,7 @@ def validate_contact_name(name: str) -> Tuple[bool, Optional[str]]:
     return True, None
 
 def validate_contact_message(message: str) -> Tuple[bool, Optional[str]]:
-    """Returns (valid, error_message). Message is required, max 5000 characters."""
+    """Returns (valid, error_message). Message is required, max 200 characters."""
     if not message or not message.strip():
         return False, "Message is required."
     if len(message.strip()) > CONTACT_MESSAGE_MAX_LENGTH:
@@ -75,11 +75,13 @@ def validate_contact_email(email: str) -> Tuple[bool, Optional[str]]:
         return False, "Email must contain @gmail.com."
     return True, None
 
-def validate_subject_word_count(subject: str, max_words: int = CONTACT_SUBJECT_MAX_WORDS) -> Tuple[bool, Optional[str]]:
-    """Returns (valid, error_message). Subject must have at most max_words words."""
+def validate_subject_word_count(subject: str, max_words: int = CONTACT_SUBJECT_MAX_LENGTH) -> Tuple[bool, Optional[str]]:
+    """
+    Returns (valid, error_message).
+    For the contact form we treat `max_words` as a character limit (50).
+    """
     if not subject or not subject.strip():
         return False, "Subject is required."
-    words = subject.strip().split()
-    if len(words) > max_words:
-        return False, f"Subject must not contain more than {max_words} words."
+    if len(subject.strip()) > CONTACT_SUBJECT_MAX_LENGTH:
+        return False, f"Subject must not contain more than {CONTACT_SUBJECT_MAX_LENGTH} characters."
     return True, None
