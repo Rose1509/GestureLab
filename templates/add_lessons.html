@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/static/css/dashboard.css">
     <link rel="stylesheet" href="/static/css/add_lessons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/auth_error_pop.css">
     <link rel="stylesheet" href="/static/css/logout_modal.css">
     <link rel="stylesheet" href="/static/css/delete_modal.css">
     <link rel="stylesheet" href="/static/css/delete_success_toast.css">
@@ -123,7 +124,17 @@
 
             <section class="add-section-card">
                 <h2 class="section-title">Add new signs</h2>
-                <form method="post" action="/add_lessons" id="lessonForm" enctype="multipart/form-data">
+
+                <div id="lessonErrorPop" class="auth-error-pop" role="alert" aria-live="polite" aria-hidden="true">
+                    <span class="auth-error-pop__badge" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 8v5m0 4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <p class="auth-error-pop__msg" id="lessonErrorText"></p>
+                </div>
+
+                <form method="post" action="/add_lessons" id="lessonForm" enctype="multipart/form-data" novalidate>
                     <input type="hidden" name="lesson_id" id="lesson_id" value="">
                     <div class="form-grid">
                         <div class="input-group">
@@ -166,17 +177,36 @@
 
             <script type="application/json" id="add-lessons-initial-error">{% if error %}{{ error|tojson|safe }}{% else %}null{% endif %}</script>
             <script>
+                var _errorPopTimer = null;
+                function showErrorPop(msg, fieldId) {
+                    clearMarks();
+                    if (_errorPopTimer) { clearTimeout(_errorPopTimer); _errorPopTimer = null; }
+                    var pop = document.getElementById('lessonErrorPop');
+                    var txt = document.getElementById('lessonErrorText');
+                    if (!pop || !txt) return;
+                    txt.textContent = msg;
+                    pop.classList.add('auth-error-pop--visible');
+                    pop.setAttribute('aria-hidden', 'false');
+                    if (fieldId) {
+                        var f = document.getElementById(fieldId);
+                        if (f) { f.classList.add('auth-input--error'); f.focus(); }
+                    }
+                    try { pop.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+                    _errorPopTimer = setTimeout(function () { hideErrorPop(); }, 5500);
+                }
+                function hideErrorPop() {
+                    var pop = document.getElementById('lessonErrorPop');
+                    if (!pop) return;
+                    pop.classList.remove('auth-error-pop--visible');
+                    pop.setAttribute('aria-hidden', 'true');
+                    clearMarks();
+                }
+                function clearMarks() {
+                    document.querySelectorAll('.auth-input--error').forEach(function (el) { el.classList.remove('auth-input--error'); });
+                }
+
                 function showPageError(message) {
-                    var el = document.getElementById('pageError');
-                    if (!el) return;
-                    el.textContent = message || 'Upload failed.';
-                    el.style.display = 'block';
-                    try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
-                    window.clearTimeout(el._dismissTimer);
-                    el._dismissTimer = window.setTimeout(function () {
-                        el.style.display = 'none';
-                        el.textContent = '';
-                    }, 5500);
+                    showErrorPop(message || 'Upload failed.');
                 }
 
                 // Admin image upload validation
@@ -257,18 +287,45 @@
                         try {
                             var initialErr = JSON.parse(errJson.textContent.trim());
                             if (initialErr !== null && initialErr !== undefined) {
-                                showPageError(typeof initialErr === 'string' ? initialErr : String(initialErr));
+                                showErrorPop(typeof initialErr === 'string' ? initialErr : String(initialErr));
                             }
                         } catch (ignore) {}
                     }
 
                     if (form) {
                         form.addEventListener('submit', function (e) {
+                            hideErrorPop();
                             var isUpdate = form.action.indexOf('update_lesson') !== -1;
-                            var err = validateLessonImageInput(imageInput, isUpdate);
-                            if (err) {
+
+                            var level = document.getElementById('sign_level');
+                            if (!level || !level.value.trim()) {
                                 e.preventDefault();
-                                showPageError(err);
+                                showErrorPop('Please select a sign level.', 'sign_level');
+                                return;
+                            }
+                            var nameEl = document.getElementById('name');
+                            if (!nameEl || !nameEl.value.trim()) {
+                                e.preventDefault();
+                                showErrorPop('Please enter a name.', 'name');
+                                return;
+                            }
+                            var imgErr = validateLessonImageInput(imageInput, isUpdate);
+                            if (imgErr) {
+                                e.preventDefault();
+                                showErrorPop(imgErr, 'image');
+                                return;
+                            }
+                            var headingEl = document.getElementById('heading');
+                            if (!headingEl || !headingEl.value.trim()) {
+                                e.preventDefault();
+                                showErrorPop('Please enter a heading.', 'heading');
+                                return;
+                            }
+                            var descEl = document.getElementById('description');
+                            if (!descEl || !descEl.value.trim()) {
+                                e.preventDefault();
+                                showErrorPop('Please enter a description.', 'description');
+                                return;
                             }
                         });
                     }

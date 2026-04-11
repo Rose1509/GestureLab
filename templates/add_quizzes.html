@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/static/css/dashboard.css">
     <link rel="stylesheet" href="/static/css/add_lessons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/auth_error_pop.css">
     <link rel="stylesheet" href="/static/css/logout_modal.css">
     <link rel="stylesheet" href="/static/css/delete_modal.css">
     <link rel="stylesheet" href="/static/css/delete_success_toast.css">
@@ -138,7 +139,17 @@
 
             <section class="add-section-card">
                 <h2 class="section-title">Add / Edit Quiz</h2>
-                <form method="post" action="/add_quiz" id="quizForm" enctype="multipart/form-data">
+
+                <div id="quizErrorPop" class="auth-error-pop" role="alert" aria-live="polite" aria-hidden="true">
+                    <span class="auth-error-pop__badge" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 8v5m0 4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <p class="auth-error-pop__msg" id="quizErrorText"></p>
+                </div>
+
+                <form method="post" action="/add_quiz" id="quizForm" enctype="multipart/form-data" novalidate>
                     <input type="hidden" name="quiz_id" id="quiz_id" value="">
                     <input type="hidden" name="existing_question_image" id="existing_question_image" value="">
                     <input type="hidden" name="existing_option1_image" id="existing_option1_image" value="">
@@ -252,13 +263,8 @@
                         <!-- Correct Option (Hidden until level selected) -->
                         <div class="input-group quiz-field" id="correct-option-section" style="display: none;">
                             <label>Correct Option <span style="color: red;">*</span></label>
-                            <select name="correct_option" id="correct_option">
-                                <option value="">Select</option>
-                                <option value="1">Option 1</option>
-                                <option value="2">Option 2</option>
-                                <option value="3">Option 3</option>
-                                <option value="4">Option 4</option>
-                            </select>
+                            <input type="number" name="correct_option" id="correct_option" min="1" max="4" placeholder="Enter 1 - 4">
+                            <small style="display: block; margin-top: 5px; color: #666;">Must be between 1 and 4</small>
                         </div>
 
                         <!-- Submit Buttons (Hidden until level selected) -->
@@ -270,20 +276,40 @@
                 </form>
             </section>
             <script type="application/json" id="add-quizzes-initial-error">{% if error %}{{ error|tojson|safe }}{% else %}null{% endif %}</script>
+            <script type="application/json" id="quiz-counts-by-level">{{ quiz_counts|tojson|safe }}</script>
             <script>
                 let isEditMode = false;
 
+                var _errorPopTimer = null;
+                function showErrorPop(msg, fieldId) {
+                    clearMarks();
+                    if (_errorPopTimer) { clearTimeout(_errorPopTimer); _errorPopTimer = null; }
+                    var pop = document.getElementById('quizErrorPop');
+                    var txt = document.getElementById('quizErrorText');
+                    if (!pop || !txt) return;
+                    txt.textContent = msg;
+                    pop.classList.add('auth-error-pop--visible');
+                    pop.setAttribute('aria-hidden', 'false');
+                    if (fieldId) {
+                        var f = document.getElementById(fieldId);
+                        if (f) { f.classList.add('auth-input--error'); f.focus(); }
+                    }
+                    try { pop.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+                    _errorPopTimer = setTimeout(function () { hideErrorPop(); }, 5500);
+                }
+                function hideErrorPop() {
+                    var pop = document.getElementById('quizErrorPop');
+                    if (!pop) return;
+                    pop.classList.remove('auth-error-pop--visible');
+                    pop.setAttribute('aria-hidden', 'true');
+                    clearMarks();
+                }
+                function clearMarks() {
+                    document.querySelectorAll('.auth-input--error').forEach(function (el) { el.classList.remove('auth-input--error'); });
+                }
+
                 function showPageError(message) {
-                    var el = document.getElementById('pageError');
-                    if (!el) return;
-                    el.textContent = message || 'Upload failed.';
-                    el.style.display = 'block';
-                    try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
-                    window.clearTimeout(el._dismissTimer);
-                    el._dismissTimer = window.setTimeout(function () {
-                        el.style.display = 'none';
-                        el.textContent = '';
-                    }, 5500);
+                    showErrorPop(message || 'Upload failed.');
                 }
 
                 // Admin image upload validation
@@ -462,12 +488,18 @@
                 }
 
                 document.addEventListener('DOMContentLoaded', function() {
+                    var quizCountsEl = document.getElementById('quiz-counts-by-level');
+                    var quizCounts = {};
+                    if (quizCountsEl && quizCountsEl.textContent) {
+                        try { quizCounts = JSON.parse(quizCountsEl.textContent.trim()) || {}; } catch (ignore) {}
+                    }
+
                     var errJson = document.getElementById('add-quizzes-initial-error');
                     if (errJson && errJson.textContent) {
                         try {
                             var initialErr = JSON.parse(errJson.textContent.trim());
                             if (initialErr !== null && initialErr !== undefined) {
-                                showPageError(typeof initialErr === 'string' ? initialErr : String(initialErr));
+                                showErrorPop(typeof initialErr === 'string' ? initialErr : String(initialErr));
                             }
                         } catch (ignore) {}
                     }
@@ -475,10 +507,95 @@
                     var quizForm = document.getElementById('quizForm');
                     if (quizForm) {
                         quizForm.addEventListener('submit', function(e) {
-                            var err = validateQuizImageInputs();
-                            if (err) {
+                            hideErrorPop();
+
+                            var levelEl = document.getElementById('level');
+                            var level = levelEl ? levelEl.value.trim() : '';
+                            if (!level) {
                                 e.preventDefault();
-                                showPageError(err);
+                                showErrorPop('Please select a quiz level.', 'level');
+                                return;
+                            }
+
+                            var isUpdate = quizForm.action.indexOf('update_quiz') !== -1;
+                            if (!isUpdate) {
+                                var currentCount = quizCounts[level] || 0;
+                                if (currentCount >= 10) {
+                                    e.preventDefault();
+                                    showErrorPop('Maximum 10 quizzes allowed per level. The ' + level + ' level already has ' + currentCount + ' quizzes.', 'level');
+                                    return;
+                                }
+                            }
+
+                            var correctEl = document.getElementById('correct_option');
+                            var correctRaw = correctEl ? correctEl.value.trim() : '';
+                            var correctVal = parseInt(correctRaw, 10);
+                            if (!correctRaw || isNaN(correctVal)) {
+                                e.preventDefault();
+                                showErrorPop('Please enter the correct option number (1 - 4).', 'correct_option');
+                                return;
+                            }
+                            if (correctVal < 1 || correctVal > 4) {
+                                e.preventDefault();
+                                showErrorPop('Correct option must be between 1 and 4. You entered ' + correctVal + '.', 'correct_option');
+                                return;
+                            }
+
+                            if (level === 'Beginner') {
+                                var imgIds = ['option1_image', 'option2_image', 'option3_image', 'option4_image'];
+                                for (var i = 0; i < imgIds.length; i++) {
+                                    var inp = document.getElementById(imgIds[i]);
+                                    var existInp = document.getElementById('existing_' + imgIds[i]);
+                                    var hasExisting = existInp && existInp.value;
+                                    if ((!inp || !inp.files || inp.files.length === 0) && !hasExisting) {
+                                        e.preventDefault();
+                                        showErrorPop('Please upload an image for Option ' + (i + 1) + '.', imgIds[i]);
+                                        return;
+                                    }
+                                }
+                            } else if (level === 'Intermediate') {
+                                var txtIds = ['option1_text', 'option2_text', 'option3_text', 'option4_text'];
+                                for (var i = 0; i < txtIds.length; i++) {
+                                    var t = document.getElementById(txtIds[i]);
+                                    if (!t || !t.value.trim()) {
+                                        e.preventDefault();
+                                        showErrorPop('Please enter text for Option ' + (i + 1) + '.', txtIds[i]);
+                                        return;
+                                    }
+                                }
+                            } else if (level === 'Advance') {
+                                var fmt = document.getElementById('option_format');
+                                var format = fmt ? fmt.value : 'text';
+                                if (format === 'text') {
+                                    var txtIds = ['option1_text', 'option2_text', 'option3_text', 'option4_text'];
+                                    for (var i = 0; i < txtIds.length; i++) {
+                                        var t = document.getElementById(txtIds[i]);
+                                        if (!t || !t.value.trim()) {
+                                            e.preventDefault();
+                                            showErrorPop('Please enter text for Option ' + (i + 1) + '.', txtIds[i]);
+                                            return;
+                                        }
+                                    }
+                                } else {
+                                    var imgIds = ['option1_image', 'option2_image', 'option3_image', 'option4_image'];
+                                    for (var i = 0; i < imgIds.length; i++) {
+                                        var inp = document.getElementById(imgIds[i]);
+                                        var existInp = document.getElementById('existing_' + imgIds[i]);
+                                        var hasExisting = existInp && existInp.value;
+                                        if ((!inp || !inp.files || inp.files.length === 0) && !hasExisting) {
+                                            e.preventDefault();
+                                            showErrorPop('Please upload an image for Option ' + (i + 1) + '.', imgIds[i]);
+                                            return;
+                                        }
+                                    }
+                                }
+                            }
+
+                            var imgErr = validateQuizImageInputs();
+                            if (imgErr) {
+                                e.preventDefault();
+                                showErrorPop(imgErr);
+                                return;
                             }
                         });
                     }

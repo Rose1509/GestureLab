@@ -166,11 +166,14 @@ def _aggregate_user_performance(
 def quizzes_page(request: Request, db: Session = Depends(get_db), _: None = Depends(require_admin)):
     """Admin view to add/edit quizzes."""
     quizzes = db.query(Quiz).all()
+    quiz_counts = {}
+    for q in quizzes:
+        quiz_counts[q.level] = quiz_counts.get(q.level, 0) + 1
     error = request.query_params.get("error")
     return templates.TemplateResponse(
         request,
         "add_quizzes.html",
-        {"request": request, "quizzes": quizzes, "error": error},
+        {"request": request, "quizzes": quizzes, "quiz_counts": quiz_counts, "error": error},
     )
 
 
@@ -593,6 +596,15 @@ async def add_lesson_submit(
     db: Session = Depends(get_db),
     _: None = Depends(require_admin),
 ):
+    if not sign_level or not sign_level.strip():
+        return RedirectResponse(url=f"/add_lessons?error={quote('Please select a sign level.')}", status_code=303)
+    if not name or not name.strip():
+        return RedirectResponse(url=f"/add_lessons?error={quote('Please enter a name.')}", status_code=303)
+    if not heading or not heading.strip():
+        return RedirectResponse(url=f"/add_lessons?error={quote('Please enter a heading.')}", status_code=303)
+    if not description or not description.strip():
+        return RedirectResponse(url=f"/add_lessons?error={quote('Please enter a description.')}", status_code=303)
+
     try:
         image_path = await save_uploaded_file(image)
     except ValueError as e:
@@ -706,6 +718,14 @@ async def add_quiz_submit(
             url=f"/add_quizzes?error={quote('Correct option must be 1, 2, 3, or 4.')}",
             status_code=303,
         )
+
+    level_count = db.query(Quiz).filter(Quiz.level == level).count()
+    if level_count >= 10:
+        return RedirectResponse(
+            url=f"/add_quizzes?error={quote(f'Maximum 10 quizzes allowed per level. The {level} level already has {level_count} quizzes.')}",
+            status_code=303,
+        )
+
     try:
         question_image_path = (
             await save_uploaded_file(question_image)

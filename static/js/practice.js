@@ -28,6 +28,24 @@
     const noHandModal = document.getElementById('no-hand-modal');
     const noHandCloseBtn = document.getElementById('no-hand-close-btn');
     const feedbackPanel = document.getElementById('practice-feedback-panel');
+    const modelErrorPop = document.getElementById('practiceModelErrorPop');
+    const modelErrorText = document.getElementById('practiceModelErrorText');
+    let _modelPopTimer = null;
+
+    function showModelErrorPop(msg) {
+        if (!modelErrorPop || !modelErrorText) return;
+        if (_modelPopTimer) { clearTimeout(_modelPopTimer); _modelPopTimer = null; }
+        modelErrorText.textContent = msg;
+        modelErrorPop.classList.add('auth-error-pop--visible');
+        modelErrorPop.setAttribute('aria-hidden', 'false');
+        try { modelErrorPop.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
+        _modelPopTimer = setTimeout(function () { hideModelErrorPop(); }, 6000);
+    }
+    function hideModelErrorPop() {
+        if (!modelErrorPop) return;
+        modelErrorPop.classList.remove('auth-error-pop--visible');
+        modelErrorPop.setAttribute('aria-hidden', 'true');
+    }
     const feedbackTipsList = document.getElementById('practice-feedback-tips');
     const feedbackIntroEl = document.getElementById('practice-feedback-intro');
     const demoSection = document.getElementById('practice-demo-section');
@@ -411,6 +429,7 @@
                             errorEl.textContent = data.error;
                             errorEl.style.display = 'block';
                         }
+                        showModelErrorPop(data.error);
                         return;
                     }
                     if (errorEl) {
@@ -475,6 +494,7 @@
                         errorEl.textContent = 'Network error. Is the server running?';
                         errorEl.style.display = 'block';
                     }
+                    showModelErrorPop('Network error. Is the server running?');
                 })
                 .finally(function () {
                     predictInFlight = false;
@@ -504,6 +524,7 @@
                                 errorEl.textContent = data.error;
                                 errorEl.style.display = 'block';
                             }
+                            if (data && data.error) showModelErrorPop(data.error);
                             resolve(data || null);
                             return;
                         }
@@ -538,6 +559,7 @@
                             errorEl.textContent = 'Network error. Is the server running?';
                             errorEl.style.display = 'block';
                         }
+                        showModelErrorPop('Network error. Is the server running?');
                         resolve(null);
                     })
                     .finally(function () {
@@ -819,13 +841,14 @@
             const r = await fetch('/api/practice-status');
             const d = await r.json();
             if (d.ready !== true) {
+                const errMsg = d.message ||
+                    'Model files not found. Add sign_language_model_improved.keras and class_labels.pkl to the models folder, then restart the server.';
                 const banner = document.getElementById('practice-ai-banner');
                 if (banner) {
                     banner.style.display = 'block';
-                    banner.textContent =
-                        d.message ||
-                        'Add sign_language_model_improved.keras and class_labels.pkl to the models folder (see models/README.md), then restart the server.';
+                    banner.textContent = errMsg;
                 }
+                showModelErrorPop(errMsg);
                 const sb = document.getElementById('start-camera-btn');
                 if (sb) {
                     sb.disabled = true;
