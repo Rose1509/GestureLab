@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gesture Lab Admin Dashboard</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/auth_error_pop.css">
     <link rel="stylesheet" href="/static/css/logout_modal.css">
     <link rel="stylesheet" href="/static/css/delete_modal.css">
     <link rel="stylesheet" href="/static/css/delete_success_toast.css">
@@ -180,21 +181,45 @@
                     </table>
 
                     {% if user_error %}
-                        <p style="color: #e53e3e; text-align: center; margin-top: 10px;">{{ user_error }}</p>
+                    <div id="dashboardErrorPop" class="auth-error-pop auth-error-pop--visible" role="alert" aria-live="polite" aria-hidden="false" style="margin-top: 14px;">
+                        <span class="auth-error-pop__badge" aria-hidden="true">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 8v5m0 4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </span>
+                        <p class="auth-error-pop__msg">{{ user_error }}</p>
+                    </div>
+                    <script>
+                    (function() {
+                        var pop = document.getElementById('dashboardErrorPop');
+                        if (pop) setTimeout(function() {
+                            pop.classList.remove('auth-error-pop--visible');
+                            pop.setAttribute('aria-hidden', 'true');
+                        }, 5500);
+                    })();
+                    </script>
                     {% endif %}
 
                     <div class="table-footer">
-                        <form id="userUpdateForm" method="post" action="/update_user" style="max-width: 500px; margin: 0 auto; display: none;">
+                        <div id="userFormErrorPop" class="auth-error-pop" role="alert" aria-live="polite" aria-hidden="true" style="max-width: 500px; margin: 0 auto 10px;">
+                            <span class="auth-error-pop__badge" aria-hidden="true">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 8v5m0 4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </span>
+                            <p class="auth-error-pop__msg" id="userFormErrorText"></p>
+                        </div>
+                        <form id="userUpdateForm" method="post" action="/update_user" novalidate style="max-width: 500px; margin: 0 auto; display: none;">
                             <input type="hidden" name="user_id" id="user_id">
                             {% if search_query %}<input type="hidden" name="search_query" value="{{ search_query }}">{% endif %}
                             <div style="margin-bottom: 10px;">
                                 <label for="user_email" style="display: block; margin-bottom: 4px;">Email</label>
-                                <input type="email" name="email" id="user_email" required
+                                <input type="email" name="email" id="user_email"
                                        style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5e0;">
                             </div>
                             <div style="margin-bottom: 10px;">
                                 <label for="user_username" style="display: block; margin-bottom: 4px;">Username</label>
-                                <input type="text" name="username" id="user_username" required
+                                <input type="text" name="username" id="user_username"
                                        style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5e0;">
                             </div>
                             <div style="display: flex; justify-content: center; gap: 10px; margin-top: 10px;">
@@ -219,7 +244,35 @@
     </button>
 
     <script>
-        // Simple inline controller for the "Edit user" form in the admin dashboard
+        var _userFormErrTimer = null;
+        function showUserFormError(msg, fieldId) {
+            clearUserFormMarks();
+            if (_userFormErrTimer) { clearTimeout(_userFormErrTimer); _userFormErrTimer = null; }
+            var pop = document.getElementById('userFormErrorPop');
+            var txt = document.getElementById('userFormErrorText');
+            if (!pop || !txt) return;
+            txt.textContent = msg;
+            pop.classList.add('auth-error-pop--visible');
+            pop.setAttribute('aria-hidden', 'false');
+            if (fieldId) {
+                var f = document.getElementById(fieldId);
+                if (f) { f.classList.add('auth-input--error'); f.focus(); }
+            }
+            try { pop.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+            _userFormErrTimer = setTimeout(function () { hideUserFormError(); }, 5500);
+        }
+        function hideUserFormError() {
+            if (_userFormErrTimer) { clearTimeout(_userFormErrTimer); _userFormErrTimer = null; }
+            var pop = document.getElementById('userFormErrorPop');
+            if (!pop) return;
+            pop.classList.remove('auth-error-pop--visible');
+            pop.setAttribute('aria-hidden', 'true');
+            clearUserFormMarks();
+        }
+        function clearUserFormMarks() {
+            document.querySelectorAll('.auth-input--error').forEach(function (el) { el.classList.remove('auth-input--error'); });
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             const editButtons = document.querySelectorAll('.edit-user-btn');
             const form = document.getElementById('userUpdateForm');
@@ -229,6 +282,7 @@
 
             editButtons.forEach(button => {
                 button.addEventListener('click', function () {
+                    hideUserFormError();
                     const id = this.getAttribute('data-id');
                     const email = this.getAttribute('data-email');
                     const username = this.getAttribute('data-username');
@@ -241,6 +295,35 @@
                     form.scrollIntoView({ behavior: 'smooth' });
                 });
             });
+
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    hideUserFormError();
+                    var email = emailInput ? emailInput.value.trim() : '';
+                    var username = usernameInput ? usernameInput.value.trim() : '';
+
+                    if (!email) {
+                        e.preventDefault();
+                        showUserFormError('Email is required.', 'user_email');
+                        return;
+                    }
+                    if (email.indexOf('@') === -1) {
+                        e.preventDefault();
+                        showUserFormError('Email must contain @.', 'user_email');
+                        return;
+                    }
+                    if (!username) {
+                        e.preventDefault();
+                        showUserFormError('Username is required.', 'user_username');
+                        return;
+                    }
+                    if (username.length > 25) {
+                        e.preventDefault();
+                        showUserFormError('Username must be at most 25 characters.', 'user_username');
+                        return;
+                    }
+                });
+            }
 
             // Shared dark/light theme toggle using the same key as other pages
             const THEME_KEY = 'gesturelab-home-theme';
@@ -260,8 +343,8 @@
             }
         });
 
-        // Hide and reset the inline edit form when admin clicks "Cancel"
         function clearUserForm() {
+            hideUserFormError();
             const form = document.getElementById('userUpdateForm');
             form.reset();
             form.style.display = 'none';

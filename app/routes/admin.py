@@ -546,14 +546,10 @@ def update_user_submit(
     user.username = username
     db.commit()
 
-    redirect_url = "/dashboard"
+    redirect_url = "/dashboard?success=user_updated"
     if search_query and str(search_query).strip():
-        redirect_url = f"/dashboard?q={quote(search_query.strip())}"
+        redirect_url = f"/dashboard?q={quote(search_query.strip())}&success=user_updated"
     return RedirectResponse(url=redirect_url, status_code=303)
-
-
-# NOTE: Remaining admin POST routes (`/delete_user`, lesson/quiz CRUD, admin/user profile updates)
-# are moved as-is below (structural refactor only).
 
 
 @router.post("/delete_user")

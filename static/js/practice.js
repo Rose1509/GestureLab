@@ -9,6 +9,7 @@
     const placeholder = document.getElementById('camera-placeholder');
     const startBtn = document.getElementById('start-camera-btn');
     const captureCanvas = document.getElementById('practice-capture-canvas');
+    const skeletonCanvas = document.getElementById('practice-skeleton-canvas');
     const overlayHintEl = document.getElementById('camera-overlay-hint');
     const letterEl = document.getElementById('prediction-letter');
     const confidenceEl = document.getElementById('prediction-confidence');
@@ -55,10 +56,12 @@
     let predictionIntervalId = null;
     let predictInFlight = false;
     let isPracticing = false;
-    let bestTargetConfidence = null; // best score for the target sign this session
-    let bestOverallLetter = null;    // best predicted letter this session
-    let bestOverallConfidence = 0;   // best top-1 confidence this session (0–1)
-    let handBox = null;              // {x,y,w,h} crop in video pixels
+    let bestTargetConfidence = null;
+    let bestOverallLetter = null;
+    let bestOverallConfidence = 0;
+    let allTargetScores = [];        // every target_confidence sample for averaging
+    let allLandmarkScores = [];      // hand landmark quality per frame (0-1)
+    let handBox = null;
     let handLoopRafId = null;
     let hands = null;
     let lastHandSeenAt = null;
@@ -102,6 +105,115 @@
         const dx = a.x - b.x;
         const dy = a.y - b.y;
         return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    var HAND_CONNECTIONS = [
+        [0,1],[1,2],[2,3],[3,4],
+        [0,5],[5,6],[6,7],[7,8],
+        [5,9],[9,10],[10,11],[11,12],
+        [9,13],[13,14],[14,15],[15,16],
+        [13,17],[17,18],[18,19],[19,20],
+        [0,17]
+    ];
+
+    var FINGER_COLORS = {
+        thumb:  '#FF4136',
+        index:  '#FF851B',
+        middle: '#FFDC00',
+        ring:   '#2ECC40',
+        pinky:  '#7FDBFF'
+    };
+
+    function getConnectionColor(i, j) {
+        var min = Math.min(i, j), max = Math.max(i, j);
+        if (max <= 4)  return FINGER_COLORS.thumb;
+        if (min >= 5  && max <= 8)  return FINGER_COLORS.index;
+        if (min >= 9  && max <= 12) return FINGER_COLORS.middle;
+        if (min >= 13 && max <= 16) return FINGER_COLORS.ring;
+        if (min >= 17 && max <= 20) return FINGER_COLORS.pinky;
+        return '#FFFFFF';
+    }
+
+    function getLandmarkColor(idx) {
+        if (idx <= 4)  return FINGER_COLORS.thumb;
+        if (idx <= 8)  return FINGER_COLORS.index;
+        if (idx <= 12) return FINGER_COLORS.middle;
+        if (idx <= 16) return FINGER_COLORS.ring;
+        if (idx <= 20) return FINGER_COLORS.pinky;
+        return '#FFFFFF';
+    }
+
+    function syncSkeletonSize() {
+        if (!skeletonCanvas || !videoEl) return;
+        var container = skeletonCanvas.parentElement;
+        if (!container) return;
+        var w = container.clientWidth  || container.offsetWidth  || 640;
+        var h = container.clientHeight || container.offsetHeight || 400;
+        if (skeletonCanvas.width !== w || skeletonCanvas.height !== h) {
+            skeletonCanvas.width  = w;
+            skeletonCanvas.height = h;
+        }
+    }
+
+    function drawHandSkeleton(landmarks) {
+        if (!skeletonCanvas || !videoEl) return;
+        syncSkeletonSize();
+        var ctx = skeletonCanvas.getContext('2d');
+        var cw = skeletonCanvas.width;
+        var ch = skeletonCanvas.height;
+        ctx.clearRect(0, 0, cw, ch);
+        if (!landmarks || !landmarks.length) return;
+
+        var vw = videoEl.videoWidth  || 1;
+        var vh = videoEl.videoHeight || 1;
+        var videoRatio     = vw / vh;
+        var containerRatio = cw / ch;
+        var scale, ox, oy;
+        if (videoRatio > containerRatio) {
+            scale = ch / vh;
+            ox = (cw - vw * scale) / 2;
+            oy = 0;
+        } else {
+            scale = cw / vw;
+            ox = 0;
+            oy = (ch - vh * scale) / 2;
+        }
+
+        function px(normX) { return (1 - normX) * vw * scale + ox; }
+        function py(normY) { return normY * vh * scale + oy; }
+
+        ctx.lineCap = 'round';
+        for (var c = 0; c < HAND_CONNECTIONS.length; c++) {
+            var pair = HAND_CONNECTIONS[c];
+            var from = landmarks[pair[0]];
+            var to   = landmarks[pair[1]];
+            if (!from || !to) continue;
+            ctx.beginPath();
+            ctx.moveTo(px(from.x), py(from.y));
+            ctx.lineTo(px(to.x),   py(to.y));
+            ctx.strokeStyle = getConnectionColor(pair[0], pair[1]);
+            ctx.lineWidth = 4;
+            ctx.stroke();
+        }
+
+        for (var p = 0; p < landmarks.length; p++) {
+            var pt = landmarks[p];
+            if (!pt) continue;
+            var radius = (p === 0) ? 7 : 5;
+            ctx.beginPath();
+            ctx.arc(px(pt.x), py(pt.y), radius, 0, 2 * Math.PI);
+            ctx.fillStyle = getLandmarkColor(p);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+    }
+
+    function clearSkeleton() {
+        if (!skeletonCanvas) return;
+        var ctx = skeletonCanvas.getContext('2d');
+        ctx.clearRect(0, 0, skeletonCanvas.width, skeletonCanvas.height);
     }
 
     function resetWordBuilderUI() {
@@ -241,6 +353,7 @@
             handLoopRafId = null;
         }
         handBox = null;
+        clearSkeleton();
         if (overlayHintEl) {
             overlayHintEl.style.display = 'none';
             overlayHintEl.textContent = '';
@@ -289,6 +402,32 @@
         setOverlayHint(hints.length ? hints.join(' • ') : 'Good position');
     }
 
+    function computeLandmarkQuality() {
+        if (!handBox || !videoEl || !videoEl.videoWidth || !videoEl.videoHeight) return 0;
+        var vw = videoEl.videoWidth;
+        var vh = videoEl.videoHeight;
+        var cx = handBox.x + handBox.w / 2;
+        var cy = handBox.y + handBox.h / 2;
+        var centerX = vw / 2;
+        var centerY = vh / 2;
+
+        var distFromCenter = Math.sqrt(
+            Math.pow((cx - centerX) / vw, 2) +
+            Math.pow((cy - centerY) / vh, 2)
+        );
+        var positionScore = Math.max(0, 1 - distFromCenter * 2.5);
+
+        var area = handBox.w * handBox.h;
+        var frameArea = vw * vh;
+        var areaRatio = frameArea > 0 ? area / frameArea : 0;
+        var sizeScore;
+        if (areaRatio < 0.03) sizeScore = areaRatio / 0.03;
+        else if (areaRatio > 0.35) sizeScore = Math.max(0, 1 - (areaRatio - 0.35) * 3);
+        else sizeScore = 1.0;
+
+        return positionScore * 0.4 + sizeScore * 0.6;
+    }
+
     function ensureHands() {
         if (hands) return hands;
         if (!window.Hands) return null;
@@ -308,9 +447,14 @@
             if (!lm || !videoEl || !videoEl.videoWidth || !videoEl.videoHeight) {
                 handBox = null;
                 lastLandmarks = null;
+                clearSkeleton();
                 return;
             }
             lastLandmarks = lm;
+
+            if (skeletonCanvas) {
+                drawHandSkeleton(lm);
+            }
             let minX = 1, minY = 1, maxX = 0, maxY = 0;
             for (var i = 0; i < lm.length; i++) {
                 const p = lm[i];
@@ -481,6 +625,8 @@
                     if (TARGET_LETTER) {
                         const t = data.target_confidence;
                         if (typeof t === 'number') {
+                            allTargetScores.push(t);
+                            allLandmarkScores.push(computeLandmarkQuality());
                             if (bestTargetConfidence == null || t > bestTargetConfidence) {
                                 bestTargetConfidence = t;
                             }
@@ -576,11 +722,10 @@
         if (TARGET_LETTER && targetWrap && targetEl && targetConfWrap && targetConfEl) {
             targetWrap.style.display = 'block';
             targetEl.textContent = TARGET_LETTER;
-            if (confidenceLabelEl) confidenceLabelEl.textContent = 'Top prediction';
         } else {
             if (targetWrap) targetWrap.style.display = 'none';
-            if (confidenceLabelEl) confidenceLabelEl.textContent = 'Confidence';
         }
+        if (confidenceLabelEl) confidenceLabelEl.textContent = 'Confidence';
         setPredictionVisible(true);
         captureAndPredict();
         predictionIntervalId = setInterval(captureAndPredict, 350);
@@ -733,6 +878,7 @@
             currentStream = stream;
             videoEl.srcObject = stream;
             videoEl.style.display = 'block';
+            if (skeletonCanvas) skeletonCanvas.style.display = 'block';
             if (placeholder) placeholder.style.display = 'none';
             const playPromise = videoEl.play && videoEl.play();
             if (playPromise && typeof playPromise.then === 'function') {
@@ -756,6 +902,8 @@
         bestTargetConfidence = null;
         bestOverallLetter = null;
         bestOverallConfidence = 0;
+        allTargetScores = [];
+        allLandmarkScores = [];
         lastHandSeenAt = null;
         if (WORD_BUILDER_ENABLED) clearWordBuilder();
         if (feedbackPanel) feedbackPanel.style.display = 'none';
@@ -781,15 +929,18 @@
             try {
                 setAnalyzing(true);
                 await startPredictionLoop._captureAndPredictOnce();
-                if (bestOverallLetter != null) {
-                    letterEl.textContent = bestOverallLetter;
-                    const finalTopPct = (bestOverallConfidence * 100).toFixed(1);
-                    confidenceEl.textContent = finalTopPct + '%';
-                }
                 setTimeout(function () {
                     setAnalyzing(false);
+                    if (bestOverallLetter != null) {
+                        letterEl.textContent = bestOverallLetter;
+                        var topPct = (bestOverallConfidence * 100).toFixed(1);
+                        confidenceEl.textContent = topPct + '%';
+                    }
+                    if (confidenceLabelEl) confidenceLabelEl.textContent = 'Top prediction';
                 }, 4500);
-            } catch (_) {}
+            } catch (_) {
+                setAnalyzing(false);
+            }
         }
 
         stopPredictionLoop();
@@ -807,6 +958,8 @@
             videoEl.srcObject = null;
             videoEl.style.display = 'none';
         }
+        clearSkeleton();
+        if (skeletonCanvas) skeletonCanvas.style.display = 'none';
         if (placeholder) placeholder.style.display = 'block';
 
         if (startBtn) startBtn.style.display = 'inline-flex';
@@ -817,15 +970,29 @@
             targetWrap.style.display = 'block';
             targetEl.textContent = TARGET_LETTER;
             targetConfWrap.style.display = 'block';
-            if (bestTargetConfidence == null) {
+
+            var finalScore = null;
+            if (allTargetScores.length > 0) {
+                var weightedSum = 0;
+                var weightTotal = 0;
+                for (var i = 0; i < allTargetScores.length; i++) {
+                    var lmq = (i < allLandmarkScores.length) ? allLandmarkScores[i] : 0.5;
+                    var w = 0.7 + lmq * 0.3;
+                    weightedSum += allTargetScores[i] * w;
+                    weightTotal += w;
+                }
+                finalScore = weightTotal > 0 ? weightedSum / weightTotal : 0;
+            }
+
+            if (finalScore == null) {
                 targetConfEl.textContent = '—%';
             } else {
-                const finalPct = (bestTargetConfidence * 100).toFixed(1);
+                var finalPct = (finalScore * 100).toFixed(1);
                 targetConfEl.textContent = finalPct + '%';
             }
             if (feedbackPanel) {
-                if (bestTargetConfidence != null && bestTargetConfidence < FEEDBACK_THRESHOLD) {
-                    setFeedbackPanelVisible(true, bestTargetConfidence * 100);
+                if (finalScore != null && finalScore < FEEDBACK_THRESHOLD) {
+                    setFeedbackPanelVisible(true, finalScore * 100);
                 } else {
                     setFeedbackPanelVisible(false);
                 }
@@ -877,8 +1044,6 @@
             stopBtn.addEventListener('click', function () {
                 if (WORD_BUILDER_ENABLED && isPracticing) {
                     finalizeCurrentWord();
-                    stopPractice(false);
-                    return;
                 }
                 stopPractice(true);
             });
