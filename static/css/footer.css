@@ -9,7 +9,7 @@
     background-color: #1a2b4b; /* Deep Navy Blue */
     color: #ffffff;
     padding: 20px 0 10px 0; /* Tightest vertical padding */
-    font-family: 'Inter', sans-serif;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     width: 100%;
 }
 
@@ -30,6 +30,21 @@
     color: #ffffff;
     /* Ensures no extra margin is pushing it up or down */
     margin: 0; 
+}
+
+.footer-tagline {
+    font-size: 1.15rem;
+    font-weight: 500;
+    color: #c5ccd9;
+    margin: 0;
+    max-width: 26rem;
+    line-height: 1.5;
+}
+
+.footer-brand {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 /* Links Layout */

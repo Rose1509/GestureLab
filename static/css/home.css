@@ -363,6 +363,20 @@ body.dark-theme .info-content p {
     color: #CCD0CF;
 }
 
+body.dark-theme .info-content a.section-link {
+    color: #CCD0CF;
+    text-decoration: none;
+}
+
+body.dark-theme .info-content a.section-link:hover {
+    color: #93c5fd;
+    text-decoration: none;
+}
+
+body.dark-theme .info-content a.section-link:focus-visible {
+    outline-color: #93c5fd;
+}
+
 /* Floating circular theme toggle (home only) */
 .home-theme-toggle {
     position: fixed;
@@ -666,6 +680,23 @@ body.dark-theme .home-theme-icon-moon {
     color: #334155;
     line-height: 1.6;
     font-size: 1rem;
+}
+
+/* About / Contact headings are links — match heading look, no underline */
+.info-content a.section-link {
+    color: #1a2e4c;
+    text-decoration: none;
+}
+
+.info-content a.section-link:hover {
+    color: #2563eb;
+    text-decoration: none;
+}
+
+.info-content a.section-link:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 3px;
+    border-radius: 2px;
 }
 
 .vertical-divider {
