@@ -507,28 +507,40 @@
         const handsApi = ensureHands();
         if (!handsApi) {
             handBox = null;
+            if (typeof window !== 'undefined' && !window.Hands) {
+                console.warn('GestureLab: MediaPipe Hands script did not load (window.Hands missing). Check the network tab for cdn.jsdelivr.net.');
+            }
             return;
         }
         let sending = false;
-        async function tick() {
-            handLoopRafId = requestAnimationFrame(tick);
-            if (!videoEl || !videoEl.srcObject || videoEl.readyState < 2) return;
-            if (sending) return;
-            sending = true;
+        // MediaPipe Solution API requires initialize() once before send(); without it, WASM never loads and no landmarks run.
+        (async function runLoop() {
             try {
-                await handsApi.send({ image: videoEl });
-            } catch (_) {
-                // ignore
-            } finally {
-                sending = false;
+                await handsApi.initialize();
+            } catch (err) {
+                console.error('GestureLab: MediaPipe Hands failed to initialize:', err);
+                return;
             }
-            if (isPracticing) {
-                const now = Date.now();
-                const tooLong = !lastHandSeenAt || (now - lastHandSeenAt) >= NO_HAND_TIMEOUT_MS;
-                if (tooLong && noHandModal) noHandModal.style.display = 'flex';
+            async function tick() {
+                handLoopRafId = requestAnimationFrame(tick);
+                if (!videoEl || !videoEl.srcObject || videoEl.readyState < 2) return;
+                if (sending) return;
+                sending = true;
+                try {
+                    await handsApi.send({ image: videoEl });
+                } catch (_) {
+                    // ignore
+                } finally {
+                    sending = false;
+                }
+                if (isPracticing) {
+                    const now = Date.now();
+                    const tooLong = !lastHandSeenAt || (now - lastHandSeenAt) >= NO_HAND_TIMEOUT_MS;
+                    if (tooLong && noHandModal) noHandModal.style.display = 'flex';
+                }
             }
-        }
-        tick();
+            tick();
+        })();
     }
 
     function captureFrameToCanvas() {
